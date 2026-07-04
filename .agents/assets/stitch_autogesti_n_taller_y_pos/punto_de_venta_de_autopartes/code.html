@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+
+<html class="light" lang="es">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Automivo - Punto de Venta</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@500&amp;display=swap"
+        rel="stylesheet" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+        rel="stylesheet" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+        rel="stylesheet" />
+    <style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+        }
+
+        .scrollbar-hide {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        .active-category {
+            background-color: #1e293b;
+            color: white;
+        }
+    </style>
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-container-lowest": "#ffffff",
+                        "error": "#ba1a1a",
+                        "on-secondary": "#ffffff",
+                        "on-tertiary-fixed-variant": "#005236",
+                        "on-secondary-fixed-variant": "#653e00",
+                        "on-tertiary": "#ffffff",
+                        "on-primary-fixed": "#111c2d",
+                        "on-tertiary-container": "#00a472",
+                        "error-container": "#ffdad6",
+                        "surface-tint": "#545f73",
+                        "outline": "#75777d",
+                        "on-error": "#ffffff",
+                        "primary": "#091426",
+                        "on-surface-variant": "#45474c",
+                        "tertiary-container": "#00301e",
+                        "surface-container": "#e5eeff",
+                        "background": "#f8f9ff",
+                        "primary-fixed-dim": "#bcc7de",
+                        "tertiary": "#00190e",
+                        "surface-dim": "#cbdbf5",
+                        "primary-container": "#1e293b",
+                        "secondary": "#855300",
+                        "on-error-container": "#93000a",
+                        "surface": "#f8f9ff",
+                        "tertiary-fixed": "#6ffbbe",
+                        "inverse-on-surface": "#eaf1ff",
+                        "primary-fixed": "#d8e3fb",
+                        "inverse-primary": "#bcc7de",
+                        "surface-container-high": "#dce9ff",
+                        "secondary-container": "#fea619",
+                        "inverse-surface": "#213145",
+                        "secondary-fixed": "#ffddb8",
+                        "on-surface": "#0b1c30",
+                        "on-primary-container": "#8590a6",
+                        "outline-variant": "#c5c6cd",
+                        "surface-container-low": "#eff4ff",
+                        "on-primary-fixed-variant": "#3c475a",
+                        "on-tertiary-fixed": "#002113",
+                        "on-secondary-container": "#684000",
+                        "surface-variant": "#d3e4fe",
+                        "on-primary": "#ffffff",
+                        "on-secondary-fixed": "#2a1700",
+                        "tertiary-fixed-dim": "#4edea3",
+                        "surface-container-highest": "#d3e4fe",
+                        "secondary-fixed-dim": "#ffb95f",
+                        "on-background": "#0b1c30",
+                        "surface-bright": "#f8f9ff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "md": "16px",
+                        "xs": "4px",
+                        "sm": "8px",
+                        "xl": "40px",
+                        "margin": "24px",
+                        "gutter": "16px",
+                        "max-width": "1440px",
+                        "base": "4px",
+                        "lg": "24px"
+                    },
+                    "fontFamily": {
+                        "headline-md": ["Inter"],
+                        "body-sm": ["Inter"],
+                        "display-lg": ["Inter"],
+                        "body-base": ["Inter"],
+                        "data-mono": ["JetBrains Mono"],
+                        "label-caps": ["Inter"]
+                    },
+                    "fontSize": {
+                        "headline-md": ["20px", { "lineHeight": "28px", "fontWeight": "600" }],
+                        "body-sm": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "display-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "body-base": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "data-mono": ["14px", { "lineHeight": "20px", "fontWeight": "500" }],
+                        "label-caps": ["12px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700" }]
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+
+<body class="bg-background font-body-base text-on-background overflow-hidden h-screen">
+    <!-- Sidebar (Shared Component Anchor) -->
+    <aside class="h-screen w-64 fixed left-0 top-0 border-r border-outline-variant bg-primary flex flex-col py-4 z-50">
+        <div class="px-6 mb-8">
+            <h1 class="font-headline-md text-headline-md font-bold text-on-primary">Automivo</h1>
+            <p class="text-on-primary-container text-xs opacity-80 uppercase tracking-widest font-bold">Workshop OS</p>
+        </div>
+        <nav class="flex-1">
+            <a class="text-on-primary-fixed-variant hover:bg-on-primary-fixed-variant/10 rounded-lg mx-2 my-1 flex items-center px-4 py-3 transition-colors"
+                href="#">
+                <span class="material-symbols-outlined mr-3" data-icon="dashboard">dashboard</span>
+                <span>Dashboard</span>
+            </a>
+            <a class="bg-secondary-container text-on-secondary-container rounded-lg mx-2 my-1 flex items-center px-4 py-3 scale-[0.98] transition-transform"
+                href="#">
+                <span class="material-symbols-outlined mr-3" data-icon="point_of_sale">point_of_sale</span>
+                <span>Ventas</span>
+            </a>
+            <a class="text-on-primary-fixed-variant hover:bg-on-primary-fixed-variant/10 rounded-lg mx-2 my-1 flex items-center px-4 py-3 transition-colors"
+                href="#">
+                <span class="material-symbols-outlined mr-3" data-icon="inventory_2">inventory_2</span>
+                <span>Inventario</span>
+            </a>
+            <a class="text-on-primary-fixed-variant hover:bg-on-primary-fixed-variant/10 rounded-lg mx-2 my-1 flex items-center px-4 py-3 transition-colors"
+                href="#">
+                <span class="material-symbols-outlined mr-3" data-icon="calendar_today">calendar_today</span>
+                <span>Citas</span>
+            </a>
+            <a class="text-on-primary-fixed-variant hover:bg-on-primary-fixed-variant/10 rounded-lg mx-2 my-1 flex items-center px-4 py-3 transition-colors"
+                href="#">
+                <span class="material-symbols-outlined mr-3" data-icon="build">build</span>
+                <span>Mantenimiento</span>
+            </a>
+            <a class="text-on-primary-fixed-variant hover:bg-on-primary-fixed-variant/10 rounded-lg mx-2 my-1 flex items-center px-4 py-3 transition-colors"
+                href="#">
+                <span class="material-symbols-outlined mr-3" data-icon="group">group</span>
+                <span>Usuarios</span>
+            </a>
+        </nav>
+        <div class="px-4 mt-auto">
+            <div class="bg-primary-container rounded-xl p-4 flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-surface-variant overflow-hidden">
+                    <img class="w-full h-full object-cover"
+                        data-alt="A professional male service advisor wearing a clean navy blue uniform with a workshop logo. He has a friendly but focused expression, set against a blurred background of a modern, organized automotive service center with high-tech equipment and cool daylight lighting."
+                        src="https://lh3.googleusercontent.com/aida-public/AB6AXuBxSh88-1RnHPaCq7leiTt0XTHS2XcKgemyX7QtZGD06qBtTb5GQLPbtemAarmqfPPxuEbtfZivz4PJ4S6F2tHh3ud8lmd6EdSb6Aj890t6Mj16jHWe3BN5jmoTQdrWFWlYvt4zbVt-8OF5NWl_22eIRJFgxN6H8SEQT73UG3WCTOnzJFkICSyT71nzuJMBbglrUdJv9mv4_IabgfOyVvGL5yt_RO-jQAGnHFYfYBxb0_kZ5O19RwBq6w" />
+                </div>
+                <div>
+                    <p class="text-sm font-bold text-on-primary">Admin</p>
+                    <p class="text-xs text-on-primary-container">Turno Mañana</p>
+                </div>
+            </div>
+        </div>
+    </aside>
+    <!-- Top App Bar (Shared Component Anchor) -->
+    <header
+        class="flex justify-between items-center h-16 px-6 ml-64 w-[calc(100%-16rem)] sticky top-0 bg-surface border-b border-outline-variant z-40">
+        <div class="flex items-center gap-4 flex-1">
+            <div class="relative w-full max-w-md">
+                <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant"
+                    data-icon="search">search</span>
+                <input
+                    class="w-full pl-10 pr-4 py-2 bg-surface-container-low border border-outline-variant rounded-lg focus:outline-none focus:border-primary text-body-sm font-body-sm"
+                    placeholder="Buscar por nombre, SKU o código de barras..." type="text" />
+            </div>
+        </div>
+        <div class="flex items-center gap-4">
+            <button class="p-2 hover:bg-surface-container-low rounded-full relative">
+                <span class="material-symbols-outlined text-primary" data-icon="notifications">notifications</span>
+                <span class="absolute top-2 right-2 w-2 h-2 bg-error rounded-full"></span>
+            </button>
+            <div class="h-8 w-px bg-outline-variant mx-2"></div>
+            <div class="flex items-center gap-2">
+                <span class="material-symbols-outlined text-primary" data-icon="account_circle">account_circle</span>
+                <span class="font-body-sm text-body-sm font-bold text-primary">Estación 04</span>
+            </div>
+        </div>
+    </header>
+    <!-- Main Content Canvas -->
+    <main class="ml-64 flex h-[calc(100vh-64px)] overflow-hidden">
+        <!-- Left Section: Catalog -->
+        <section class="w-2/3 flex flex-col bg-white">
+            <!-- Categories Ribbon -->
+            <div class="p-4 border-b border-outline-variant flex gap-2 overflow-x-auto scrollbar-hide">
+                <button
+                    class="px-4 py-2 rounded-lg bg-primary text-white text-sm font-bold flex items-center gap-2 whitespace-nowrap">
+                    <span class="material-symbols-outlined text-sm" data-icon="grid_view">grid_view</span> Todos
+                </button>
+                <button
+                    class="px-4 py-2 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface text-sm font-medium flex items-center gap-2 whitespace-nowrap">
+                    <span class="material-symbols-outlined text-sm"
+                        data-icon="settings_input_component">settings_input_component</span> Frenos
+                </button>
+                <button
+                    class="px-4 py-2 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface text-sm font-medium flex items-center gap-2 whitespace-nowrap">
+                    <span class="material-symbols-outlined text-sm" data-icon="engine">enable</span> Motor
+                </button>
+                <button
+                    class="px-4 py-2 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface text-sm font-medium flex items-center gap-2 whitespace-nowrap">
+                    <span class="material-symbols-outlined text-sm" data-icon="minor_crash">minor_crash</span>
+                    Suspensión
+                </button>
+                <button
+                    class="px-4 py-2 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface text-sm font-medium flex items-center gap-2 whitespace-nowrap">
+                    <span class="material-symbols-outlined text-sm" data-icon="bolt">bolt</span> Eléctrico
+                </button>
+                <button
+                    class="px-4 py-2 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface text-sm font-medium flex items-center gap-2 whitespace-nowrap">
+                    <span class="material-symbols-outlined text-sm" data-icon="format_paint">format_paint</span>
+                    Carrocería
+                </button>
+            </div>
+            <!-- Products Grid -->
+            <div class="flex-1 overflow-y-auto p-4 grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                <!-- Product Card 1 -->
+                <button
+                    class="group bg-white border border-outline-variant rounded-lg p-3 hover:border-secondary-container transition-all text-left flex flex-col active:scale-95"
+                    onclick="addToCart('Pastillas de Freno Cerámicas', 850.00)">
+                    <div class="aspect-square w-full rounded-md bg-surface-container-low mb-3 overflow-hidden">
+                        <img class="w-full h-full object-cover group-hover:scale-110 transition-transform"
+                            data-alt="A set of high-performance ceramic brake pads laid out on a clean white technical background. The lighting is crisp and industrial, highlighting the metallic texture of the pads. The image is clear, sharp, and focused, resembling a high-quality catalog shot for professional mechanics."
+                            src="https://lh3.googleusercontent.com/aida-public/AB6AXuBB7zt2rWLTsY161cxuG8wstnwYGBcp0T2sQZRizRgVvP2I61V8C2gBPPXBfxp08w34Ab6bNkqFYSI8rn8Sm9SarwPo1Y7EOniOLfqcC2ahK9fgfQZa8VKueCqLcO8e2rO4-yV0Brycw7plDqIbHGzvHD7MUdwPN8pE8YHPxKKAyRpQB41nmW3ZcgUYidgKz0NKmxAQfNpUgkvZEs0W_YgHKjA3GOZIddEdCtzIxp6e2tlpTOKXm9radQ" />
+                    </div>
+                    <p class="text-xs text-on-surface-variant font-bold mb-1">SKU: BRK-2045</p>
+                    <h3 class="text-sm font-bold text-on-surface line-clamp-2 leading-tight flex-1">Pastillas de Freno
+                        Cerámicas - Eje Delantero</h3>
+                    <div class="mt-2 flex justify-between items-end">
+                        <span class="font-data-mono text-primary font-bold text-lg">$850.00</span>
+                        <span class="text-[10px] bg-tertiary-fixed text-on-tertiary-fixed px-1.5 py-0.5 rounded">24 en
+                            stock</span>
+                    </div>
+                </button>
+                <!-- Product Card 2 -->
+                <button
+                    class="group bg-white border border-outline-variant rounded-lg p-3 hover:border-secondary-container transition-all text-left flex flex-col active:scale-95"
+                    onclick="addToCart('Filtro de Aceite Sintético', 245.50)">
+                    <div class="aspect-square w-full rounded-md bg-surface-container-low mb-3 overflow-hidden">
+                        <img class="w-full h-full object-cover group-hover:scale-110 transition-transform"
+                            data-alt="A premium automotive oil filter with a metallic blue casing and gold lettering. It is presented in a studio setting with dramatic side lighting that emphasizes the industrial durability of the part. The style is modern, professional, and high-contrast, fitting a corporate workshop OS."
+                            src="https://lh3.googleusercontent.com/aida-public/AB6AXuBaJ6_-AnwHdgbAIOWSeMaP-upy52NdV0AsNkFXZFtf88z-E_Ujxv6J8rcYFGW36N70EwEvymSyQINZWgBhp6j-3cax9t24NAvtdup3MAoxx6n-Auw83O1z7hWjqqvlYbfAVQoz8yYspqSKVQjvk1_w89v_eHIVgayxB5QCpnNvePGnFxYLZsk6xNO5GdGUJpwLvXUCgM38W1VYZhTmKWrSpmMYjmrFsY1ndtP57TA41m4yMF8dS-6tDg" />
+                    </div>
+                    <p class="text-xs text-on-surface-variant font-bold mb-1">SKU: OIL-8821</p>
+                    <h3 class="text-sm font-bold text-on-surface line-clamp-2 leading-tight flex-1">Filtro de Aceite de
+                        Alto Rendimiento</h3>
+                    <div class="mt-2 flex justify-between items-end">
+                        <span class="font-data-mono text-primary font-bold text-lg">$245.50</span>
+                        <span class="text-[10px] bg-tertiary-fixed text-on-tertiary-fixed px-1.5 py-0.5 rounded">45 en
+                            stock</span>
+                    </div>
+                </button>
+                <!-- Product Card 3 -->
+                <button
+                    class="group bg-white border border-outline-variant rounded-lg p-3 hover:border-secondary-container transition-all text-left flex flex-col active:scale-95"
+                    onclick="addToCart('Amortiguador de Gas Trasero', 1200.00)">
+                    <div class="aspect-square w-full rounded-md bg-surface-container-low mb-3 overflow-hidden">
+                        <img class="w-full h-full object-cover group-hover:scale-110 transition-transform"
+                            data-alt="A heavy-duty gas shock absorber for a truck suspension system, finished in a matte black industrial coating. The lighting is cool and neutral, highlighting the mechanical precision and sturdy build. The background is a very light grey to maintain a clean light-mode UI aesthetic."
+                            src="https://lh3.googleusercontent.com/aida-public/AB6AXuDydc5c8ioXbZB2KQy0X_X58cyBhi4wG7Ak9AWbdRvdOpmbPmfNIt3tzCZnZTpjiaNsZBWVGU1ze7GEEe9In0yRVb1tNNv06c5JBj35lNp8tadGdKu0TzkgQDXlmp0MvlbsEIgAa9JFPwknY58ZUC7HcX-JGVDl44EkH6GPa49T-McjfN5fspr__016OwpTU25T_n_vxQpDdlnmlm6NRROSX_HD6xhUAJ1V4TTCS4XaML-HonAj6c1EiA" />
+                    </div>
+                    <p class="text-xs text-on-surface-variant font-bold mb-1">SKU: SUS-1011</p>
+                    <h3 class="text-sm font-bold text-on-surface line-clamp-2 leading-tight flex-1">Amortiguador de Gas
+                        Reforzado</h3>
+                    <div class="mt-2 flex justify-between items-end">
+                        <span class="font-data-mono text-primary font-bold text-lg">$1,200.00</span>
+                        <span class="text-[10px] bg-error-container text-on-error-container px-1.5 py-0.5 rounded">2 en
+                            stock</span>
+                    </div>
+                </button>
+                <!-- Product Card 4 -->
+                <button
+                    class="group bg-white border border-outline-variant rounded-lg p-3 hover:border-secondary-container transition-all text-left flex flex-col active:scale-95"
+                    onclick="addToCart('Batería 12V 75Ah', 2850.00)">
+                    <div class="aspect-square w-full rounded-md bg-surface-container-low mb-3 overflow-hidden">
+                        <img class="w-full h-full object-cover group-hover:scale-110 transition-transform"
+                            data-alt="A high-capacity 12V lead-acid car battery with visible terminals and technical specification labels. The design is sleek and industrial, with sharp shadows and bright highlights against a white background. The aesthetic conveys reliability and heavy-duty engineering."
+                            src="https://lh3.googleusercontent.com/aida-public/AB6AXuCU55SiK7H-mzLt9D0cT2wkcbQrdembmbUgn-3PIwiSmKv7_3hZDPSwXhwNCSH-ST6A6wp_-lzafjTGuO03ADN3hEDSG0JnQ0NvAevtTcojOTe4EyfsavnTyN-KsFmYPfCDBBLhblGqtVsgQfWfQLJixuDP1uXs1W2wl_N8rM5cEVy4heoUg7i44I0ClUGpNI5JOP4djfjoU8zPV58LJkSWL_LueaG8a0REtSMQ_EkMYjni1M-5-ETCag" />
+                    </div>
+                    <p class="text-xs text-on-surface-variant font-bold mb-1">SKU: BAT-7590</p>
+                    <h3 class="text-sm font-bold text-on-surface line-clamp-2 leading-tight flex-1">Batería de Arranque
+                        Heavy Duty</h3>
+                    <div class="mt-2 flex justify-between items-end">
+                        <span class="font-data-mono text-primary font-bold text-lg">$2,850.00</span>
+                        <span class="text-[10px] bg-tertiary-fixed text-on-tertiary-fixed px-1.5 py-0.5 rounded">15 en
+                            stock</span>
+                    </div>
+                </button>
+                <!-- Product Card 5 -->
+                <button
+                    class="group bg-white border border-outline-variant rounded-lg p-3 hover:border-secondary-container transition-all text-left flex flex-col active:scale-95"
+                    onclick="addToCart('Bujía de Iridio', 180.00)">
+                    <div class="aspect-square w-full rounded-md bg-surface-container-low mb-3 overflow-hidden">
+                        <img class="w-full h-full object-cover group-hover:scale-110 transition-transform"
+                            data-alt="A close-up shot of a single high-performance iridium spark plug. The electrode and ceramic body are sharp and detailed. Soft industrial lighting showcases the metallic luster and precision engineering. A minimalist white background ensures it fits perfectly in a grid layout."
+                            src="https://lh3.googleusercontent.com/aida-public/AB6AXuC3IlNPRG46cKb7fPOnDJxqerazxJQUnkXG8F1jmPaVTQ1XLZg_nwffVRdemJHB4oiFYlDtzF50eEXeCT6hH2Hy1ckHma-N84KfsuuOKCF4s0uFaS4s51W5-oDh4ALBb7YhAWksy9Qk_RyWhxbvdX17o9KEGqnhEJ1wv9YMYYf493oBkTH9XGNEJIr9ZOTBSkDflV9zu-WRHiq_hrc_uQsMRuyq9qjoAmoU_5vcVWp3RcPTPnrg-3O6Cg" />
+                    </div>
+                    <p class="text-xs text-on-surface-variant font-bold mb-1">SKU: ENG-3320</p>
+                    <h3 class="text-sm font-bold text-on-surface line-clamp-2 leading-tight flex-1">Bujía de Iridio
+                        Punta Fina</h3>
+                    <div class="mt-2 flex justify-between items-end">
+                        <span class="font-data-mono text-primary font-bold text-lg">$180.00</span>
+                        <span class="text-[10px] bg-tertiary-fixed text-on-tertiary-fixed px-1.5 py-0.5 rounded">120 en
+                            stock</span>
+                    </div>
+                </button>
+            </div>
+        </section>
+        <!-- Right Section: Cart -->
+        <section class="w-1/3 flex flex-col border-l border-outline-variant bg-surface-container-lowest">
+            <div class="p-4 border-b border-outline-variant flex justify-between items-center bg-white">
+                <div class="flex items-center gap-2">
+                    <span class="material-symbols-outlined text-primary" data-icon="shopping_cart">shopping_cart</span>
+                    <h2 class="font-headline-md text-headline-md">Carrito</h2>
+                </div>
+                <button class="text-error text-xs font-bold uppercase hover:underline"
+                    onclick="clearCart()">Vaciar</button>
+            </div>
+            <!-- Cart Items -->
+            <div class="flex-1 overflow-y-auto p-4 space-y-3" id="cart-container">
+                <!-- Empty State Message -->
+                <div class="h-full flex flex-col items-center justify-center text-on-surface-variant opacity-50 space-y-2"
+                    id="empty-cart-msg">
+                    <span class="material-symbols-outlined text-6xl"
+                        data-icon="add_shopping_cart">add_shopping_cart</span>
+                    <p class="font-medium">Selecciona productos para comenzar</p>
+                </div>
+                <!-- Dynamic Items will be injected here -->
+            </div>
+            <!-- Cart Summary -->
+            <div class="p-4 bg-white border-t border-outline-variant space-y-4">
+                <div class="flex items-center gap-2">
+                    <div class="relative flex-1">
+                        <span
+                            class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-sm"
+                            data-icon="sell">sell</span>
+                        <input
+                            class="w-full pl-9 pr-4 py-2 border border-outline-variant rounded-lg text-sm focus:border-primary"
+                            id="discount-input" placeholder="Descuento (%)" type="number" />
+                    </div>
+                    <button
+                        class="px-4 py-2 bg-primary-container text-on-primary-container rounded-lg text-sm font-bold"
+                        onclick="applyDiscount()">Aplicar</button>
+                </div>
+                <div class="space-y-2 font-data-mono">
+                    <div class="flex justify-between text-on-surface-variant">
+                        <span>Subtotal</span>
+                        <span id="subtotal-val">$0.00</span>
+                    </div>
+                    <div class="flex justify-between text-error">
+                        <span>Descuento</span>
+                        <span id="discount-val">-$0.00</span>
+                    </div>
+                    <div class="flex justify-between text-on-surface-variant">
+                        <span>IVA (16%)</span>
+                        <span id="iva-val">$0.00</span>
+                    </div>
+                    <div
+                        class="flex justify-between text-2xl font-bold text-primary pt-2 border-t border-outline-variant">
+                        <span>TOTAL</span>
+                        <span id="total-val">$0.00</span>
+                    </div>
+                </div>
+                <button
+                    class="w-full py-4 bg-secondary-container text-on-secondary-container rounded-xl font-bold text-lg flex items-center justify-center gap-3 active:scale-95 transition-transform disabled:opacity-50 disabled:pointer-events-none"
+                    disabled="" id="pay-btn" onclick="showPaymentModal()">
+                    PAGAR <span class="material-symbols-outlined" data-icon="arrow_forward">arrow_forward</span>
+                </button>
+            </div>
+        </section>
+    </main>
+    <!-- Payment Modal Overlay -->
+    <div class="fixed inset-0 bg-primary/40 backdrop-blur-sm z-[100] hidden flex items-center justify-center p-6"
+        id="payment-modal">
+        <div
+            class="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div class="p-6 border-b border-outline-variant flex justify-between items-center">
+                <h3 class="font-headline-md text-headline-md">Seleccionar Método de Pago</h3>
+                <button class="material-symbols-outlined p-1 hover:bg-surface-container rounded-full" data-icon="close"
+                    onclick="hidePaymentModal()">close</button>
+            </div>
+            <div class="p-6 space-y-3">
+                <button
+                    class="w-full p-4 border border-outline-variant rounded-xl flex items-center gap-4 hover:bg-surface-container-low hover:border-primary transition-colors text-left group"
+                    onclick="finalizePayment('Efectivo')">
+                    <div
+                        class="w-12 h-12 rounded-full bg-tertiary-fixed-dim flex items-center justify-center text-on-tertiary-fixed">
+                        <span class="material-symbols-outlined" data-icon="payments">payments</span>
+                    </div>
+                    <div class="flex-1">
+                        <p class="font-bold text-primary">Efectivo</p>
+                        <p class="text-xs text-on-surface-variant">Registro manual de billetes y monedas</p>
+                    </div>
+                    <span class="material-symbols-outlined opacity-0 group-hover:opacity-100 transition-opacity"
+                        data-icon="chevron_right">chevron_right</span>
+                </button>
+                <button
+                    class="w-full p-4 border border-outline-variant rounded-xl flex items-center gap-4 hover:bg-surface-container-low hover:border-primary transition-colors text-left group"
+                    onclick="finalizePayment('Tarjeta')">
+                    <div
+                        class="w-12 h-12 rounded-full bg-surface-container-high flex items-center justify-center text-primary">
+                        <span class="material-symbols-outlined" data-icon="credit_card">credit_card</span>
+                    </div>
+                    <div class="flex-1">
+                        <p class="font-bold text-primary">Tarjeta de Débito/Crédito</p>
+                        <p class="text-xs text-on-surface-variant">Procesador bancario externo</p>
+                    </div>
+                    <span class="material-symbols-outlined opacity-0 group-hover:opacity-100 transition-opacity"
+                        data-icon="chevron_right">chevron_right</span>
+                </button>
+                <button
+                    class="w-full p-4 border-2 border-secondary-container rounded-xl flex items-center gap-4 bg-secondary-container/5 hover:bg-secondary-container/10 transition-colors text-left group relative overflow-hidden"
+                    onclick="finalizePayment('Mercado Pago')">
+                    <div
+                        class="w-12 h-12 rounded-full bg-secondary-container flex items-center justify-center text-on-secondary-container">
+                        <span class="material-symbols-outlined" data-icon="point_of_sale">point_of_sale</span>
+                    </div>
+                    <div class="flex-1">
+                        <p class="font-bold text-primary">Mercado Pago Terminal</p>
+                        <p class="text-xs text-on-surface-variant">Sincronización directa con Point Smart</p>
+                    </div>
+                    <span class="material-symbols-outlined text-secondary-container"
+                        data-icon="flash_on">flash_on</span>
+                </button>
+            </div>
+            <div class="p-6 bg-surface-container-low border-t border-outline-variant text-center">
+                <p class="text-sm text-on-surface-variant">Monto a cobrar: <span class="font-bold text-primary"
+                        id="modal-total">$0.00</span></p>
+            </div>
+        </div>
+    </div>
+    <!-- Success Toast -->
+    <div class="fixed bottom-8 left-1/2 -translate-x-1/2 bg-primary text-white px-8 py-4 rounded-full shadow-xl z-[200] hidden flex items-center gap-3 animate-bounce"
+        id="success-toast">
+        <span class="material-symbols-outlined text-tertiary-fixed-dim" data-icon="check_circle">check_circle</span>
+        <span class="font-bold">¡Venta Realizada con Éxito!</span>
+    </div>
+    <script>
+        let cart = [];
+        let discount = 0;
+
+        function addToCart(name, price) {
+            const existing = cart.find(item => item.name === name);
+            if (existing) {
+                existing.qty++;
+            } else {
+                cart.push({ name, price, qty: 1 });
+            }
+            renderCart();
+        }
+
+        function removeFromCart(name) {
+            cart = cart.filter(item => item.name !== name);
+            renderCart();
+        }
+
+        function updateQty(name, delta) {
+            const item = cart.find(i => i.name === name);
+            if (item) {
+                item.qty += delta;
+                if (item.qty <= 0) removeFromCart(name);
+                else renderCart();
+            }
+        }
+
+        function clearCart() {
+            cart = [];
+            discount = 0;
+            document.getElementById('discount-input').value = '';
+            renderCart();
+        }
+
+        function applyDiscount() {
+            const input = document.getElementById('discount-input');
+            discount = parseFloat(input.value) || 0;
+            if (discount < 0) discount = 0;
+            if (discount > 100) discount = 100;
+            renderCart();
+        }
+
+        function renderCart() {
+            const container = document.getElementById('cart-container');
+            const emptyMsg = document.getElementById('empty-cart-msg');
+            const payBtn = document.getElementById('pay-btn');
+
+            if (cart.length === 0) {
+                container.innerHTML = '';
+                container.appendChild(emptyMsg);
+                payBtn.disabled = true;
+            } else {
+                emptyMsg.remove();
+                container.innerHTML = cart.map(item => `
+                    <div class="flex items-center gap-3 bg-white p-3 border border-outline-variant rounded-lg">
+                        <div class="flex-1">
+                            <p class="text-sm font-bold text-primary">${item.name}</p>
+                            <p class="text-xs text-on-surface-variant font-data-mono">$${item.price.toFixed(2)} c/u</p>
+                        </div>
+                        <div class="flex items-center gap-2 bg-surface-container-low rounded-lg p-1">
+                            <button onclick="updateQty('${item.name}', -1)" class="w-6 h-6 flex items-center justify-center hover:bg-surface-variant rounded">-</button>
+                            <span class="text-sm font-bold min-w-[20px] text-center">${item.qty}</span>
+                            <button onclick="updateQty('${item.name}', 1)" class="w-6 h-6 flex items-center justify-center hover:bg-surface-variant rounded">+</button>
+                        </div>
+                        <div class="w-20 text-right">
+                            <p class="text-sm font-bold font-data-mono">$${(item.price * item.qty).toFixed(2)}</p>
+                        </div>
+                        <button onclick="removeFromCart('${item.name}')" class="material-symbols-outlined text-on-surface-variant hover:text-error text-sm" data-icon="delete">delete</button>
+                    </div>
+                `).join('');
+                payBtn.disabled = false;
+            }
+
+            calculateTotals();
+        }
+
+        function calculateTotals() {
+            const subtotal = cart.reduce((acc, item) => acc + (item.price * item.qty), 0);
+            const discountAmt = subtotal * (discount / 100);
+            const subtotalLessDiscount = subtotal - discountAmt;
+            const iva = subtotalLessDiscount * 0.16;
+            const total = subtotalLessDiscount + iva;
+
+            document.getElementById('subtotal-val').innerText = `$${subtotal.toFixed(2)}`;
+            document.getElementById('discount-val').innerText = `-$${discountAmt.toFixed(2)}`;
+            document.getElementById('iva-val').innerText = `$${iva.toFixed(2)}`;
+            document.getElementById('total-val').innerText = `$${total.toFixed(2)}`;
+            document.getElementById('modal-total').innerText = `$${total.toFixed(2)}`;
+        }
+
+        function showPaymentModal() {
+            document.getElementById('payment-modal').classList.remove('hidden');
+            document.getElementById('payment-modal').classList.add('flex');
+        }
+
+        function hidePaymentModal() {
+            document.getElementById('payment-modal').classList.add('hidden');
+            document.getElementById('payment-modal').classList.remove('flex');
+        }
+
+        function finalizePayment(method) {
+            hidePaymentModal();
+            const toast = document.getElementById('success-toast');
+            toast.classList.remove('hidden');
+
+            setTimeout(() => {
+                toast.classList.add('hidden');
+                clearCart();
+            }, 3000);
+        }
+    </script>
+</body>
+
+</html>

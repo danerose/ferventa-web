@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+
+<html class="light" lang="es">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Automivo - Inventario Maestro</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@500&amp;display=swap"
+        rel="stylesheet" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+        rel="stylesheet" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+        rel="stylesheet" />
+    <!-- Tailwind Configuration -->
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-container-lowest": "#ffffff",
+                        "error": "#ba1a1a",
+                        "on-secondary": "#ffffff",
+                        "on-tertiary-fixed-variant": "#005236",
+                        "on-secondary-fixed-variant": "#653e00",
+                        "on-tertiary": "#ffffff",
+                        "on-primary-fixed": "#111c2d",
+                        "on-tertiary-container": "#00a472",
+                        "error-container": "#ffdad6",
+                        "surface-tint": "#545f73",
+                        "outline": "#75777d",
+                        "on-error": "#ffffff",
+                        "primary": "#091426",
+                        "on-surface-variant": "#45474c",
+                        "tertiary-container": "#00301e",
+                        "surface-container": "#e5eeff",
+                        "background": "#f8f9ff",
+                        "primary-fixed-dim": "#bcc7de",
+                        "tertiary": "#00190e",
+                        "surface-dim": "#cbdbf5",
+                        "primary-container": "#1e293b",
+                        "secondary": "#855300",
+                        "on-error-container": "#93000a",
+                        "surface": "#f8f9ff",
+                        "tertiary-fixed": "#6ffbbe",
+                        "inverse-on-surface": "#eaf1ff",
+                        "primary-fixed": "#d8e3fb",
+                        "inverse-primary": "#bcc7de",
+                        "surface-container-high": "#dce9ff",
+                        "secondary-container": "#fea619",
+                        "inverse-surface": "#213145",
+                        "secondary-fixed": "#ffddb8",
+                        "on-surface": "#0b1c30",
+                        "on-primary-container": "#8590a6",
+                        "outline-variant": "#c5c6cd",
+                        "surface-container-low": "#eff4ff",
+                        "on-primary-fixed-variant": "#3c475a",
+                        "on-tertiary-fixed": "#002113",
+                        "on-secondary-container": "#684000",
+                        "surface-variant": "#d3e4fe",
+                        "on-primary": "#ffffff",
+                        "on-secondary-fixed": "#2a1700",
+                        "tertiary-fixed-dim": "#4edea3",
+                        "surface-container-highest": "#d3e4fe",
+                        "secondary-fixed-dim": "#ffb95f",
+                        "on-background": "#0b1c30",
+                        "surface-bright": "#f8f9ff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "md": "16px",
+                        "xs": "4px",
+                        "sm": "8px",
+                        "xl": "40px",
+                        "margin": "24px",
+                        "gutter": "16px",
+                        "max-width": "1440px",
+                        "base": "4px",
+                        "lg": "24px"
+                    },
+                    "fontFamily": {
+                        "headline-md": ["Inter"],
+                        "body-sm": ["Inter"],
+                        "display-lg-mobile": ["Inter"],
+                        "display-lg": ["Inter"],
+                        "body-base": ["Inter"],
+                        "data-mono": ["JetBrains Mono"],
+                        "label-caps": ["Inter"]
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            display: inline-block;
+            vertical-align: middle;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #1e293b;
+        }
+
+        .bento-card {
+            transition: all 0.2s ease-in-out;
+        }
+
+        .bento-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(30, 41, 59, 0.08);
+        }
+    </style>
+</head>
+
+<body class="bg-background text-on-surface font-body-base overflow-x-hidden">
+    <!-- SideNavBar (Shared Component) -->
+    <aside
+        class="bg-primary dark:bg-primary-container text-on-primary dark:text-on-primary-container font-body-base text-body-base h-screen w-64 fixed left-0 top-0 border-r border-outline-variant dark:border-outline flex flex-col h-full py-4 z-50">
+        <div class="px-6 mb-8 flex items-center gap-3">
+            <div class="w-8 h-8 bg-secondary-container rounded flex items-center justify-center">
+                <span class="material-symbols-outlined text-on-secondary-container"
+                    style="font-variation-settings: 'FILL' 1;">build</span>
+            </div>
+            <div>
+                <h1 class="font-headline-md text-headline-md font-bold text-on-primary dark:text-on-primary-container">
+                    Automivo</h1>
+                <p class="text-[10px] uppercase tracking-widest opacity-60">Workshop OS</p>
+            </div>
+        </div>
+        <nav class="flex-1 space-y-1">
+            <a class="text-on-primary-fixed-variant hover:bg-on-primary-fixed-variant/10 rounded-lg mx-2 my-1 flex items-center px-4 py-3 transition-colors"
+                href="#">
+                <span class="material-symbols-outlined mr-3">dashboard</span>
+                Dashboard
+            </a>
+            <a class="text-on-primary-fixed-variant hover:bg-on-primary-fixed-variant/10 rounded-lg mx-2 my-1 flex items-center px-4 py-3 transition-colors"
+                href="#">
+                <span class="material-symbols-outlined mr-3">point_of_sale</span>
+                Ventas
+            </a>
+            <a class="bg-secondary-container text-on-secondary-container rounded-lg mx-2 my-1 flex items-center px-4 py-3 active:scale-[0.98] transition-all"
+                href="#">
+                <span class="material-symbols-outlined mr-3"
+                    style="font-variation-settings: 'FILL' 1;">inventory_2</span>
+                Inventario
+            </a>
+            <a class="text-on-primary-fixed-variant hover:bg-on-primary-fixed-variant/10 rounded-lg mx-2 my-1 flex items-center px-4 py-3 transition-colors"
+                href="#">
+                <span class="material-symbols-outlined mr-3">calendar_today</span>
+                Citas
+            </a>
+            <a class="text-on-primary-fixed-variant hover:bg-on-primary-fixed-variant/10 rounded-lg mx-2 my-1 flex items-center px-4 py-3 transition-colors"
+                href="#">
+                <span class="material-symbols-outlined mr-3">build</span>
+                Mantenimiento
+            </a>
+            <a class="text-on-primary-fixed-variant hover:bg-on-primary-fixed-variant/10 rounded-lg mx-2 my-1 flex items-center px-4 py-3 transition-colors"
+                href="#">
+                <span class="material-symbols-outlined mr-3">group</span>
+                Usuarios
+            </a>
+        </nav>
+        <div class="px-4 mt-auto">
+            <div class="bg-on-primary-fixed-variant/5 rounded-xl p-4 border border-outline-variant/10">
+                <div class="flex items-center gap-3 mb-2">
+                    <span class="material-symbols-outlined text-secondary-container">database</span>
+                    <span class="text-xs font-bold uppercase tracking-wider">Sync Status</span>
+                </div>
+                <div class="w-full bg-primary/20 h-1 rounded-full overflow-hidden">
+                    <div class="bg-secondary-container h-full w-[85%]"></div>
+                </div>
+                <p class="text-[10px] mt-2 opacity-50">Last update: 2 mins ago</p>
+            </div>
+        </div>
+    </aside>
+    <!-- TopAppBar (Shared Component) -->
+    <header
+        class="bg-surface dark:bg-surface-dim text-primary dark:text-primary-fixed font-body-sm text-body-sm docked full-width top-0 sticky border-b border-outline-variant dark:border-outline flex justify-between items-center h-16 px-6 ml-64 w-[calc(100%-16rem)] z-40">
+        <div class="flex items-center gap-4 flex-1">
+            <div class="relative w-full max-w-md">
+                <span
+                    class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant">search</span>
+                <input
+                    class="w-full pl-10 pr-4 py-2 bg-surface-container-low border border-outline-variant rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
+                    placeholder="Buscar por SKU, nombre o marca..." type="text" />
+            </div>
+        </div>
+        <div class="flex items-center gap-4">
+            <button class="p-2 hover:bg-surface-container-low rounded-full transition-colors relative">
+                <span class="material-symbols-outlined">notifications</span>
+                <span class="absolute top-2 right-2 w-2 h-2 bg-error rounded-full border-2 border-surface"></span>
+            </button>
+            <div class="h-8 w-[1px] bg-outline-variant mx-2"></div>
+            <div class="flex items-center gap-3">
+                <div class="text-right">
+                    <p class="font-bold text-on-surface">Admin</p>
+                    <p class="text-[10px] text-on-surface-variant uppercase tracking-tighter">Workshop Manager</p>
+                </div>
+                <div
+                    class="w-10 h-10 rounded-full border border-outline-variant overflow-hidden bg-surface-container-highest">
+                    <img class="w-full h-full object-cover"
+                        data-alt="A professional male workshop manager with a confident expression, wearing a clean charcoal grey service uniform. The background is a brightly lit, high-tech automotive service center with sleek metal surfaces and modern diagnostic equipment. The lighting is crisp and cool, emphasizing a professional and authoritative atmosphere within the industrial context."
+                        src="https://lh3.googleusercontent.com/aida-public/AB6AXuDOmmn8IKNKYuPsavJ1n7SnL8_22DHR-0_sEsxNHj0Z7NX1RZJUMJ19iF8Urwf-t1KnaF9xpVo774k0GZOYXAvZyPlkj-FnNheRaqhYXWmomvC8fvGcKZQsE8Lfz3sw-AkpuZEocgnsJGE4cb-n6w9_ijbD9TXecsHV5SNd-eiRliw5Yyk5N-XJfo4hX63aaImEpRcJ9E-bboP4ECDHWWmYJiINnnsY8WAsCXq_poep8ZDwvQayzG0xiw" />
+                </div>
+            </div>
+        </div>
+    </header>
+    <!-- Main Content -->
+    <main class="ml-64 p-lg min-h-[calc(100vh-4rem)]">
+        <!-- Header & Actions -->
+        <div class="flex justify-between items-end mb-8">
+            <div>
+                <h2 class="font-display-lg text-display-lg text-on-surface mb-1">Inventario Maestro</h2>
+                <nav class="flex text-body-sm text-on-surface-variant gap-2">
+                    <span>Inventario</span>
+                    <span>/</span>
+                    <span class="text-primary font-bold">Catálogo de Autopartes</span>
+                </nav>
+            </div>
+            <div class="flex gap-3">
+                <button
+                    class="flex items-center gap-2 px-4 py-2 border border-outline-variant rounded-lg bg-surface-container-lowest hover:bg-surface-container-low transition-colors font-semibold">
+                    <span class="material-symbols-outlined text-[20px]">file_download</span>
+                    Exportar CSV
+                </button>
+                <button
+                    class="flex items-center gap-2 px-6 py-2 bg-primary text-on-primary rounded-lg hover:bg-primary-container transition-all active:scale-95 shadow-lg font-semibold"
+                    onclick="document.getElementById('modal-add').classList.remove('hidden')">
+                    <span class="material-symbols-outlined text-[20px]">add_circle</span>
+                    Agregar Producto
+                </button>
+            </div>
+        </div>
+        <!-- Bento Grid Stats -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-gutter mb-8">
+            <div class="bento-card bg-surface-container-lowest border border-outline-variant p-md rounded-xl">
+                <div class="flex justify-between items-start mb-4">
+                    <div class="p-2 bg-primary/5 rounded-lg">
+                        <span class="material-symbols-outlined text-primary">inventory</span>
+                    </div>
+                    <span
+                        class="text-[10px] font-bold text-on-tertiary-container bg-tertiary-fixed/20 px-2 py-1 rounded">+12%
+                        vs mes anterior</span>
+                </div>
+                <p class="text-on-surface-variant text-body-sm uppercase font-bold tracking-wider">Total SKUs</p>
+                <h3 class="text-display-lg font-display-lg mt-1">4,281</h3>
+            </div>
+            <div class="bento-card bg-surface-container-lowest border border-outline-variant p-md rounded-xl">
+                <div class="flex justify-between items-start mb-4">
+                    <div class="p-2 bg-error/5 rounded-lg">
+                        <span class="material-symbols-outlined text-error">warning</span>
+                    </div>
+                    <span class="text-[10px] font-bold text-error bg-error-container px-2 py-1 rounded">Atención
+                        Requerida</span>
+                </div>
+                <p class="text-on-surface-variant text-body-sm uppercase font-bold tracking-wider">Stock Bajo</p>
+                <h3 class="text-display-lg font-display-lg mt-1 text-error">18</h3>
+            </div>
+            <div class="bento-card bg-surface-container-lowest border border-outline-variant p-md rounded-xl">
+                <div class="flex justify-between items-start mb-4">
+                    <div class="p-2 bg-secondary/5 rounded-lg">
+                        <span class="material-symbols-outlined text-secondary">payments</span>
+                    </div>
+                </div>
+                <p class="text-on-surface-variant text-body-sm uppercase font-bold tracking-wider">Valor Inventario</p>
+                <h3 class="text-display-lg font-display-lg mt-1">$1.4M</h3>
+            </div>
+            <div class="bento-card bg-primary text-on-primary p-md rounded-xl relative overflow-hidden">
+                <div class="relative z-10">
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="p-2 bg-on-primary/10 rounded-lg">
+                            <span class="material-symbols-outlined text-on-primary">local_shipping</span>
+                        </div>
+                    </div>
+                    <p class="text-on-primary/60 text-body-sm uppercase font-bold tracking-wider">Pedidos en Tránsito
+                    </p>
+                    <h3 class="text-display-lg font-display-lg mt-1">12</h3>
+                </div>
+                <div class="absolute -right-4 -bottom-4 opacity-10">
+                    <span class="material-symbols-outlined text-[120px]">local_shipping</span>
+                </div>
+            </div>
+        </div>
+        <!-- Filters & Table Section -->
+        <div class="bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden shadow-sm">
+            <div
+                class="p-4 border-b border-outline-variant bg-surface-container-low/50 flex flex-wrap gap-4 items-center">
+                <div class="flex items-center gap-2 border border-outline-variant rounded-lg bg-white px-3 py-1.5">
+                    <span class="material-symbols-outlined text-on-surface-variant text-sm">filter_list</span>
+                    <select class="bg-transparent border-none text-body-sm font-semibold focus:ring-0 cursor-pointer">
+                        <option>Todas las Categorías</option>
+                        <option>Frenos</option>
+                        <option>Motor</option>
+                        <option>Suspensión</option>
+                        <option>Eléctrico</option>
+                    </select>
+                </div>
+                <div class="flex items-center gap-2 border border-outline-variant rounded-lg bg-white px-3 py-1.5">
+                    <span
+                        class="material-symbols-outlined text-on-surface-variant text-sm">precision_manufacturing</span>
+                    <select class="bg-transparent border-none text-body-sm font-semibold focus:ring-0 cursor-pointer">
+                        <option>Todas las Marcas</option>
+                        <option>Brembo</option>
+                        <option>Bosch</option>
+                        <option>ACDelco</option>
+                        <option>Castrol</option>
+                    </select>
+                </div>
+                <button class="text-body-sm text-primary font-bold hover:underline ml-auto">Limpiar Filtros</button>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead class="bg-surface-container-low border-b border-outline-variant">
+                        <tr>
+                            <th
+                                class="px-6 py-4 font-bold text-body-sm text-on-surface-variant uppercase tracking-wider">
+                                SKU</th>
+                            <th
+                                class="px-6 py-4 font-bold text-body-sm text-on-surface-variant uppercase tracking-wider">
+                                Producto</th>
+                            <th
+                                class="px-6 py-4 font-bold text-body-sm text-on-surface-variant uppercase tracking-wider">
+                                Marca</th>
+                            <th
+                                class="px-6 py-4 font-bold text-body-sm text-on-surface-variant uppercase tracking-wider">
+                                Proveedor</th>
+                            <th
+                                class="px-6 py-4 font-bold text-body-sm text-on-surface-variant uppercase tracking-wider">
+                                Stock Actual</th>
+                            <th
+                                class="px-6 py-4 font-bold text-body-sm text-on-surface-variant uppercase tracking-wider">
+                                Precio Venta</th>
+                            <th
+                                class="px-6 py-4 font-bold text-body-sm text-on-surface-variant uppercase tracking-wider text-center">
+                                Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-outline-variant/30">
+                        <!-- Table Row 1 (Warning) -->
+                        <tr class="hover:bg-surface-container-low transition-colors group">
+                            <td class="px-6 py-4 font-data-mono text-primary font-bold">FR-7729-BM</td>
+                            <td class="px-6 py-4">
+                                <div class="flex flex-col">
+                                    <span class="font-semibold text-on-surface">Pastillas de Freno Cerámicas</span>
+                                    <span class="text-[10px] text-on-surface-variant">Delanteras - BMW Serie 3/5</span>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4">
+                                <span
+                                    class="px-2 py-1 bg-surface-container rounded text-[11px] font-bold uppercase tracking-wider border border-outline-variant/30">Brembo</span>
+                            </td>
+                            <td class="px-6 py-4 text-on-surface-variant">Autopartes Global MX</td>
+                            <td class="px-6 py-4">
+                                <div class="flex items-center gap-2">
+                                    <span class="w-24 bg-error-container/30 h-1.5 rounded-full overflow-hidden">
+                                        <div class="bg-error h-full w-[15%]"></div>
+                                    </span>
+                                    <span class="text-error font-bold text-body-sm">3 / 20</span>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 font-data-mono font-bold">$1,840.00</td>
+                            <td class="px-6 py-4">
+                                <div
+                                    class="flex justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button class="p-1.5 hover:bg-primary/5 rounded text-primary" title="Editar"><span
+                                            class="material-symbols-outlined text-[20px]">edit</span></button>
+                                    <button class="p-1.5 hover:bg-error/5 rounded text-error" title="Eliminar"><span
+                                            class="material-symbols-outlined text-[20px]">delete</span></button>
+                                </div>
+                            </td>
+                        </tr>
+                        <!-- Table Row 2 -->
+                        <tr class="hover:bg-surface-container-low transition-colors group">
+                            <td class="px-6 py-4 font-data-mono text-primary font-bold">MT-1055-CH</td>
+                            <td class="px-6 py-4">
+                                <div class="flex flex-col">
+                                    <span class="font-semibold text-on-surface">Aceite Sintético 5W-30</span>
+                                    <span class="text-[10px] text-on-surface-variant">Garrafa 5L - Alto
+                                        Kilometraje</span>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4">
+                                <span
+                                    class="px-2 py-1 bg-surface-container rounded text-[11px] font-bold uppercase tracking-wider border border-outline-variant/30">Castrol</span>
+                            </td>
+                            <td class="px-6 py-4 text-on-surface-variant">Lubricantes Peninsulares</td>
+                            <td class="px-6 py-4">
+                                <div class="flex items-center gap-2">
+                                    <span class="w-24 bg-surface-container h-1.5 rounded-full overflow-hidden">
+                                        <div class="bg-on-tertiary-container h-full w-[85%]"></div>
+                                    </span>
+                                    <span class="text-on-surface-variant font-bold text-body-sm">42 / 50</span>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 font-data-mono font-bold">$950.00</td>
+                            <td class="px-6 py-4">
+                                <div
+                                    class="flex justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button class="p-1.5 hover:bg-primary/5 rounded text-primary" title="Editar"><span
+                                            class="material-symbols-outlined text-[20px]">edit</span></button>
+                                    <button class="p-1.5 hover:bg-error/5 rounded text-error" title="Eliminar"><span
+                                            class="material-symbols-outlined text-[20px]">delete</span></button>
+                                </div>
+                            </td>
+                        </tr>
+                        <!-- Table Row 3 -->
+                        <tr class="hover:bg-surface-container-low transition-colors group">
+                            <td class="px-6 py-4 font-data-mono text-primary font-bold">EL-4401-BO</td>
+                            <td class="px-6 py-4">
+                                <div class="flex flex-col">
+                                    <span class="font-semibold text-on-surface">Bujía de Iridio</span>
+                                    <span class="text-[10px] text-on-surface-variant">Pack x4 - Alto Desempeño</span>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4">
+                                <span
+                                    class="px-2 py-1 bg-surface-container rounded text-[11px] font-bold uppercase tracking-wider border border-outline-variant/30">Bosch</span>
+                            </td>
+                            <td class="px-6 py-4 text-on-surface-variant">Distribuidora Eléctrica</td>
+                            <td class="px-6 py-4">
+                                <div class="flex items-center gap-2">
+                                    <span class="w-24 bg-surface-container h-1.5 rounded-full overflow-hidden">
+                                        <div class="bg-secondary-container h-full w-[45%]"></div>
+                                    </span>
+                                    <span class="text-on-surface-variant font-bold text-body-sm">18 / 40</span>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 font-data-mono font-bold">$420.00</td>
+                            <td class="px-6 py-4">
+                                <div
+                                    class="flex justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button class="p-1.5 hover:bg-primary/5 rounded text-primary" title="Editar"><span
+                                            class="material-symbols-outlined text-[20px]">edit</span></button>
+                                    <button class="p-1.5 hover:bg-error/5 rounded text-error" title="Eliminar"><span
+                                            class="material-symbols-outlined text-[20px]">delete</span></button>
+                                </div>
+                            </td>
+                        </tr>
+                        <!-- Table Row 4 -->
+                        <tr class="hover:bg-surface-container-low transition-colors group">
+                            <td class="px-6 py-4 font-data-mono text-primary font-bold">SN-9912-MN</td>
+                            <td class="px-6 py-4">
+                                <div class="flex flex-col">
+                                    <span class="font-semibold text-on-surface">Amortiguador de Gas</span>
+                                    <span class="text-[10px] text-on-surface-variant">Trasero Izquierdo - SUV</span>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4">
+                                <span
+                                    class="px-2 py-1 bg-surface-container rounded text-[11px] font-bold uppercase tracking-wider border border-outline-variant/30">Monroe</span>
+                            </td>
+                            <td class="px-6 py-4 text-on-surface-variant">Sistemas de Suspensión</td>
+                            <td class="px-6 py-4">
+                                <div class="flex items-center gap-2">
+                                    <span class="w-24 bg-surface-container h-1.5 rounded-full overflow-hidden">
+                                        <div class="bg-on-tertiary-container h-full w-[60%]"></div>
+                                    </span>
+                                    <span class="text-on-surface-variant font-bold text-body-sm">6 / 10</span>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 font-data-mono font-bold">$2,150.00</td>
+                            <td class="px-6 py-4">
+                                <div
+                                    class="flex justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button class="p-1.5 hover:bg-primary/5 rounded text-primary" title="Editar"><span
+                                            class="material-symbols-outlined text-[20px]">edit</span></button>
+                                    <button class="p-1.5 hover:bg-error/5 rounded text-error" title="Eliminar"><span
+                                            class="material-symbols-outlined text-[20px]">delete</span></button>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <!-- Pagination -->
+            <div
+                class="p-4 bg-surface-container-low/50 border-t border-outline-variant flex justify-between items-center">
+                <span class="text-body-sm text-on-surface-variant">Mostrando 1-10 de 4,281 registros</span>
+                <div class="flex items-center gap-1">
+                    <button class="p-1 rounded hover:bg-surface-container-high transition-colors disabled:opacity-30"
+                        disabled="">
+                        <span class="material-symbols-outlined">chevron_left</span>
+                    </button>
+                    <button
+                        class="w-8 h-8 flex items-center justify-center bg-primary text-on-primary rounded font-bold text-sm">1</button>
+                    <button
+                        class="w-8 h-8 flex items-center justify-center hover:bg-surface-container-high rounded text-sm">2</button>
+                    <button
+                        class="w-8 h-8 flex items-center justify-center hover:bg-surface-container-high rounded text-sm">3</button>
+                    <span class="px-1 text-on-surface-variant">...</span>
+                    <button
+                        class="w-8 h-8 flex items-center justify-center hover:bg-surface-container-high rounded text-sm">429</button>
+                    <button class="p-1 rounded hover:bg-surface-container-high transition-colors">
+                        <span class="material-symbols-outlined">chevron_right</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+    <!-- Modal Form: Agregar Producto -->
+    <div class="hidden fixed inset-0 z-[60] flex items-center justify-center bg-primary/40 backdrop-blur-sm px-4"
+        id="modal-add">
+        <div
+            class="bg-white rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div class="p-6 border-b border-outline-variant flex justify-between items-center">
+                <div>
+                    <h3 class="text-headline-md font-display-lg">Registrar Nuevo Producto</h3>
+                    <p class="text-body-sm text-on-surface-variant">Complete la ficha técnica para ingresar al catálogo
+                    </p>
+                </div>
+                <button class="p-2 hover:bg-surface-container-low rounded-full transition-colors"
+                    onclick="document.getElementById('modal-add').classList.add('hidden')">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+            <form class="p-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- SKU Field -->
+                    <div class="space-y-1.5">
+                        <label class="text-body-sm font-bold text-on-surface block uppercase tracking-wider">SKU Maestro
+                            <span class="text-error">*</span></label>
+                        <input
+                            class="w-full border border-outline-variant rounded px-4 py-2 font-data-mono focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
+                            placeholder="Ej: FR-1234-XX" type="text" />
+                    </div>
+                    <!-- Brand Selection -->
+                    <div class="space-y-1.5">
+                        <label class="text-body-sm font-bold text-on-surface block uppercase tracking-wider">Marca <span
+                                class="text-error">*</span></label>
+                        <select
+                            class="w-full border border-outline-variant rounded px-4 py-2 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all">
+                            <option value="">Seleccione marca...</option>
+                            <option>Brembo</option>
+                            <option>Bosch</option>
+                            <option>ACDelco</option>
+                            <option>Castrol</option>
+                            <option>Monroe</option>
+                        </select>
+                    </div>
+                    <!-- Product Name (Full Width) -->
+                    <div class="md:col-span-2 space-y-1.5">
+                        <label class="text-body-sm font-bold text-on-surface block uppercase tracking-wider">Nombre del
+                            Producto <span class="text-error">*</span></label>
+                        <input
+                            class="w-full border border-outline-variant rounded px-4 py-2 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
+                            placeholder="Ej: Kit de Embrague Completo" type="text" />
+                    </div>
+                    <!-- Provider -->
+                    <div class="space-y-1.5">
+                        <label class="text-body-sm font-bold text-on-surface block uppercase tracking-wider">Proveedor
+                            Principal</label>
+                        <input
+                            class="w-full border border-outline-variant rounded px-4 py-2 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
+                            placeholder="Nombre del proveedor" type="text" />
+                    </div>
+                    <!-- Category -->
+                    <div class="space-y-1.5">
+                        <label
+                            class="text-body-sm font-bold text-on-surface block uppercase tracking-wider">Categoría</label>
+                        <select
+                            class="w-full border border-outline-variant rounded px-4 py-2 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all">
+                            <option>Motor</option>
+                            <option>Frenos</option>
+                            <option>Suspensión</option>
+                            <option>Sistema Eléctrico</option>
+                        </select>
+                    </div>
+                    <!-- Stock & Price -->
+                    <div class="space-y-1.5">
+                        <label class="text-body-sm font-bold text-on-surface block uppercase tracking-wider">Stock
+                            Inicial</label>
+                        <input
+                            class="w-full border border-outline-variant rounded px-4 py-2 font-data-mono focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
+                            type="number" value="0" />
+                    </div>
+                    <div class="space-y-1.5">
+                        <label class="text-body-sm font-bold text-on-surface block uppercase tracking-wider">Precio
+                            Venta (MXN)</label>
+                        <div class="relative">
+                            <span
+                                class="absolute left-4 top-1/2 -translate-y-1/2 font-data-mono text-on-surface-variant">$</span>
+                            <input
+                                class="w-full border border-outline-variant rounded pl-8 pr-4 py-2 font-data-mono focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
+                                placeholder="0.00" step="0.01" type="number" />
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-8 flex gap-4">
+                    <button
+                        class="flex-1 py-3 border border-outline-variant rounded-lg font-bold text-on-surface hover:bg-surface-container-low transition-colors"
+                        onclick="document.getElementById('modal-add').classList.add('hidden')"
+                        type="button">Cancelar</button>
+                    <button
+                        class="flex-1 py-3 bg-secondary-container text-on-secondary-container rounded-lg font-bold shadow-lg hover:brightness-110 active:scale-[0.98] transition-all"
+                        type="submit">Guardar Producto</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <!-- Floating Action Button (FAB) -->
+    <button
+        class="fixed bottom-8 right-8 w-14 h-14 bg-secondary-container text-on-secondary-container rounded-full shadow-2xl flex items-center justify-center hover:scale-110 active:scale-95 transition-all z-[45]"
+        onclick="document.getElementById('modal-add').classList.remove('hidden')">
+        <span class="material-symbols-outlined text-[32px]">add</span>
+    </button>
+    <script>
+        // Simple Interaction logic
+        document.querySelectorAll('nav a').forEach(link => {
+            link.addEventListener('click', (e) => {
+                // If not actual links, just for demo
+                if (link.getAttribute('href') === '#') e.preventDefault();
+            });
+        });
+
+        // ESC key to close modal
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                document.getElementById('modal-add').classList.add('hidden');
+            }
+        });
+    </script>
+</body>
+
+</html>

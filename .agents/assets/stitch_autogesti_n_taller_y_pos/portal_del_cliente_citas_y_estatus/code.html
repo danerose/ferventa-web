@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+
+<html class="light" lang="es">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Automivo | Portal del Cliente</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@500&amp;display=swap"
+        rel="stylesheet" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+        rel="stylesheet" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+        rel="stylesheet" />
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-container-lowest": "#ffffff",
+                        "error": "#ba1a1a",
+                        "on-secondary": "#ffffff",
+                        "on-tertiary-fixed-variant": "#005236",
+                        "on-secondary-fixed-variant": "#653e00",
+                        "on-tertiary": "#ffffff",
+                        "on-primary-fixed": "#111c2d",
+                        "on-tertiary-container": "#00a472",
+                        "error-container": "#ffdad6",
+                        "surface-tint": "#545f73",
+                        "outline": "#75777d",
+                        "on-error": "#ffffff",
+                        "primary": "#091426",
+                        "on-surface-variant": "#45474c",
+                        "tertiary-container": "#00301e",
+                        "surface-container": "#e5eeff",
+                        "background": "#f8f9ff",
+                        "primary-fixed-dim": "#bcc7de",
+                        "tertiary": "#00190e",
+                        "surface-dim": "#cbdbf5",
+                        "primary-container": "#1e293b",
+                        "secondary": "#855300",
+                        "on-error-container": "#93000a",
+                        "surface": "#f8f9ff",
+                        "tertiary-fixed": "#6ffbbe",
+                        "inverse-on-surface": "#eaf1ff",
+                        "primary-fixed": "#d8e3fb",
+                        "inverse-primary": "#bcc7de",
+                        "surface-container-high": "#dce9ff",
+                        "secondary-container": "#fea619",
+                        "inverse-surface": "#213145",
+                        "secondary-fixed": "#ffddb8",
+                        "on-surface": "#0b1c30",
+                        "on-primary-container": "#8590a6",
+                        "outline-variant": "#c5c6cd",
+                        "surface-container-low": "#eff4ff",
+                        "on-primary-fixed-variant": "#3c475a",
+                        "on-tertiary-fixed": "#002113",
+                        "on-secondary-container": "#684000",
+                        "surface-variant": "#d3e4fe",
+                        "on-primary": "#ffffff",
+                        "on-secondary-fixed": "#2a1700",
+                        "tertiary-fixed-dim": "#4edea3",
+                        "surface-container-highest": "#d3e4fe",
+                        "secondary-fixed-dim": "#ffb95f",
+                        "on-background": "#0b1c30",
+                        "surface-bright": "#f8f9ff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "md": "16px",
+                        "xs": "4px",
+                        "sm": "8px",
+                        "xl": "40px",
+                        "margin": "24px",
+                        "gutter": "16px",
+                        "max-width": "1440px",
+                        "base": "4px",
+                        "lg": "24px"
+                    },
+                    "fontFamily": {
+                        "headline-md": ["Inter"],
+                        "body-sm": ["Inter"],
+                        "display-lg": ["Inter"],
+                        "body-base": ["Inter"],
+                        "data-mono": ["JetBrains Mono"],
+                        "label-caps": ["Inter"]
+                    },
+                    "fontSize": {
+                        "headline-md": ["20px", { "lineHeight": "28px", "fontWeight": "600" }],
+                        "body-sm": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "display-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "body-base": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "data-mono": ["14px", { "lineHeight": "20px", "fontWeight": "500" }],
+                        "label-caps": ["12px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700" }]
+                    }
+                },
+            },
+        }
+    </script>
+    <style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            display: inline-block;
+            line-height: 1;
+            vertical-align: middle;
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(226, 232, 240, 0.8);
+        }
+    </style>
+</head>
+
+<body class="bg-background text-on-background min-h-screen font-body-base">
+    <!-- Top Navigation -->
+    <header
+        class="bg-surface sticky top-0 z-50 flex justify-between items-center h-16 px-6 border-b border-outline-variant">
+        <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-primary text-3xl"
+                style="font-variation-settings: 'FILL' 1;">build_circle</span>
+            <span class="font-headline-md text-headline-md text-primary tracking-tight">Automivo</span>
+        </div>
+        <nav class="hidden md:flex gap-6">
+            <a class="text-on-surface-variant hover:text-primary transition-colors font-medium" href="#agendar">Agendar
+                Cita</a>
+            <a class="text-on-surface-variant hover:text-primary transition-colors font-medium"
+                href="#consultar">Consultar Estatus</a>
+        </nav>
+        <div class="flex items-center gap-4">
+            <button
+                class="bg-primary text-on-primary px-4 py-2 rounded-lg text-body-sm font-semibold hover:opacity-90 transition-opacity">
+                Acceso Taller
+            </button>
+        </div>
+    </header>
+    <main class="max-w-7xl mx-auto px-6 py-12">
+        <!-- Hero Section -->
+        <div class="relative rounded-xl overflow-hidden mb-16 h-[400px] flex items-center">
+            <div class="absolute inset-0 z-0">
+                <div class="w-full h-full bg-cover bg-center"
+                    data-alt="A high-end professional automotive workshop with pristine floors and modern diagnostic tools. The lighting is bright and clean, reflecting a high-tech light-mode aesthetic. Mechanics in clean uniforms work with precision. The atmosphere is reliable and authoritative, utilizing a palette of deep navy blues and sharp whites."
+                    style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDCHvyb7uHdjHw0467qkOz-hE64VaYjtuLWe2QJ9po-ZgMpIBZMgoG9cVmnv5isejooPWmx7sjjBxLR2jWq6EiGMO4UwYHfOBw-UWlSUPyFfnxzYyheQ5YCVqm2V4KXnMzkI2T-GvQ2x6OylZuHCvsvQla4FZvfrEH5Bm2s_vMHywpyq3hdFq21ADXqZvGjpJoqSNQ1-jAv4VCDyBC8nuJ8G_DG60i_umOKbsxsZSV30rWKiHsFouIpfA')">
+                </div>
+                <div class="absolute inset-0 bg-gradient-to-r from-primary/80 to-transparent"></div>
+            </div>
+            <div class="relative z-10 px-12 max-w-2xl">
+                <h1 class="font-display-lg text-display-lg text-white mb-4">Cuidamos tu vehículo con ingeniería de
+                    precisión.</h1>
+                <p class="text-surface-variant text-body-base mb-8">Portal de clientes Automivo: Transparencia total en
+                    el mantenimiento de tu flota o vehículo personal.</p>
+                <div class="flex gap-4">
+                    <a class="bg-secondary-container text-on-secondary-container px-6 py-3 rounded-lg font-bold hover:scale-[1.02] transition-transform"
+                        href="#agendar">Agendar Ahora</a>
+                    <a class="bg-white/10 backdrop-blur-md text-white border border-white/20 px-6 py-3 rounded-lg font-bold hover:bg-white/20 transition-colors"
+                        href="#consultar">Ver mi Estatus</a>
+                </div>
+            </div>
+        </div>
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            <!-- Section: Agendar Cita -->
+            <section class="lg:col-span-5" id="agendar">
+                <div class="glass-card rounded-xl p-8 sticky top-24">
+                    <div class="flex items-center gap-3 mb-6">
+                        <span class="material-symbols-outlined text-secondary text-2xl">calendar_today</span>
+                        <h2 class="font-headline-md text-headline-md text-on-surface">Agendar Cita</h2>
+                    </div>
+                    <form class="space-y-4">
+                        <div>
+                            <label class="block text-body-sm font-semibold text-on-surface-variant mb-1">Nombre
+                                Completo</label>
+                            <input
+                                class="w-full border-outline-variant rounded-lg p-3 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all"
+                                placeholder="Ej. Juan Pérez" type="text" />
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label
+                                    class="block text-body-sm font-semibold text-on-surface-variant mb-1">Teléfono</label>
+                                <input
+                                    class="w-full border-outline-variant rounded-lg p-3 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all"
+                                    placeholder="55 1234 5678" type="tel" />
+                            </div>
+                            <div>
+                                <label
+                                    class="block text-body-sm font-semibold text-on-surface-variant mb-1">Placas</label>
+                                <input
+                                    class="w-full border-outline-variant rounded-lg p-3 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all uppercase"
+                                    placeholder="ABC-123" type="text" />
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-body-sm font-semibold text-on-surface-variant mb-1">Servicio
+                                Solicitado</label>
+                            <select
+                                class="w-full border-outline-variant rounded-lg p-3 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all">
+                                <option>Mantenimiento Preventivo</option>
+                                <option>Diagnóstico de Motor</option>
+                                <option>Frenos y Suspensión</option>
+                                <option>Hojalatería y Pintura</option>
+                                <option>Otro</option>
+                            </select>
+                        </div>
+                        <button
+                            class="w-full bg-primary text-on-primary py-4 rounded-lg font-bold mt-4 hover:opacity-90 active:scale-[0.98] transition-all"
+                            type="submit">
+                            Confirmar Solicitud
+                        </button>
+                    </form>
+                </div>
+            </section>
+            <!-- Section: Consultar Vehículo -->
+            <section class="lg:col-span-7" id="consultar">
+                <div class="bg-white border border-outline-variant rounded-xl overflow-hidden shadow-sm">
+                    <div class="p-8 border-b border-outline-variant bg-surface-container-low">
+                        <div class="flex items-center gap-3 mb-4">
+                            <span class="material-symbols-outlined text-primary text-2xl">search</span>
+                            <h2 class="font-headline-md text-headline-md text-on-surface">Consultar mi Vehículo</h2>
+                        </div>
+                        <p class="text-body-sm text-on-surface-variant mb-6">Ingresa tu número de orden o placa para
+                            conocer el avance de tu servicio en tiempo real.</p>
+                        <div class="flex flex-col sm:flex-row gap-3">
+                            <div class="flex-1 relative">
+                                <span
+                                    class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline">tag</span>
+                                <input
+                                    class="w-full pl-10 pr-4 py-3 border-outline-variant rounded-lg focus:border-primary focus:ring-1 focus:ring-primary outline-none font-data-mono"
+                                    id="orderSearch" placeholder="Número de orden o placa" type="text" />
+                            </div>
+                            <button
+                                class="bg-secondary text-white px-8 py-3 rounded-lg font-bold hover:opacity-90 active:scale-[0.95] transition-all"
+                                onclick="simulateSearch()">
+                                Buscar
+                            </button>
+                        </div>
+                    </div>
+                    <!-- Search Result Placeholder / Result Content -->
+                    <div class="p-8" id="searchResult">
+                        <div class="text-center py-12" id="emptyState">
+                            <span
+                                class="material-symbols-outlined text-6xl text-outline-variant mb-4">directions_car</span>
+                            <p class="text-on-surface-variant">Introduce tus datos para ver la información de tu
+                                servicio.</p>
+                        </div>
+                        <!-- Result Template (Hidden by default) -->
+                        <div class="hidden animate-in fade-in slide-in-from-bottom-4 duration-500" id="resultContent">
+                            <div class="flex flex-wrap justify-between items-start gap-4 mb-8">
+                                <div>
+                                    <h3 class="text-headline-md font-headline-md text-primary">Toyota Camry 2022</h3>
+                                    <p class="font-data-mono text-on-surface-variant">Orden: #77421 | Placa: ABC-1234
+                                    </p>
+                                </div>
+                                <div
+                                    class="bg-tertiary-container/10 px-4 py-2 rounded-full border border-tertiary-container flex items-center gap-2">
+                                    <span class="w-2 h-2 rounded-full bg-tertiary-fixed-dim animate-pulse"></span>
+                                    <span class="text-tertiary-container font-bold text-body-sm">En proceso</span>
+                                </div>
+                            </div>
+                            <!-- Progress Stepper -->
+                            <div class="relative mb-12">
+                                <div class="absolute top-1/2 left-0 w-full h-1 bg-outline-variant -translate-y-1/2">
+                                </div>
+                                <div
+                                    class="absolute top-1/2 left-0 w-2/3 h-1 bg-primary -translate-y-1/2 transition-all duration-1000">
+                                </div>
+                                <div class="relative flex justify-between">
+                                    <div class="flex flex-col items-center gap-2">
+                                        <div
+                                            class="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center z-10 ring-4 ring-white">
+                                            <span class="material-symbols-outlined text-sm"
+                                                style="font-variation-settings: 'FILL' 1;">check</span>
+                                        </div>
+                                        <span
+                                            class="text-[10px] font-bold uppercase tracking-wider text-primary">Recibido</span>
+                                    </div>
+                                    <div class="flex flex-col items-center gap-2">
+                                        <div
+                                            class="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center z-10 ring-4 ring-white">
+                                            <span class="material-symbols-outlined text-sm">handyman</span>
+                                        </div>
+                                        <span class="text-[10px] font-bold uppercase tracking-wider text-primary">En
+                                            taller</span>
+                                    </div>
+                                    <div class="flex flex-col items-center gap-2">
+                                        <div
+                                            class="w-8 h-8 rounded-full bg-white border-2 border-outline-variant text-outline flex items-center justify-center z-10 ring-4 ring-white">
+                                            <span class="material-symbols-outlined text-sm">verified</span>
+                                        </div>
+                                        <span
+                                            class="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Terminado</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Evidence Gallery -->
+                            <h4 class="font-bold text-body-base mb-4 flex items-center gap-2">
+                                <span class="material-symbols-outlined text-primary">photo_library</span>
+                                Evidencia Fotográfica
+                            </h4>
+                            <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                <div
+                                    class="aspect-square rounded-lg overflow-hidden border border-outline-variant group cursor-pointer">
+                                    <div class="w-full h-full bg-cover bg-center group-hover:scale-110 transition-transform duration-500"
+                                        data-alt="Close up of a car engine undergoing inspection, with mechanical tools visible. The lighting is focused and clear, highlighting parts in need of maintenance. Professional workshop environment, high clarity."
+                                        style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuAO38Xu6-1b9kD1ylqs0Yn62mQ00OhSzEhjMRUZ0ido9krps6qCRw9s7kQoeYCCnJBrW30Dr3IJmOzzptJOeebzZ7YHzEb7UU_rbFr8TH64JWcsxWcart-u3w1mMH3soVDrsQn6c3Q5m_sHi_kkxvoqtmYizz45ZXef1oiTbtEdMaW6dAjHk27tN9-9_6Ly_OC8Alx9bBaDDf_h9dyZi2mMfjgOjaMVpuyVAOsU1FI8ezkQUO7BDJfGog')">
+                                    </div>
+                                </div>
+                                <div
+                                    class="aspect-square rounded-lg overflow-hidden border border-outline-variant group cursor-pointer">
+                                    <div class="w-full h-full bg-cover bg-center group-hover:scale-110 transition-transform duration-500"
+                                        data-alt="A side view of a vehicle's brake system being dismantled for repair. Bright industrial lighting, clean workshop setting, showing technical detail of the rotor and calipers. Professional automotive photography."
+                                        style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBTB26x_lAY6PUiSTBNrS6GFniWUdnnbqXJ9xGk6_rOg6_ofw_8MaegYNeBgUsHbqoTjMQ_5fu3IjDDTU8gmqklCtmL6FUi1Z1wGbwalge2mrExWqgkDKuuygI1rHnpcUl4VeE7njTeN8Apd4x6981awiff7nb2Gg4l8n70PLa6IX8cJgX2eR4NOIhH-IeI6tvZyXRASLYXahZfQBPGGVlG_C0y2Xr49Fj3Zq_SK06G2kshc-KTwsuwPg')">
+                                    </div>
+                                </div>
+                                <div
+                                    class="aspect-square rounded-lg overflow-hidden border border-outline-variant group cursor-pointer relative bg-surface-container flex items-center justify-center">
+                                    <div class="w-full h-full absolute inset-0 bg-cover bg-center opacity-40"
+                                        data-alt="Under-car view showing the exhaust system and suspension components. Strong white lighting creating deep shadows, emphasizing the industrial nature of the task. Modern automotive repair scene."
+                                        style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBKgLBLAAJZhXOAGbLx3SeCcHmxWhF5nNvenSZuhDrtYsdR1xhUrc8whdV_slz1-hkrnakwk5LRD_pb1OVrBXw-iI1YScpenT9yvXcLU3RNAOVQAu21uW8cfjixozQMu4CyVK_QGLASmT4ZJfw8yb0GelMzDM9tP0Ous3HauS1uuFYjGo_K8aGVjx0zcYvp2PtHcCPYrIDLa_ntSdT457f1zVsDAbVeaRUamvyNE8_FFeu_09QZjwgLbg')">
+                                    </div>
+                                    <span class="relative z-10 font-bold text-primary text-body-sm">+5 fotos</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+        <!-- Bento Features -->
+        <div class="mt-24 grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="bg-primary text-on-primary p-8 rounded-xl flex flex-col justify-between h-64">
+                <span class="material-symbols-outlined text-4xl text-secondary-container">verified_user</span>
+                <div>
+                    <h3 class="font-headline-md text-headline-md mb-2">Garantía Certificada</h3>
+                    <p class="text-on-primary-container text-body-sm">Cada reparación cuenta con el respaldo de técnicos
+                        certificados y refacciones originales.</p>
+                </div>
+            </div>
+            <div class="bg-surface-container-high p-8 rounded-xl flex flex-col justify-between h-64">
+                <span class="material-symbols-outlined text-4xl text-primary">speed</span>
+                <div>
+                    <h3 class="font-headline-md text-headline-md mb-2">Rapidez Automivo</h3>
+                    <p class="text-on-surface-variant text-body-sm">Reducimos los tiempos de espera gracias a nuestro
+                        sistema de gestión automatizado.</p>
+                </div>
+            </div>
+            <div class="bg-white border border-outline-variant p-8 rounded-xl flex flex-col justify-between h-64">
+                <span class="material-symbols-outlined text-4xl text-secondary">visibility</span>
+                <div>
+                    <h3 class="font-headline-md text-headline-md mb-2">Transparencia Total</h3>
+                    <p class="text-on-surface-variant text-body-sm">Monitorea cada paso de la reparación a través de
+                        nuestro portal digital interactivo.</p>
+                </div>
+            </div>
+        </div>
+    </main>
+    <!-- Footer -->
+    <footer class="mt-24 bg-primary text-on-primary-container py-12 border-t border-outline/20">
+        <div class="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-4 gap-12">
+            <div class="md:col-span-2">
+                <div class="flex items-center gap-2 mb-6">
+                    <span class="material-symbols-outlined text-secondary-container text-3xl">build_circle</span>
+                    <span class="font-headline-md text-headline-md text-white tracking-tight">Automivo</span>
+                </div>
+                <p class="max-w-sm mb-6">La plataforma líder en gestión de talleres mecánicos de alto rendimiento.
+                    Precisión en cada proceso, confianza en cada entrega.</p>
+                <div class="flex gap-4">
+                    <a class="w-10 h-10 rounded-full border border-outline-variant/30 flex items-center justify-center hover:bg-white/10 transition-colors"
+                        href="#">
+                        <span class="material-symbols-outlined text-sm">share</span>
+                    </a>
+                    <a class="w-10 h-10 rounded-full border border-outline-variant/30 flex items-center justify-center hover:bg-white/10 transition-colors"
+                        href="#">
+                        <span class="material-symbols-outlined text-sm">mail</span>
+                    </a>
+                </div>
+            </div>
+            <div>
+                <h4 class="text-white font-bold mb-4">Servicios</h4>
+                <ul class="space-y-2 text-body-sm">
+                    <li><a class="hover:text-white transition-colors" href="#">Mantenimiento</a></li>
+                    <li><a class="hover:text-white transition-colors" href="#">Frenos</a></li>
+                    <li><a class="hover:text-white transition-colors" href="#">Transmisión</a></li>
+                    <li><a class="hover:text-white transition-colors" href="#">Eléctrico</a></li>
+                </ul>
+            </div>
+            <div>
+                <h4 class="text-white font-bold mb-4">Contacto</h4>
+                <ul class="space-y-2 text-body-sm">
+                    <li class="flex items-center gap-2"><span class="material-symbols-outlined text-xs">phone</span> +52
+                        55 1234 5678</li>
+                    <li class="flex items-center gap-2"><span
+                            class="material-symbols-outlined text-xs">location_on</span> Ciudad de México, MX</li>
+                    <li class="flex items-center gap-2"><span class="material-symbols-outlined text-xs">schedule</span>
+                        Lun - Vie: 9:00 - 18:00</li>
+                </ul>
+            </div>
+        </div>
+        <div
+            class="max-w-7xl mx-auto px-6 mt-12 pt-8 border-t border-outline/10 text-xs flex flex-col md:flex-row justify-between gap-4">
+            <p>© 2024 Automivo Workshop OS. Todos los derechos reservados.</p>
+            <div class="flex gap-6">
+                <a class="hover:text-white" href="#">Privacidad</a>
+                <a class="hover:text-white" href="#">Términos de Servicio</a>
+            </div>
+        </div>
+    </footer>
+    <script>
+        function simulateSearch() {
+            const emptyState = document.getElementById('emptyState');
+            const resultContent = document.getElementById('resultContent');
+            const searchInput = document.getElementById('orderSearch');
+
+            if (!searchInput.value.trim()) {
+                alert('Por favor, ingresa una placa o número de orden.');
+                return;
+            }
+
+            // Simulate loading
+            emptyState.innerHTML = '<span class="material-symbols-outlined text-6xl text-primary animate-spin mb-4">progress_activity</span><p>Buscando registros...</p>';
+
+            setTimeout(() => {
+                emptyState.classList.add('hidden');
+                resultContent.classList.remove('hidden');
+                // Scroll into view nicely
+                resultContent.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }, 800);
+        }
+
+        // Intercept form submission
+        document.querySelector('form').addEventListener('submit', function (e) {
+            e.preventDefault();
+            const btn = e.target.querySelector('button');
+            const originalText = btn.innerText;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="material-symbols-outlined animate-spin mr-2">progress_activity</span>Enviando...';
+
+            setTimeout(() => {
+                btn.classList.replace('bg-primary', 'bg-tertiary-container');
+                btn.innerHTML = '<span class="material-symbols-outlined mr-2">check_circle</span>Cita Solicitada';
+                setTimeout(() => {
+                    btn.disabled = false;
+                    btn.classList.replace('bg-tertiary-container', 'bg-primary');
+                    btn.innerText = originalText;
+                    e.target.reset();
+                }, 3000);
+            }, 1500);
+        });
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+
+<html class="light" lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Automivo - Gestor de Mantenimientos</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "surface-container-lowest": "#ffffff",
+                    "error": "#ba1a1a",
+                    "on-secondary": "#ffffff",
+                    "on-tertiary-fixed-variant": "#005236",
+                    "on-secondary-fixed-variant": "#653e00",
+                    "on-tertiary": "#ffffff",
+                    "on-primary-fixed": "#111c2d",
+                    "on-tertiary-container": "#00a472",
+                    "error-container": "#ffdad6",
+                    "surface-tint": "#545f73",
+                    "outline": "#75777d",
+                    "on-error": "#ffffff",
+                    "primary": "#091426",
+                    "on-surface-variant": "#45474c",
+                    "tertiary-container": "#00301e",
+                    "surface-container": "#e5eeff",
+                    "background": "#f8f9ff",
+                    "primary-fixed-dim": "#bcc7de",
+                    "tertiary": "#00190e",
+                    "surface-dim": "#cbdbf5",
+                    "primary-container": "#1e293b",
+                    "secondary": "#855300",
+                    "on-error-container": "#93000a",
+                    "surface": "#f8f9ff",
+                    "tertiary-fixed": "#6ffbbe",
+                    "inverse-on-surface": "#eaf1ff",
+                    "primary-fixed": "#d8e3fb",
+                    "inverse-primary": "#bcc7de",
+                    "surface-container-high": "#dce9ff",
+                    "secondary-container": "#fea619",
+                    "inverse-surface": "#213145",
+                    "secondary-fixed": "#ffddb8",
+                    "on-surface": "#0b1c30",
+                    "on-primary-container": "#8590a6",
+                    "outline-variant": "#c5c6cd",
+                    "surface-container-low": "#eff4ff",
+                    "on-primary-fixed-variant": "#3c475a",
+                    "on-tertiary-fixed": "#002113",
+                    "on-secondary-container": "#684000",
+                    "surface-variant": "#d3e4fe",
+                    "on-primary": "#ffffff",
+                    "on-secondary-fixed": "#2a1700",
+                    "tertiary-fixed-dim": "#4edea3",
+                    "surface-container-highest": "#d3e4fe",
+                    "secondary-fixed-dim": "#ffb95f",
+                    "on-background": "#0b1c30",
+                    "surface-bright": "#f8f9ff"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "spacing": {
+                    "md": "16px",
+                    "xs": "4px",
+                    "sm": "8px",
+                    "xl": "40px",
+                    "margin": "24px",
+                    "gutter": "16px",
+                    "max-width": "1440px",
+                    "base": "4px",
+                    "lg": "24px"
+            },
+            "fontFamily": {
+                    "headline-md": ["Inter"],
+                    "body-sm": ["Inter"],
+                    "display-lg-mobile": ["Inter"],
+                    "display-lg": ["Inter"],
+                    "body-base": ["Inter"],
+                    "data-mono": ["JetBrains Mono"],
+                    "label-caps": ["Inter"]
+            },
+            "fontSize": {
+                    "headline-md": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                    "body-sm": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                    "display-lg-mobile": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "display-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "body-base": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "data-mono": ["14px", {"lineHeight": "20px", "fontWeight": "500"}],
+                    "label-caps": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        body { background-color: #f8fafc; }
+        .service-card { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+        .service-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(30, 41, 59, 0.05); }
+    </style>
+</head>
+<body class="font-body-base text-on-surface">
+<!-- SideNavBar -->
+<aside class="h-screen w-64 fixed left-0 top-0 bg-primary dark:bg-primary-container border-r border-outline-variant dark:border-outline flex flex-col h-full py-4 z-50">
+<div class="px-6 mb-8">
+<h1 class="font-headline-md text-headline-md font-bold text-on-primary dark:text-on-primary-container">Automivo</h1>
+<p class="text-on-primary-container/60 font-body-sm text-body-sm">Workshop OS</p>
+</div>
+<nav class="flex-1">
+<a class="text-on-primary-fixed-variant hover:bg-on-primary-fixed-variant/10 rounded-lg mx-2 my-1 flex items-center px-4 py-3 transition-colors" href="#">
+<span class="material-symbols-outlined mr-3">dashboard</span>
+<span class="font-body-base text-body-base">Dashboard</span>
+</a>
+<a class="text-on-primary-fixed-variant hover:bg-on-primary-fixed-variant/10 rounded-lg mx-2 my-1 flex items-center px-4 py-3 transition-colors" href="#">
+<span class="material-symbols-outlined mr-3">point_of_sale</span>
+<span class="font-body-base text-body-base">Ventas</span>
+</a>
+<a class="text-on-primary-fixed-variant hover:bg-on-primary-fixed-variant/10 rounded-lg mx-2 my-1 flex items-center px-4 py-3 transition-colors" href="#">
+<span class="material-symbols-outlined mr-3">inventory_2</span>
+<span class="font-body-base text-body-base">Inventario</span>
+</a>
+<a class="text-on-primary-fixed-variant hover:bg-on-primary-fixed-variant/10 rounded-lg mx-2 my-1 flex items-center px-4 py-3 transition-colors" href="#">
+<span class="material-symbols-outlined mr-3">calendar_today</span>
+<span class="font-body-base text-body-base">Citas</span>
+</a>
+<a class="bg-secondary-container text-on-secondary-container rounded-lg mx-2 my-1 flex items-center px-4 py-3 scale-[0.98] transition-transform duration-150" href="#">
+<span class="material-symbols-outlined mr-3">build</span>
+<span class="font-body-base text-body-base font-semibold">Mantenimiento</span>
+</a>
+<a class="text-on-primary-fixed-variant hover:bg-on-primary-fixed-variant/10 rounded-lg mx-2 my-1 flex items-center px-4 py-3 transition-colors" href="#">
+<span class="material-symbols-outlined mr-3">group</span>
+<span class="font-body-base text-body-base">Usuarios</span>
+</a>
+</nav>
+<div class="px-4 mt-auto">
+<div class="bg-on-primary-fixed-variant/10 rounded-xl p-4 flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-secondary-container flex items-center justify-center text-on-secondary-container font-bold">A</div>
+<div class="overflow-hidden">
+<p class="text-on-primary font-semibold truncate">Admin User</p>
+<p class="text-on-primary-container/60 text-xs truncate">Manager</p>
+</div>
+</div>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="ml-64 min-h-screen">
+<!-- TopAppBar -->
+<header class="bg-surface dark:bg-surface-dim border-b border-outline-variant dark:border-outline flex justify-between items-center h-16 px-6 sticky top-0 z-40">
+<div class="flex items-center flex-1 max-w-xl">
+<div class="relative w-full">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant">search</span>
+<input class="w-full pl-10 pr-4 py-2 bg-surface-container-low border border-outline-variant rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all font-body-sm text-body-sm" placeholder="Buscar por placa o cliente..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<button class="p-2 text-on-surface-variant hover:bg-surface-container-low rounded-full transition-colors relative">
+<span class="material-symbols-outlined">notifications</span>
+<span class="absolute top-2 right-2 w-2 h-2 bg-error rounded-full"></span>
+</button>
+<div class="h-8 w-px bg-outline-variant mx-2"></div>
+<button class="bg-primary text-on-primary px-4 py-2 rounded-lg font-body-sm text-body-sm font-medium flex items-center gap-2 hover:opacity-90 transition-opacity">
+<span class="material-symbols-outlined text-[18px]">add</span>
+                    Nuevo Servicio
+                </button>
+</div>
+</header>
+<!-- Page Canvas -->
+<div class="p-6">
+<!-- Header & View Switcher -->
+<div class="flex justify-between items-end mb-8">
+<div>
+<h2 class="font-display-lg text-display-lg text-on-surface mb-1">Mantenimientos Activos</h2>
+<p class="text-on-surface-variant font-body-base text-body-base">Gestiona el flujo de trabajo del taller en tiempo real.</p>
+</div>
+<div class="flex bg-surface-container-low p-1 rounded-lg border border-outline-variant">
+<button class="px-4 py-1.5 bg-white shadow-sm rounded-md font-medium text-primary flex items-center gap-2">
+<span class="material-symbols-outlined text-[20px]">grid_view</span>
+                        Tarjetas
+                    </button>
+<button class="px-4 py-1.5 text-on-surface-variant hover:bg-surface-container-highest/20 rounded-md flex items-center gap-2">
+<span class="material-symbols-outlined text-[20px]">list</span>
+                        Lista
+                    </button>
+</div>
+</div>
+<!-- Dashboard Stats Grid (Atmospheric UI) -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+<div class="bg-white border border-outline-variant p-4 rounded-xl flex items-center gap-4">
+<div class="w-12 h-12 bg-surface-container rounded-lg flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-[28px]">garage</span>
+</div>
+<div>
+<p class="text-on-surface-variant text-xs uppercase tracking-wider font-bold">Total Vehículos</p>
+<p class="text-2xl font-bold">24</p>
+</div>
+</div>
+<div class="bg-white border border-outline-variant p-4 rounded-xl flex items-center gap-4">
+<div class="w-12 h-12 bg-error-container rounded-lg flex items-center justify-center text-error">
+<span class="material-symbols-outlined text-[28px]">pending_actions</span>
+</div>
+<div>
+<p class="text-on-surface-variant text-xs uppercase tracking-wider font-bold">No Comenzado</p>
+<p class="text-2xl font-bold">8</p>
+</div>
+</div>
+<div class="bg-white border border-outline-variant p-4 rounded-xl flex items-center gap-4">
+<div class="w-12 h-12 bg-secondary-container/20 rounded-lg flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined text-[28px]">sync</span>
+</div>
+<div>
+<p class="text-on-surface-variant text-xs uppercase tracking-wider font-bold">En Proceso</p>
+<p class="text-2xl font-bold">12</p>
+</div>
+</div>
+<div class="bg-white border border-outline-variant p-4 rounded-xl flex items-center gap-4">
+<div class="w-12 h-12 bg-tertiary-container/10 rounded-lg flex items-center justify-center text-on-tertiary-container">
+<span class="material-symbols-outlined text-[28px]">check_circle</span>
+</div>
+<div>
+<p class="text-on-surface-variant text-xs uppercase tracking-wider font-bold">Terminado</p>
+<p class="text-2xl font-bold">4</p>
+</div>
+</div>
+</div>
+<!-- Service Cards Grid -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+<!-- Card Item 1 (In Progress) -->
+<div class="service-card bg-white border border-outline-variant rounded-xl overflow-hidden flex flex-col">
+<div class="relative h-48">
+<div class="bg-cover bg-center w-full h-full" data-alt="A professional close-up shot of a modern car engine being inspected by a mechanic in a clean, high-tech automotive workshop. The lighting is bright and industrial, emphasizing precision tools and high-quality vehicle components. The color palette features deep blues, greys, and metallic silver, matching a corporate professional brand aesthetic." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuAlymfO8hGXwUhDecjgL8RNQSg_XAG0uWywmKW7RQ4tmgFmrIEkeXAxSYoKGhePS6K997inEsm1zPWRYJJp4Q8ZS3ga7CTD0PBuubCbeEb5znrZJ5rOdbTg0OepVZ0aNPdx61KN1Hl9iAjKFDN7Bgh-csUib_QzGN-31OZslUsz1heqcXdoG_8E7BH5MdSq14fVoQ4GqfVh5cS4DLQKHpIGRlJOef6wNxCCnhenpvOiO8T85hHVM4wjyQ')"></div>
+<div class="absolute top-3 right-3">
+<span class="bg-secondary-container text-on-secondary-container px-3 py-1 rounded-full text-xs font-bold uppercase tracking-tight flex items-center gap-1 shadow-sm">
+<span class="material-symbols-outlined text-[14px]">bolt</span>
+                                En Proceso
+                            </span>
+</div>
+</div>
+<div class="p-5 flex-1">
+<div class="flex justify-between items-start mb-4">
+<div>
+<h3 class="font-headline-md text-headline-md text-on-surface">BMW X5 M-Sport</h3>
+<p class="text-on-surface-variant font-data-mono text-data-mono uppercase">Placa: ABC-1234</p>
+</div>
+<button class="p-1.5 hover:bg-surface-container rounded-lg text-on-surface-variant">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</div>
+<div class="space-y-3 mb-6">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-outline">person</span>
+<span class="text-on-surface font-medium">Ricardo Arjona</span>
+</div>
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-outline">calendar_month</span>
+<span class="text-on-surface-variant text-body-sm">Ingreso: 24 Oct, 09:15 AM</span>
+</div>
+<div class="w-full bg-surface-container-lowest rounded-full h-2 mt-4 border border-outline-variant/30">
+<div class="bg-secondary-container h-full rounded-full" style="width: 65%"></div>
+</div>
+<p class="text-xs text-on-surface-variant text-right">65% Completado</p>
+</div>
+<div class="grid grid-cols-2 gap-3">
+<button class="flex items-center justify-center gap-2 py-2.5 px-4 border border-outline-variant rounded-lg font-body-sm text-body-sm font-semibold hover:bg-surface-container-low transition-colors">
+<span class="material-symbols-outlined text-[18px]">photo_camera</span>
+                                Evidencia
+                            </button>
+<select class="bg-surface-container-low border border-outline-variant rounded-lg font-body-sm text-body-sm font-semibold px-3 py-2.5 outline-none focus:ring-2 focus:ring-primary cursor-pointer">
+<option value="pending">Pendiente</option>
+<option selected="" value="progress">En Proceso</option>
+<option value="done">Terminado</option>
+</select>
+</div>
+</div>
+</div>
+<!-- Card Item 2 (Not Started) -->
+<div class="service-card bg-white border border-outline-variant rounded-xl overflow-hidden flex flex-col opacity-90 grayscale-[0.2]">
+<div class="relative h-48">
+<div class="bg-cover bg-center w-full h-full" data-alt="Exterior view of a sleek white sedan parked inside a spacious, brightly lit automotive service reception area. The floor is polished concrete, reflecting the minimalist industrial architecture. High-key lighting highlights the vehicle's clean lines and the organized professional atmosphere of the workshop facility." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCiZjSs5ORYE4z3t9hz6Uc3bX8BJndBvYf4AyR2dKIOZqsuXyVtgHR1KMMjh-Y5oTfgSl45pse7AWlGrBCnYWbBb670cCrPa5q8G926lupChOdUD5zMJzyP2NJL0z618R74MVhHBgzL8zjMBLEcNDBaUi1fMkokDFmP8I2JLnRw4-GpnqILbodwFt3S83IxnnPFo4sNRvIL-jdQCSDNlW1elNDwuEGCh2akmBVPuVfrBvRQvmZYwrvs9Q')"></div>
+<div class="absolute top-3 right-3">
+<span class="bg-surface-container-highest text-on-surface-variant px-3 py-1 rounded-full text-xs font-bold uppercase tracking-tight flex items-center gap-1 shadow-sm border border-outline-variant">
+<span class="material-symbols-outlined text-[14px]">pause</span>
+                                No comenzado
+                            </span>
+</div>
+</div>
+<div class="p-5 flex-1">
+<div class="flex justify-between items-start mb-4">
+<div>
+<h3 class="font-headline-md text-headline-md text-on-surface">Audi A4 S-Line</h3>
+<p class="text-on-surface-variant font-data-mono text-data-mono uppercase">Placa: XYZ-9876</p>
+</div>
+<button class="p-1.5 hover:bg-surface-container rounded-lg text-on-surface-variant">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</div>
+<div class="space-y-3 mb-6">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-outline">person</span>
+<span class="text-on-surface font-medium">Sofía Castillo</span>
+</div>
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-outline">calendar_month</span>
+<span class="text-on-surface-variant text-body-sm">Ingreso: 25 Oct, 10:30 AM</span>
+</div>
+<div class="w-full bg-surface-container-lowest rounded-full h-2 mt-4 border border-outline-variant/30">
+<div class="bg-outline-variant h-full rounded-full" style="width: 0%"></div>
+</div>
+<p class="text-xs text-on-surface-variant text-right">Cola de espera: #3</p>
+</div>
+<div class="grid grid-cols-2 gap-3">
+<button class="flex items-center justify-center gap-2 py-2.5 px-4 border border-outline-variant rounded-lg font-body-sm text-body-sm font-semibold hover:bg-surface-container-low transition-colors">
+<span class="material-symbols-outlined text-[18px]">photo_camera</span>
+                                Evidencia
+                            </button>
+<select class="bg-surface-container-low border border-outline-variant rounded-lg font-body-sm text-body-sm font-semibold px-3 py-2.5 outline-none focus:ring-2 focus:ring-primary cursor-pointer">
+<option selected="" value="pending">Pendiente</option>
+<option value="progress">En Proceso</option>
+<option value="done">Terminado</option>
+</select>
+</div>
+</div>
+</div>
+<!-- Card Item 3 (Finished) -->
+<div class="service-card bg-white border border-outline-variant rounded-xl overflow-hidden flex flex-col">
+<div class="relative h-48">
+<div class="bg-cover bg-center w-full h-full" data-alt="A macro shot of a gleaming, polished silver car wheel rim after a professional service. The lighting is crisp and dramatic, highlighting the metallic texture and cleanliness. The background is a blurred workshop setting with organized tools, conveying a sense of quality assurance and completed craftsmanship in a modern automotive center." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBZNQF9lu0H2tUU597XHaZCrR7M-enl81HAApN8MYe-L4mQzXwhYkOk-p_P_-H_ReZhdrCHk1_QPBgk0uSxTUZm5wsIBWAq2aVbDXzAkU9wD2ndlEvAdzniiBpbp1WUhuI9ObLe6SgKc2Kn4PVEbSvoUHDB1usPFh3A_Y6fGFIx2dMCecTdIuP4xYCWnUuRf8RS2nBqrJkCMwsWM680Wtlqnfm7RdkrNdEa5co0d0g3RngQb_V1gUZYtw')"></div>
+<div class="absolute top-3 right-3">
+<span class="bg-tertiary-fixed-dim text-on-tertiary-fixed-variant px-3 py-1 rounded-full text-xs font-bold uppercase tracking-tight flex items-center gap-1 shadow-sm">
+<span class="material-symbols-outlined text-[14px]">check_circle</span>
+                                Terminado
+                            </span>
+</div>
+</div>
+<div class="p-5 flex-1">
+<div class="flex justify-between items-start mb-4">
+<div>
+<h3 class="font-headline-md text-headline-md text-on-surface">Toyota Hilux 4x4</h3>
+<p class="text-on-surface-variant font-data-mono text-data-mono uppercase">Placa: HIL-4455</p>
+</div>
+<button class="p-1.5 hover:bg-surface-container rounded-lg text-on-surface-variant">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</div>
+<div class="space-y-3 mb-6">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-outline">person</span>
+<span class="text-on-surface font-medium">Juan Pérez</span>
+</div>
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-outline">calendar_month</span>
+<span class="text-on-surface-variant text-body-sm">Finalizado: 25 Oct, 08:00 AM</span>
+</div>
+<div class="w-full bg-surface-container-lowest rounded-full h-2 mt-4 border border-outline-variant/30">
+<div class="bg-tertiary-fixed-dim h-full rounded-full" style="width: 100%"></div>
+</div>
+<p class="text-xs text-on-tertiary-container text-right font-bold">List para entrega</p>
+</div>
+<div class="grid grid-cols-2 gap-3">
+<button class="flex items-center justify-center gap-2 py-2.5 px-4 border border-outline-variant rounded-lg font-body-sm text-body-sm font-semibold hover:bg-surface-container-low transition-colors">
+<span class="material-symbols-outlined text-[18px]">visibility</span>
+                                Ver Informe
+                            </button>
+<select class="bg-surface-container-low border border-outline-variant rounded-lg font-body-sm text-body-sm font-semibold px-3 py-2.5 outline-none focus:ring-2 focus:ring-primary cursor-pointer">
+<option value="pending">Pendiente</option>
+<option value="progress">En Proceso</option>
+<option selected="" value="done">Terminado</option>
+</select>
+</div>
+</div>
+</div>
+<!-- Card Item 4 (In Progress) -->
+<div class="service-card bg-white border border-outline-variant rounded-xl overflow-hidden flex flex-col">
+<div class="relative h-48">
+<div class="bg-cover bg-center w-full h-full" data-alt="A focused mechanic's hands using a digital diagnostic tablet connected to a luxury SUV. The lighting is technical and cool-toned, reflecting a sophisticated workshop environment where technology and engineering meet. The scene emphasizes high-end vehicle maintenance and modern data-driven repair processes." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuC40-xjszyErH8q-efOa77AkK3h2lw_goN8G-1IE9K_LDo3MbN9Kt61mTFCN7OKNghcvJ1Tpi5A-HJF_ZPFHDaKd-3_pld_HAnxQF23RpeLegoM4pRA4PvYKHX7X1pBg_9ivt3jfjvHE4CgFJGUUWR7bbVJ4ptT1MGjnDzkv_cUEkokwAgLxuxBEl2tMO67VBW3-yo5xuLuE5FJLF9a2NUuxmRIOQ7IdeJ71wQooAhSZz5IPCrcgjhZcg')"></div>
+<div class="absolute top-3 right-3">
+<span class="bg-secondary-container text-on-secondary-container px-3 py-1 rounded-full text-xs font-bold uppercase tracking-tight flex items-center gap-1 shadow-sm">
+<span class="material-symbols-outlined text-[14px]">bolt</span>
+                                En Proceso
+                            </span>
+</div>
+</div>
+<div class="p-5 flex-1">
+<div class="flex justify-between items-start mb-4">
+<div>
+<h3 class="font-headline-md text-headline-md text-on-surface">Mercedes-Benz GLA</h3>
+<p class="text-on-surface-variant font-data-mono text-data-mono uppercase">Placa: MER-2023</p>
+</div>
+<button class="p-1.5 hover:bg-surface-container rounded-lg text-on-surface-variant">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</div>
+<div class="space-y-3 mb-6">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-outline">person</span>
+<span class="text-on-surface font-medium">Elena Ramírez</span>
+</div>
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-outline">calendar_month</span>
+<span class="text-on-surface-variant text-body-sm">Ingreso: 25 Oct, 11:45 AM</span>
+</div>
+<div class="w-full bg-surface-container-lowest rounded-full h-2 mt-4 border border-outline-variant/30">
+<div class="bg-secondary-container h-full rounded-full" style="width: 30%"></div>
+</div>
+<p class="text-xs text-on-surface-variant text-right">Diagnóstico completado</p>
+</div>
+<div class="grid grid-cols-2 gap-3">
+<button class="flex items-center justify-center gap-2 py-2.5 px-4 border border-outline-variant rounded-lg font-body-sm text-body-sm font-semibold hover:bg-surface-container-low transition-colors">
+<span class="material-symbols-outlined text-[18px]">photo_camera</span>
+                                Evidencia
+                            </button>
+<select class="bg-surface-container-low border border-outline-variant rounded-lg font-body-sm text-body-sm font-semibold px-3 py-2.5 outline-none focus:ring-2 focus:ring-primary cursor-pointer">
+<option value="pending">Pendiente</option>
+<option selected="" value="progress">En Proceso</option>
+<option value="done">Terminado</option>
+</select>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- FAB for quick action (as mentioned in mandate, contextually relevant here for new service) -->
+<button class="fixed bottom-8 right-8 w-14 h-14 bg-secondary-container text-on-secondary-container rounded-full shadow-lg hover:scale-110 active:scale-95 transition-all flex items-center justify-center z-50 md:hidden">
+<span class="material-symbols-outlined">add</span>
+</button>
+<script>
+        // Simple micro-interaction for status change
+        document.querySelectorAll('select').forEach(select => {
+            select.addEventListener('change', function() {
+                const card = this.closest('.service-card');
+                const badge = card.querySelector('.absolute.top-3 span');
+                
+                if (this.value === 'done') {
+                    badge.className = 'bg-tertiary-fixed-dim text-on-tertiary-fixed-variant px-3 py-1 rounded-full text-xs font-bold uppercase tracking-tight flex items-center gap-1 shadow-sm';
+                    badge.innerHTML = '<span class="material-symbols-outlined text-[14px]">check_circle</span>Terminado';
+                    card.style.opacity = '1';
+                    card.style.filter = 'none';
+                } else if (this.value === 'pending') {
+                    badge.className = 'bg-surface-container-highest text-on-surface-variant px-3 py-1 rounded-full text-xs font-bold uppercase tracking-tight flex items-center gap-1 shadow-sm border border-outline-variant';
+                    badge.innerHTML = '<span class="material-symbols-outlined text-[14px]">pause</span>No comenzado';
+                    card.style.opacity = '0.9';
+                } else {
+                    badge.className = 'bg-secondary-container text-on-secondary-container px-3 py-1 rounded-full text-xs font-bold uppercase tracking-tight flex items-center gap-1 shadow-sm';
+                    badge.innerHTML = '<span class="material-symbols-outlined text-[14px]">bolt</span>En Proceso';
+                    card.style.opacity = '1';
+                }
+            });
+        });
+    </script>
+</body></html>
