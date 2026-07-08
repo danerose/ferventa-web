@@ -10,12 +10,6 @@ export interface ClientPortalPageProps {
 }
 
 export const ClientPortalPage: React.FC<ClientPortalPageProps> = ({ onOpenAdmin }) => {
-  const handleScrollTo = (id: string) => {
-    const el = document.getElementById(id);
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth' });
-    }
-  };
 
   return (
     <Box className="min-h-screen bg-background text-on-background font-sans">
