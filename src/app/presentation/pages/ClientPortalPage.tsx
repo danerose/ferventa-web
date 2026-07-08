@@ -9,7 +9,7 @@ export interface ClientPortalPageProps {
   onOpenAdmin?: () => void;
 }
 
-export const ClientPortalPage: React.FC<ClientPortalPageProps> = ({ onOpenShowcase, onOpenAdmin }) => {
+export const ClientPortalPage: React.FC<ClientPortalPageProps> = ({ onOpenAdmin }) => {
   const handleScrollTo = (id: string) => {
     const el = document.getElementById(id);
     if (el) {
@@ -35,20 +35,6 @@ export const ClientPortalPage: React.FC<ClientPortalPageProps> = ({ onOpenShowca
             </Flex>
 
             {/* Navigation links */}
-            <nav className="hidden md:flex gap-6">
-              <button
-                onClick={() => handleScrollTo('agendar-seccion')}
-                className="text-on-surface-variant hover:text-primary transition-colors font-medium text-sm focus:outline-none cursor-pointer"
-              >
-                Agendar Cita
-              </button>
-              <button
-                onClick={() => handleScrollTo('consultar-seccion')}
-                className="text-on-surface-variant hover:text-primary transition-colors font-medium text-sm focus:outline-none cursor-pointer"
-              >
-                Consultar Estatus
-              </button>
-            </nav>
 
             {/* Showcase / Admin Toggle */}
             <Flex align="center" gap="sm">
@@ -63,17 +49,6 @@ export const ClientPortalPage: React.FC<ClientPortalPageProps> = ({ onOpenShowca
                   Acceso Staff
                 </PrimaryButton>
               )}
-              {onOpenShowcase && (
-                <PrimaryButton
-                  variant="outline"
-                  size="sm"
-                  onClick={onOpenShowcase}
-                  className="border-[#091426] text-[#091426] hover:bg-[#091426]/5 gap-1.5"
-                >
-                  <Icon name="Sliders" size="xs" />
-                  Foundations UI
-                </PrimaryButton>
-              )}
             </Flex>
           </Flex>
         </Box>
@@ -86,7 +61,7 @@ export const ClientPortalPage: React.FC<ClientPortalPageProps> = ({ onOpenShowca
           <div
             className="w-full h-full bg-cover bg-center"
             style={{
-              backgroundImage: `url('https://lh3.googleusercontent.com/aida-public/AB6AXuDCHvyb7uHdjHw0467qkOz-hE64VaYjtuLWe2QJ9po-ZgMpIBZMgoG9cVmnv5isejooPWmx7sjjBxLR2jWq6EiGMO4UwYHfOBw-UWlSUPyFfnxzYyheQ5YCVqm2V4KXnMzkI2T-GvQ2x6OylZuHCvsvQla4FZvfrEH5Bm2s_vMHywpyq3hdFq21ADXqZvGjpJoqSNQ1-jAv4VCDyBC8nuJ8G_DG60i_umOKbsxsZSV30rWKiHsFouIpfA')`,
+              backgroundImage: `url('https://images.unsplash.com/photo-1636761358757-0a616eb9e17e?fm=jpg&q=60&w=3000&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8M3x8bW90b3JjeWNsZSUyMGdhcmFnZXxlbnwwfHwwfHx8MA%3D%3D')`,
             }}
           ></div>
           {/* Deep navy-to-transparent gradient */}
@@ -97,10 +72,10 @@ export const ClientPortalPage: React.FC<ClientPortalPageProps> = ({ onOpenShowca
         <div className="absolute inset-0 z-10 flex items-center">
           <div style={{ width: '100%', maxWidth: '36rem', padding: '0 3rem', color: 'white', flexShrink: 0 }}>
             <h1 className="font-display-lg text-white mb-3">
-              Cuidamos tu vehículo con ingeniería de precisión.
+              Cuidamos tu moto con ingeniería de precisión.
             </h1>
             <p style={{ color: 'rgb(203 213 225)', fontSize: '14px', lineHeight: '1.625', marginBottom: '1.5rem' }}>
-              Agenda servicios preventivos o correctivos y monitorea el avance de tu auto en tiempo real con transparencia total.
+              Agenda servicios preventivos o correctivos y monitorea el avance de tu moto en tiempo real con transparencia total.
             </p>
           </div>
         </div>

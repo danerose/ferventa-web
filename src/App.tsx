@@ -60,7 +60,6 @@ function App() {
   if (currentView === 'portal') {
     return (
       <ClientPortalPage
-        onOpenShowcase={() => setCurrentView('showcase')}
         onOpenAdmin={handleOpenAdmin}
       />
     );

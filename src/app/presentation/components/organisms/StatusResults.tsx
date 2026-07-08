@@ -33,7 +33,7 @@ export const StatusResults: React.FC = () => {
     return (
       <Box p="lg" rounded="xl" className="bg-white border border-[#e2e8f0] text-center py-16 shadow-sm">
         <Stack gap="sm" align="center" className="text-gray-400">
-          <Icon name="Car" size={48} className="text-slate-300" />
+          <Icon name="Motorbike" size={48} className="text-slate-300" />
           <p className="font-body-base text-on-surface-variant font-medium">
             Introduce tus datos de cita o número de serie a la izquierda para ver el estatus.
           </p>
@@ -141,8 +141,8 @@ export const StatusResults: React.FC = () => {
                 <div className="flex flex-col items-center gap-2">
                   <div
                     className={`w-10 h-10 rounded-full flex items-center justify-center ring-4 ring-white border transition-all duration-500 ${stepInfo.active >= 1
-                        ? 'bg-[#091426] text-white border-none'
-                        : 'bg-white text-gray-400 border-gray-300'
+                      ? 'bg-[#091426] text-white border-none'
+                      : 'bg-white text-gray-400 border-gray-300'
                       }`}
                   >
                     {stepInfo.active > 1 ? (
@@ -160,8 +160,8 @@ export const StatusResults: React.FC = () => {
                 <div className="flex flex-col items-center gap-2">
                   <div
                     className={`w-10 h-10 rounded-full flex items-center justify-center ring-4 ring-white border transition-all duration-500 ${stepInfo.active >= 2
-                        ? 'bg-[#091426] text-white border-none'
-                        : 'bg-white text-gray-400 border-gray-300'
+                      ? 'bg-[#091426] text-white border-none'
+                      : 'bg-white text-gray-400 border-gray-300'
                       }`}
                   >
                     {stepInfo.active > 2 ? (
@@ -179,8 +179,8 @@ export const StatusResults: React.FC = () => {
                 <div className="flex flex-col items-center gap-2">
                   <div
                     className={`w-10 h-10 rounded-full flex items-center justify-center ring-4 ring-white border transition-all duration-500 ${stepInfo.active >= 3
-                        ? 'bg-[#091426] text-white border-none'
-                        : 'bg-white text-gray-400 border-gray-300'
+                      ? 'bg-[#091426] text-white border-none'
+                      : 'bg-white text-gray-400 border-gray-300'
                       }`}
                   >
                     <Icon name="Award" size="sm" />
