@@ -12,3 +12,9 @@ export * from './atoms/Input/NumberInput';
 export * from './atoms/Input/AutocompleteInput';
 
 export * from './atoms/Icon/Icon';
+
+export * from './organisms/AppointmentForm';
+export * from './organisms/StatusSearch';
+export * from './organisms/StatusResults';
+
+export * from './molecules/DateTimePicker/DateTimePicker';

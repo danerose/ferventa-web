@@ -11,9 +11,15 @@ import {
   NumberInput,
   AutocompleteInput,
   Icon
-} from './app/components';
+} from './app/presentation/components';
+import { ClientPortalPage } from './app/presentation/pages/ClientPortalPage';
+import { LoginPage } from './app/presentation/pages/LoginPage';
+import { AdminDashboardPage } from './app/presentation/pages/AdminDashboardPage';
+import { useAuthStore } from './core/stores/useAuthStore';
 
 function App() {
+  const [currentView, setCurrentView] = useState<'portal' | 'showcase' | 'login' | 'dashboard'>('portal');
+  const { isAuthenticated } = useAuthStore();
   const [isLoading, setIsLoading] = useState(false);
   const [inputValue, setInputValue] = useState('');
   const [submittedValue, setSubmittedValue] = useState<string | null>(null);
@@ -42,6 +48,35 @@ function App() {
       setInputValue('');
     }, 1500);
   };
+
+  const handleOpenAdmin = () => {
+    if (isAuthenticated()) {
+      setCurrentView('dashboard');
+    } else {
+      setCurrentView('login');
+    }
+  };
+
+  if (currentView === 'portal') {
+    return (
+      <ClientPortalPage
+        onOpenShowcase={() => setCurrentView('showcase')}
+        onOpenAdmin={handleOpenAdmin}
+      />
+    );
+  }
+
+  if (currentView === 'login') {
+    return <LoginPage onLoginSuccess={() => setCurrentView('dashboard')} />;
+  }
+
+  if (currentView === 'dashboard') {
+    // Basic protection: if not authenticated, go back to login
+    if (!isAuthenticated()) {
+      return <LoginPage onLoginSuccess={() => setCurrentView('dashboard')} />;
+    }
+    return <AdminDashboardPage onLogout={() => setCurrentView('portal')} />;
+  }
 
   return (
     <Box className="min-h-screen bg-background text-on-background">
@@ -80,6 +115,14 @@ function App() {
             <Box rounded="lg" p="md" className="bg-surface-container-lowest border border-[#e2e8f0]">
               <Stack gap="sm">
                 <span className="font-label-caps text-on-surface-variant/75 px-2 mb-2">Navigation</span>
+                <SecondaryButton
+                  variant="outline"
+                  onClick={() => setCurrentView('portal')}
+                  className="justify-start gap-3 w-full text-left border-secondary text-secondary hover:bg-secondary/5 font-semibold mb-2"
+                >
+                  <Icon name="ArrowLeft" size="sm" />
+                  Ir al Portal
+                </SecondaryButton>
                 <PrimaryButton variant="soft" className="justify-start gap-3 w-full text-left">
                   <Icon name="LayoutDashboard" size="sm" />
                   Dashboard

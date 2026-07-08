@@ -16,8 +16,34 @@ This defines the folder structure for every feature in this codebase. It's adapt
 ```yaml
 src:
   app:
-    features:
-      <feature-name>:   # e.g. auth/, scanner/, tickets/
+    data:
+      datasources:
+        - auth.local-datasource.ts
+        - auth.remote-datasource.ts
+      repositories:
+        - auth.repository.ts
+      mappers:
+        - auth.mapper.ts
+    domain:
+      types:
+        - User.ts
+      usecases:
+        - requestOtp.usecase.ts
+        - verifyOtp.usecase.ts
+        - clearUserSession.usecase.ts
+    presentation:
+      components:
+        atoms:
+        primtives:
+        organisms:
+        templates:
+        layouts:
+      hooks:
+        - useAuth.ts
+      store:
+        - auth.store.ts
+      pages:
+        - LoginPage.tsx
     register:           # app-wide DI wiring, if the project uses it
   core:
     constants:
@@ -51,20 +77,10 @@ features:
       mappers:
         - auth.mapper.ts
     domain:
-      types:
-        - User.ts
-      usecases:
-        - requestOtp.usecase.ts
-        - verifyOtp.usecase.ts
-        - clearUserSession.usecase.ts
+
     presentation:
       components:   # atoms/molecules/organisms — see component-architecture skill
-      hooks:
-        - useAuth.ts
-      store:
-        - auth.store.ts
-      views:
-        - LoginView.tsx
+
     auth.register.ts:   # DI wiring for this feature, if used
 ```
 

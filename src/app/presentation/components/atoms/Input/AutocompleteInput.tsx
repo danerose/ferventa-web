@@ -4,7 +4,7 @@ import { cn } from '@/core/utils/cn';
 export interface AutocompleteOption {
   label: string;
   value: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export interface AutocompleteInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'size' | 'value' | 'onChange'> {
@@ -202,6 +202,7 @@ export const AutocompleteInput = React.forwardRef<HTMLInputElement, Autocomplete
               } else if (ref) {
                 ref.current = node;
               }
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               (inputRef as any).current = node;
             }}
             type="text"
