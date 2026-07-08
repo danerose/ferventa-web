@@ -256,7 +256,6 @@ export const AppointmentForm: React.FC = () => {
                   <option value="Mantenimiento Preventivo">Mantenimiento Preventivo</option>
                   <option value="Diagnóstico de Motor">Diagnóstico de Motor</option>
                   <option value="Frenos y Suspensión">Frenos y Suspensión</option>
-                  <option value="Hojalatería y Pintura">Hojalatería y Pintura</option>
                   <option value="Otro">Otro</option>
                 </select>
               </div>

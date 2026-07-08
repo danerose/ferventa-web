@@ -158,7 +158,6 @@ export const ClientPortalPage: React.FC<ClientPortalPageProps> = ({ onOpenAdmin 
                 <li>Mantenimiento Preventivo</li>
                 <li>Diagnóstico de Motor</li>
                 <li>Frenos y Suspensión</li>
-                <li>Hojalatería y Pintura</li>
               </ul>
             </div>
 
@@ -167,15 +166,19 @@ export const ClientPortalPage: React.FC<ClientPortalPageProps> = ({ onOpenAdmin 
               <ul className="space-y-2 text-sm">
                 <li className="flex items-center gap-2">
                   <Icon name="Phone" size="xs" />
-                  +52 55 1234 5678
+                  +52 999 438 9747
                 </li>
                 <li className="flex items-center gap-2">
                   <Icon name="MapPin" size="xs" />
-                  Ciudad de México, MX
+                  Plaza "Santos Lugo", Umán, 97390 Umán, Yuc.
                 </li>
                 <li className="flex items-center gap-2">
                   <Icon name="Clock" size="xs" />
-                  Lun - Vie: 9:00 - 18:00
+                  Lun - Vie: 9:00 am - 6:00 pm
+                </li>
+                <li className="flex items-center gap-2">
+                  <Icon name="Clock" size="xs" />
+                  Sab: 9:00 am - 4:00 pm
                 </li>
               </ul>
             </div>
