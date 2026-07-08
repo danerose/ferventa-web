@@ -42,13 +42,13 @@ const STATUS_ACCENT: Record<string, string> = {
 function formatScheduledAt(scheduledAt: string) {
   try {
     const d = new Date(scheduledAt);
-    const day = d.getDate();
+    const day = d.getUTCDate();
     const monthShort = d
-      .toLocaleDateString('es-MX', { month: 'short' })
+      .toLocaleDateString('es-MX', { month: 'short', timeZone: 'UTC' })
       .toUpperCase()
       .replace('.', '');
-    const hours = d.getHours();
-    const minutes = String(d.getMinutes()).padStart(2, '0');
+    const hours = d.getUTCHours();
+    const minutes = String(d.getUTCMinutes()).padStart(2, '0');
     const period = hours >= 12 ? 'PM' : 'AM';
     const h12 = hours % 12 || 12;
     return { date: `${day} ${monthShort}`, time: `${h12}:${minutes}`, period };
@@ -70,6 +70,8 @@ interface AppointmentCardProps {
   onApproveClick: (appt: AdminAppointment) => void;
   onRejectClick: (appt: AdminAppointment) => void;
   onRescheduleClick: (appt: AdminAppointment) => void;
+  onCancelClick?: (appt: AdminAppointment) => void;
+  onRescheduleApprovedClick?: (appt: AdminAppointment) => void;
   updating: boolean;
 }
 
@@ -78,6 +80,8 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
   onApproveClick,
   onRejectClick,
   onRescheduleClick,
+  onCancelClick,
+  onRescheduleApprovedClick,
   updating,
 }) => {
   const { date, time, period } = formatScheduledAt(appt.scheduledAt);
@@ -368,6 +372,73 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
           </div>
         </div>
       )}
+
+      {appt.status === 'approved' && (
+        <div
+          style={{
+            width: '180px',
+            flexShrink: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '8px',
+            justifyContent: 'center',
+          }}
+        >
+          {/* Reagendar button */}
+          <button
+            onClick={() => onRescheduleApprovedClick?.(appt)}
+            disabled={updating}
+            style={{
+              width: '100%',
+              background: '#091426',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              padding: '9px 16px',
+              fontSize: '13px',
+              fontWeight: '700',
+              cursor: updating ? 'not-allowed' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+              transition: 'background 0.15s, opacity 0.15s',
+            }}
+            onMouseEnter={(e) => { if (!updating) (e.currentTarget as HTMLButtonElement).style.background = '#1e293b'; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = '#091426'; }}
+          >
+            <Icon name="Calendar" size="xs" />
+            Reagendar
+          </button>
+
+          {/* Cancelar button */}
+          <button
+            onClick={() => onCancelClick?.(appt)}
+            disabled={updating}
+            style={{
+              width: '100%',
+              background: 'transparent',
+              color: '#dc2626',
+              border: '1px solid #fca5a5',
+              borderRadius: '8px',
+              padding: '9px 16px',
+              fontSize: '13px',
+              fontWeight: '700',
+              cursor: updating ? 'not-allowed' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+              transition: 'background 0.15s',
+            }}
+            onMouseEnter={(e) => { if (!updating) (e.currentTarget as HTMLButtonElement).style.background = '#fef2f2'; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
+          >
+            <Icon name="XCircle" size="xs" />
+            Cancelar
+          </button>
+        </div>
+      )}
     </div>
   );
 };
@@ -447,7 +518,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout, userName }) => (
           <Icon name="Wrench" className="text-white" size="sm" />
         </div>
         <span style={{ color: 'white', fontSize: '18px', fontWeight: '700', letterSpacing: '-0.01em' }}>
-          Ferventa
+          Moto servicio Nova FV
         </span>
       </div>
       <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', letterSpacing: '0.04em' }}>
@@ -585,7 +656,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onLogout
   const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Modal States
-  const [activeModal, setActiveModal] = useState<'approve' | 'reject' | 'reschedule' | 'approveRescheduled' | 'addAppointment' | null>(null);
+  const [activeModal, setActiveModal] = useState<'approve' | 'reject' | 'reschedule' | 'approveRescheduled' | 'addAppointment' | 'cancelApproved' | null>(null);
   const [selectedAppt, setSelectedAppt] = useState<AdminAppointment | null>(null);
   const [modalMessage, setModalMessage] = useState('');
   const [isMessageEdited, setIsMessageEdited] = useState(false);
@@ -663,7 +734,12 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onLogout
       const today = new Date();
       const futureLimit = new Date();
       futureLimit.setDate(today.getDate() + 14);
-      const formatDateStr = (d: Date) => d.toISOString().split('T')[0];
+      const formatDateStr = (d: Date) => {
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        return `${yyyy}-${mm}-${dd}`;
+      };
       const slots = await clientRepo.getOccupiedSlots(formatDateStr(today), formatDateStr(futureLimit));
       setOccupiedSlots(slots);
     } catch (err) {
@@ -686,8 +762,8 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onLogout
   const formatSpanishDate = (dateStr: string) => {
     if (!dateStr) return '';
     try {
-      const dateObj = new Date(dateStr + 'T00:00:00');
-      return dateObj.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' });
+      const dateObj = new Date(dateStr + 'T00:00:00Z');
+      return dateObj.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' });
     } catch {
       return dateStr;
     }
@@ -702,12 +778,12 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onLogout
       setActiveModal('approveRescheduled');
       // Set default values from current appt
       const dateObj = new Date(appt.scheduledAt);
-      const yyyy = dateObj.getFullYear();
-      const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
-      const dd = String(dateObj.getDate()).padStart(2, '0');
+      const yyyy = dateObj.getUTCFullYear();
+      const mm = String(dateObj.getUTCMonth() + 1).padStart(2, '0');
+      const dd = String(dateObj.getUTCDate()).padStart(2, '0');
       setFinalDate(`${yyyy}-${mm}-${dd}`);
-      const hh = String(dateObj.getHours()).padStart(2, '0');
-      const min = String(dateObj.getMinutes()).padStart(2, '0');
+      const hh = String(dateObj.getUTCHours()).padStart(2, '0');
+      const min = String(dateObj.getUTCMinutes()).padStart(2, '0');
       setFinalTime(`${hh}:${min}`);
 
       // Load slots for the validation helper
@@ -756,6 +832,30 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onLogout
     setNewSuggestionTime('09:00');
 
     // Load slots for helper
+    loadSlots();
+  };
+
+  const handleCancelClick = (appt: AdminAppointment) => {
+    setSelectedAppt(appt);
+    setActiveModal('cancelApproved');
+  };
+
+  const handleRescheduleApprovedClick = (appt: AdminAppointment) => {
+    setSelectedAppt(appt);
+    setIsMessageEdited(false);
+    setActiveModal('approveRescheduled');
+
+    // Set default values from current appt
+    const dateObj = new Date(appt.scheduledAt);
+    const yyyy = dateObj.getUTCFullYear();
+    const mm = String(dateObj.getUTCMonth() + 1).padStart(2, '0');
+    const dd = String(dateObj.getUTCDate()).padStart(2, '0');
+    setFinalDate(`${yyyy}-${mm}-${dd}`);
+    const hh = String(dateObj.getUTCHours()).padStart(2, '0');
+    const min = String(dateObj.getUTCMinutes()).padStart(2, '0');
+    setFinalTime(`${hh}:${min}`);
+
+    // Load slots for the validation helper
     loadSlots();
   };
 
@@ -895,7 +995,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onLogout
     try {
       // Send first suggestion in scheduledAt field as ISO
       const firstSug = suggestedSchedules[0];
-      const isoString = new Date(`${firstSug.date}T${firstSug.time}:00`).toISOString();
+      const isoString = `${firstSug.date}T${firstSug.time}:00.000Z`;
       const originalDuration = selectedAppt.duration || 90;
 
       await adminRepo.rescheduleAppointment(accessToken, selectedAppt.id, isoString, originalDuration, modalMessage);
@@ -924,7 +1024,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onLogout
     setActiveModal(null);
     try {
       // Convert selected date/time to ISO format
-      const finalIso = new Date(`${finalDate}T${finalTime}:00`).toISOString();
+      const finalIso = `${finalDate}T${finalTime}:00.000Z`;
 
       // Step 1: Update the appointment schedule
       await adminRepo.updateAppointment(accessToken, selectedAppt.id, {
@@ -950,25 +1050,52 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onLogout
     }
   };
 
+  const handleCancelApprovedConfirm = async () => {
+    if (!accessToken || !selectedAppt) return;
+
+    setUpdatingId(selectedAppt.id);
+    setActiveModal(null);
+    try {
+      // Update appointment status to cancelled
+      await adminRepo.updateAppointment(accessToken, selectedAppt.id, {
+        status: 'cancelled',
+      });
+
+      setAppointments((prev) =>
+        prev.map((a) => (a.id === selectedAppt.id ? { ...a, status: 'cancelled' as const } : a))
+      );
+      addToast('success', 'Cita cancelada exitosamente.');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Error';
+      if (msg === 'UNAUTHORIZED') { handleUnauthorized(); return; }
+      addToast('error', msg);
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
   // Generate visual helper list for occupied dates
   const occupiedList = useMemo(() => {
     if (!occupiedSlots) return [];
 
     const list = [];
     const today = new Date();
+    const todayUTC = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()));
 
     for (let i = 0; i < 7; i++) {
-      const nextDate = new Date();
-      nextDate.setDate(today.getDate() + i);
-      const dateString = nextDate.toISOString().split('T')[0];
+      const nextDate = new Date(todayUTC.getTime() + i * 24 * 60 * 60 * 1000);
+      const yyyy = nextDate.getUTCFullYear();
+      const mm = String(nextDate.getUTCMonth() + 1).padStart(2, '0');
+      const dd = String(nextDate.getUTCDate()).padStart(2, '0');
+      const dateString = `${yyyy}-${mm}-${dd}`;
 
       // Format day name in Spanish
-      const dayLabel = nextDate.toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric', month: 'short' });
+      const dayLabel = nextDate.toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
 
       // Check Holiday
       const holiday = occupiedSlots.holidays.find((h: any) => h.date === dateString);
       // Check non-working day
-      const dayOfWeek = nextDate.getDay();
+      const dayOfWeek = nextDate.getUTCDay();
       const isNonWorking = occupiedSlots.nonWorkingDaysOfWeek.includes(dayOfWeek);
       const schedule = occupiedSlots.workingHours.find((w: any) => w.dayOfWeek === dayOfWeek);
       const isClosed = isNonWorking || (schedule && !schedule.isWorking);
@@ -1283,6 +1410,8 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onLogout
                   onApproveClick={handleApproveClick}
                   onRejectClick={handleRejectClick}
                   onRescheduleClick={handleRescheduleClick}
+                  onCancelClick={handleCancelClick}
+                  onRescheduleApprovedClick={handleRescheduleApprovedClick}
                   updating={updatingId === appt.id}
                 />
               ))}
@@ -1530,27 +1659,31 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onLogout
         </div>
       )}
 
-      {/* 4. Modal Aprobar Cita Reagendada (Rescheduled) */}
+      {/* 4. Modal Aprobar Cita Reagendada (Rescheduled) / Reagendar Aprobada */}
       {activeModal === 'approveRescheduled' && selectedAppt && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: '20px' }}>
           <div style={{ background: 'white', borderRadius: '16px', maxWidth: '600px', width: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)', margin: 'auto' }}>
-            <div style={{ padding: '24px 28px', background: '#8b5cf6', color: 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ padding: '24px 28px', background: selectedAppt.status === 'approved' ? '#091426' : '#8b5cf6', color: 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <Icon name="CheckCircle" />
-                <span style={{ fontSize: '18px', fontWeight: '700' }}>Confirmar y Aprobar Cita Reagendada</span>
+                <Icon name={selectedAppt.status === 'approved' ? 'Calendar' : 'CheckCircle'} />
+                <span style={{ fontSize: '18px', fontWeight: '700' }}>
+                  {selectedAppt.status === 'approved' ? 'Reagendar Cita Aprobada' : 'Confirmar y Aprobar Cita Reagendada'}
+                </span>
               </div>
               <button onClick={() => setActiveModal(null)} style={{ background: 'transparent', border: 'none', color: 'white', cursor: 'pointer', opacity: 0.8 }}><Icon name="X" /></button>
             </div>
 
             <div style={{ padding: '28px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <p style={{ fontSize: '13.5px', color: '#475569', margin: 0 }}>
-                Selecciona la fecha y hora final acordada con el cliente para esta cita reagendada antes de proceder con su aprobación.
+                {selectedAppt.status === 'approved'
+                  ? 'Selecciona la nueva fecha y hora para la cita aprobada.'
+                  : 'Selecciona la fecha y hora final acordada con el cliente para esta cita reagendada antes de proceder con su aprobación.'}
               </p>
 
               {/* Final schedule selection */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', background: '#f5f3ff', border: '1px solid #ddd6fe', borderRadius: '8px', padding: '14px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', background: selectedAppt.status === 'approved' ? '#f8fafc' : '#f5f3ff', border: selectedAppt.status === 'approved' ? '1px solid #e2e8f0' : '1px solid #ddd6fe', borderRadius: '8px', padding: '14px' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', color: '#6d28d9' }}>Fecha Final *</label>
+                  <label style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', color: selectedAppt.status === 'approved' ? '#475569' : '#6d28d9' }}>Fecha Final *</label>
                   <input
                     type="date"
                     value={finalDate}
@@ -1559,7 +1692,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onLogout
                   />
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', color: '#6d28d9' }}>Hora Final (Intervalos 15 min) *</label>
+                  <label style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', color: selectedAppt.status === 'approved' ? '#475569' : '#6d28d9' }}>Hora Final (Intervalos 15 min) *</label>
                   <select
                     value={finalTime}
                     onChange={(e) => setFinalTime(e.target.value)}
@@ -1615,9 +1748,68 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onLogout
               <button
                 onClick={handleApproveRescheduledConfirm}
                 disabled={!finalDate || !finalTime}
-                style={{ background: '#8b5cf6', border: 'none', borderRadius: '8px', padding: '9px 20px', fontSize: '13px', fontWeight: '700', color: 'white', cursor: (finalDate && finalTime) ? 'pointer' : 'not-allowed' }}
+                style={{
+                  background: selectedAppt.status === 'approved' ? '#091426' : '#8b5cf6',
+                  border: 'none',
+                  borderRadius: '8px',
+                  padding: '9px 20px',
+                  fontSize: '13px',
+                  fontWeight: '700',
+                  color: 'white',
+                  cursor: (finalDate && finalTime) ? 'pointer' : 'not-allowed'
+                }}
               >
-                Actualizar Cita y Aprobar
+                {selectedAppt.status === 'approved' ? 'Guardar y Reagendar' : 'Actualizar Cita y Aprobar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 6. Modal Cancelar Cita Aprobada */}
+      {activeModal === 'cancelApproved' && selectedAppt && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: '20px' }}>
+          <div style={{ background: 'white', borderRadius: '16px', maxWidth: '500px', width: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)', margin: 'auto' }}>
+            <div style={{ padding: '24px 28px', background: '#dc2626', color: 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <Icon name="AlertTriangle" />
+                <span style={{ fontSize: '18px', fontWeight: '700' }}>Cancelar Cita Aprobada</span>
+              </div>
+              <button onClick={() => setActiveModal(null)} style={{ background: 'transparent', border: 'none', color: 'white', cursor: 'pointer', opacity: 0.8 }}><Icon name="X" /></button>
+            </div>
+
+            <div style={{ padding: '28px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ background: '#fef2f2', border: '1px solid #fee2e2', borderRadius: '8px', padding: '16px', display: 'flex', gap: '12px', alignItems: 'start' }}>
+                <Icon name="AlertCircle" className="text-[#dc2626]" style={{ flexShrink: 0, marginTop: '2px' }} />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <span style={{ fontSize: '14px', fontWeight: '700', color: '#991b1b' }}>Advertencia Importante</span>
+                  <p style={{ fontSize: '13.5px', color: '#7f1d1d', margin: 0, lineHeight: '1.4' }}>
+                    Esta acción no puede ser deshecha. ¿Estás seguro de que deseas cancelar la cita de <strong>{selectedAppt.customerName}</strong>?
+                    {(() => {
+                      const { date, time, period } = formatScheduledAt(selectedAppt.scheduledAt);
+                      return (
+                        <span style={{ display: 'block', marginTop: '6px', fontSize: '12px', color: '#991b1b', fontWeight: '600' }}>
+                          Fecha programada: {date} a las {time} {period}
+                        </span>
+                      );
+                    })()}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ padding: '16px 28px', background: '#f8fafc', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'end', gap: '12px' }}>
+              <button
+                onClick={() => setActiveModal(null)}
+                style={{ background: 'white', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '9px 18px', fontSize: '13px', fontWeight: '600', color: '#475569', cursor: 'pointer' }}
+              >
+                Volver
+              </button>
+              <button
+                onClick={handleCancelApprovedConfirm}
+                style={{ background: '#dc2626', border: 'none', borderRadius: '8px', padding: '9px 20px', fontSize: '13px', fontWeight: '700', color: 'white', cursor: 'pointer' }}
+              >
+                Sí, Cancelar Cita
               </button>
             </div>
           </div>

@@ -10,7 +10,7 @@ interface RawAppointment {
   vehicle?: {
     brand: string;
     model: string;
-    year: number;
+    year: number | string;
     serialNumberLastFour: string;
     color?: string;
   };
@@ -52,7 +52,7 @@ interface RawMaintenanceTrack {
   vehicle?: {
     brand: string;
     model: string;
-    year: number;
+    year: number | string;
     serialNumberLastFour: string;
     color?: string;
   };

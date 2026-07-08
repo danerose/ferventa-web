@@ -1,7 +1,7 @@
 export interface Vehicle {
   brand: string;
   model: string;
-  year: number;
+  year: number | string;
   serialNumberLastFour: string;
   color?: string;
 }

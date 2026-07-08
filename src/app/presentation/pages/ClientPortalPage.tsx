@@ -22,7 +22,7 @@ export const ClientPortalPage: React.FC<ClientPortalPageProps> = ({ onOpenAdmin 
               <Box bg="primary" p="xs" className="text-white flex items-center justify-center rounded-lg shadow-sm">
                 <Icon name="Wrench" size="md" className="text-white" />
               </Box>
-              <span className="font-headline-md tracking-tight text-[#091426] font-bold">Ferventa</span>
+              <span className="font-headline-md tracking-tight text-[#091426] font-bold">Moto servicio Nova FV</span>
               <span className="badge bg-[#ffddb8] text-[#653e00] badge-sm font-semibold border-none rounded-full ml-1">
                 Portal Cliente
               </span>
@@ -142,13 +142,13 @@ export const ClientPortalPage: React.FC<ClientPortalPageProps> = ({ onOpenAdmin 
                 <Box bg="secondary" p="xs" className="rounded-lg flex items-center justify-center">
                   <Icon name="Wrench" size="sm" className="text-white" />
                 </Box>
-                <span className="font-headline-md text-white tracking-tight font-bold">Ferventa</span>
+                <span className="font-headline-md text-white tracking-tight font-bold">Moto servicio Nova FV</span>
               </Flex>
               <p className="text-sm mb-4 leading-relaxed">
                 La plataforma líder en gestión de talleres mecánicos de alto rendimiento. Precisión en cada proceso, confianza en cada entrega.
               </p>
               <p className="text-xs text-slate-500">
-                © {new Date().getFullYear()} Ferventa Workshop OS. Todos los derechos reservados.
+                © {new Date().getFullYear()} Moto servicio Nova FV. Todos los derechos reservados.
               </p>
             </div>
 

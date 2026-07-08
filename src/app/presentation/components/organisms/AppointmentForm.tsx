@@ -37,7 +37,12 @@ export const AppointmentForm: React.FC = () => {
     const futureLimit = new Date();
     futureLimit.setDate(today.getDate() + 30);
 
-    const formatDateStr = (d: Date) => d.toISOString().split('T')[0];
+    const formatDateStr = (d: Date) => {
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
+    };
     loadOccupiedSlots(formatDateStr(today), formatDateStr(futureLimit));
   }, [loadOccupiedSlots]);
 
@@ -55,7 +60,12 @@ export const AppointmentForm: React.FC = () => {
     const today = new Date();
     const futureLimit = new Date();
     futureLimit.setDate(today.getDate() + 30);
-    const formatDateStr = (d: Date) => d.toISOString().split('T')[0];
+    const formatDateStr = (d: Date) => {
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
+    };
     loadOccupiedSlots(formatDateStr(today), formatDateStr(futureLimit));
   };
 
@@ -80,11 +90,12 @@ export const AppointmentForm: React.FC = () => {
 
     const formattedDate = () => {
       if (!formSelectedDate) return '';
-      const dateObj = new Date(formSelectedDate + 'T00:00:00');
+      const dateObj = new Date(formSelectedDate + 'T00:00:00Z');
       return dateObj.toLocaleDateString('es-MX', {
         weekday: 'long',
         day: 'numeric',
         month: 'long',
+        timeZone: 'UTC',
       });
     };
 
@@ -186,11 +197,11 @@ export const AppointmentForm: React.FC = () => {
               />
             </div>
             <div>
-              <label className="block font-label-caps text-on-surface-variant mb-1">Correo Electrónico</label>
+              <label className="block font-label-caps text-on-surface-variant mb-1">Correo Electrónico (Opcional)</label>
               <TextInput
                 value={formCustomerEmail}
                 onChange={(e) => setFormField('formCustomerEmail', e.target.value)}
-                placeholder="juan@ejemplo.com"
+                placeholder="juan@ejemplo.com (Opcional)"
                 type="email"
                 disabled={bookingLoading}
               />
@@ -221,20 +232,20 @@ export const AppointmentForm: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-on-surface-variant mb-1">Modelo</label>
+                  <label className="block text-xs font-semibold text-on-surface-variant mb-1">Modelo (Opcional)</label>
                   <TextInput
                     value={formModel}
                     onChange={(e) => setFormField('formModel', e.target.value)}
-                    placeholder="Corolla"
+                    placeholder="Corolla (Opcional)"
                     disabled={bookingLoading}
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-on-surface-variant mb-1">Año</label>
+                  <label className="block text-xs font-semibold text-on-surface-variant mb-1">Año (Opcional)</label>
                   <TextInput
                     value={formYear}
                     onChange={(e) => setFormField('formYear', e.target.value.replace(/\D/g, '').slice(0, 4))}
-                    placeholder="2022"
+                    placeholder="2022 (Opcional)"
                     disabled={bookingLoading}
                   />
                 </div>

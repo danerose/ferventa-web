@@ -141,8 +141,8 @@ export const useClientPortalStore = create<ClientPortalState>((set, get) => ({
         customerEmail: formCustomerEmail.trim(),
         vehicle: {
           brand: formBrand.trim() || 'Genérica',
-          model: formModel.trim() || 'Genérico',
-          year: parseInt(formYear) || new Date().getFullYear(),
+          model: formModel.trim() || 'Generico',
+          year: formYear.trim() === '' ? '0000' : (parseInt(formYear) || 0),
           serialNumberLastFour: formSerialNumberLastFour.trim(),
         },
         serviceRequested: formServiceRequested,

@@ -8,7 +8,7 @@ export interface AuthUser {
 export interface AdminVehicle {
   brand: string;
   model: string;
-  year: number;
+  year: number | string;
   serialNumberLastFour: string;
   color?: string;
 }

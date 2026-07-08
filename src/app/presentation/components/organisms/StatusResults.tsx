@@ -316,6 +316,7 @@ export const StatusResults: React.FC = () => {
                         {new Date(appt.scheduledAt).toLocaleString('es-MX', {
                           dateStyle: 'medium',
                           timeStyle: 'short',
+                          timeZone: 'UTC',
                         })}
                       </span>
                       {appt.vehicle && (

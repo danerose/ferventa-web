@@ -107,7 +107,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                 letterSpacing: '-0.02em',
               }}
             >
-              Ferventa
+              Moto servicio Nova FV
             </span>
           </div>
           <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '13px', letterSpacing: '0.02em' }}>
@@ -227,7 +227,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
             marginTop: '28px',
           }}
         >
-          © {new Date().getFullYear()} Ferventa Workshop OS
+          © {new Date().getFullYear()} Moto servicio Nova FV
         </p>
       </div>
     </div>

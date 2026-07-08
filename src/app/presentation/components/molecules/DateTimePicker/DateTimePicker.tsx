@@ -191,7 +191,7 @@ export const DateTimePicker: React.FC<DateTimePickerProps> = ({
     }
 
     const dateStr = selectedDate;
-    const parsedDate = new Date(selectedDate + 'T00:00:00');
+    const parsedDate = new Date(selectedDate + 'T00:00:00Z');
 
     // 1. Holiday Check
     const holiday = occupiedSlots.holidays.find((h) => h.date === dateStr);
@@ -203,7 +203,7 @@ export const DateTimePicker: React.FC<DateTimePickerProps> = ({
     }
 
     // 2. Non working day check
-    const dayOfWeek = parsedDate.getDay();
+    const dayOfWeek = parsedDate.getUTCDay();
     const isNonWorkingDay = occupiedSlots.nonWorkingDaysOfWeek.includes(dayOfWeek);
     if (isNonWorkingDay) {
       return {
@@ -228,7 +228,10 @@ export const DateTimePicker: React.FC<DateTimePickerProps> = ({
     let current = startMin;
 
     const now = new Date();
-    const todayStr = now.toISOString().split('T')[0];
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    const todayStr = `${yyyy}-${mm}-${dd}`;
     const currentHourMinutes = now.getHours() * 60 + now.getMinutes();
 
     while (current + 15 <= endMin) {
@@ -265,10 +268,10 @@ export const DateTimePicker: React.FC<DateTimePickerProps> = ({
   // Format selected date for time slots header
   const formattedSelectedDate = useMemo(() => {
     if (!selectedDate) return '';
-    const dateObj = new Date(selectedDate + 'T00:00:00');
-    const dayName = dateObj.toLocaleDateString('es-MX', { weekday: 'long' });
-    const dayNum = dateObj.getDate();
-    const monthName = dateObj.toLocaleDateString('es-MX', { month: 'long' });
+    const dateObj = new Date(selectedDate + 'T00:00:00Z');
+    const dayName = dateObj.toLocaleDateString('es-MX', { weekday: 'long', timeZone: 'UTC' });
+    const dayNum = dateObj.getUTCDate();
+    const monthName = dateObj.toLocaleDateString('es-MX', { month: 'long', timeZone: 'UTC' });
     return `${dayName.charAt(0).toUpperCase() + dayName.slice(1)}, ${dayNum} de ${monthName}`;
   }, [selectedDate]);
 
@@ -277,10 +280,10 @@ export const DateTimePicker: React.FC<DateTimePickerProps> = ({
     if (!selectedDate || !selectedTime) {
       return 'Seleccionar fecha y hora de la cita...';
     }
-    const dateObj = new Date(selectedDate + 'T00:00:00');
-    const dayName = dateObj.toLocaleDateString('es-MX', { weekday: 'long' });
-    const dayNum = dateObj.getDate();
-    const monthName = dateObj.toLocaleDateString('es-MX', { month: 'long' });
+    const dateObj = new Date(selectedDate + 'T00:00:00Z');
+    const dayName = dateObj.toLocaleDateString('es-MX', { weekday: 'long', timeZone: 'UTC' });
+    const dayNum = dateObj.getUTCDate();
+    const monthName = dateObj.toLocaleDateString('es-MX', { month: 'long', timeZone: 'UTC' });
     return `${dayName.charAt(0).toUpperCase() + dayName.slice(1)}, ${dayNum} de ${monthName} - ${format12h(selectedTime)}`;
   }, [selectedDate, selectedTime]);
 
