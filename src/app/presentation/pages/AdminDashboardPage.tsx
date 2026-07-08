@@ -5,6 +5,7 @@ import { APIAdminRepository } from '@/app/data/repositories/APIAdminRepository';
 import { APIClientPortalRepository } from '@/app/data/repositories/APIClientPortalRepository';
 import type { AdminAppointment } from '@/app/domain/entities/AdminEntities';
 import type { OccupiedSlots } from '@/app/domain/entities/ClientPortalEntities';
+import { AppointmentForm } from '../components/organisms/AppointmentForm';
 
 const adminRepo = new APIAdminRepository();
 const clientRepo = new APIClientPortalRepository();
@@ -584,17 +585,17 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onLogout
   const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Modal States
-  const [activeModal, setActiveModal] = useState<'approve' | 'reject' | 'reschedule' | 'approveRescheduled' | null>(null);
+  const [activeModal, setActiveModal] = useState<'approve' | 'reject' | 'reschedule' | 'approveRescheduled' | 'addAppointment' | null>(null);
   const [selectedAppt, setSelectedAppt] = useState<AdminAppointment | null>(null);
   const [modalMessage, setModalMessage] = useState('');
   const [isMessageEdited, setIsMessageEdited] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
-  
+
   // Reschedule Suggestions
   const [suggestedSchedules, setSuggestedSchedules] = useState<{ date: string, time: string }[]>([]);
   const [newSuggestionDate, setNewSuggestionDate] = useState('');
   const [newSuggestionTime, setNewSuggestionTime] = useState('08:00');
-  
+
   // Rescheduled Approve final selection
   const [finalDate, setFinalDate] = useState('');
   const [finalTime, setFinalTime] = useState('08:00');
@@ -696,7 +697,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onLogout
   const handleApproveClick = (appt: AdminAppointment) => {
     setSelectedAppt(appt);
     setIsMessageEdited(false);
-    
+
     if (appt.status === 'rescheduled') {
       setActiveModal('approveRescheduled');
       // Set default values from current appt
@@ -708,7 +709,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onLogout
       const hh = String(dateObj.getHours()).padStart(2, '0');
       const min = String(dateObj.getMinutes()).padStart(2, '0');
       setFinalTime(`${hh}:${min}`);
-      
+
       // Load slots for the validation helper
       loadSlots();
     } else {
@@ -716,12 +717,12 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onLogout
       const { date, time, period } = formatScheduledAt(appt.scheduledAt);
       const displayTime = `${time} ${period}`;
       const customer = appt.customerName;
-      const vehicleStr = appt.vehicle 
-        ? `${appt.vehicle.brand} ${appt.vehicle.model} (${appt.vehicle.year})` 
+      const vehicleStr = appt.vehicle
+        ? `${appt.vehicle.brand} ${appt.vehicle.model} (${appt.vehicle.year})`
         : 'Gen\u00E9rico';
       const serialStr = appt.vehicle?.serialNumberLastFour || 'N/A';
-      
-      const msg = `\uD83C\uDF1F *CITA APROBADA* \uD83C\uDF1F\n\nHola *${customer}*, nos complace informarte que tu cita ha sido aprobada.\n\n\uD83D\uDCC5 *Fecha:* ${date}\n\u23F0 *Hora:* ${displayTime}\n\uD83D\uDE97 *Veh\u00EDculo:* ${vehicleStr} - Serie: ${serialStr}\n\uD83D\uDEE0 *Servicio:* ${appt.serviceRequested}\n\n\u00A1Te esperamos en el taller! Si tienes alguna duda, puedes responder a este mensaje.`;
+
+      const msg = `*CONFIRMACI\u00D3N DE CITA*\n\nHola *${customer}*, te confirmamos que tu cita ha sido aprobada.\n\n*Detalles de la cita:*\n- *Fecha:* ${date}\n- *Hora:* ${displayTime}\n- *Veh\u00EDculo:* ${vehicleStr} (Serie: ${serialStr})\n- *Servicio:* ${appt.serviceRequested}\n\nTe esperamos en el taller. Si tienes alguna duda o contratiempo, por favor responde a este mensaje.`;
       setModalMessage(msg);
     }
   };
@@ -731,11 +732,11 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onLogout
     setIsMessageEdited(false);
     setRejectionReason('');
     setActiveModal('reject');
-    
+
     const { date, time, period } = formatScheduledAt(appt.scheduledAt);
     const displayTime = `${time} ${period}`;
-    
-    const msg = `\u26A0 *CITA RECHAZADA* \u26A0\n\nHola *${appt.customerName}*, lamentamos informarte que no podemos agendar tu cita para el servicio de *${appt.serviceRequested}* solicitada para el d\u00EDa ${date} a las ${displayTime}.\n\n\u274C *Motivo:* [Escribe el motivo del rechazo]\n\nPor favor, solicita una nueva cita con un horario alternativo a trav\u00E9s de nuestro portal. \u00A1Gracias por tu comprensi\u00F3n!`;
+
+    const msg = `*CANCELACI\u00D3N DE CITA*\n\nHola *${appt.customerName}*, lamentamos informarte que no podemos agendar tu cita solicitada para el d\u00EDa ${date} a las ${displayTime}.\n\n*Motivo:* [Escribe el motivo del rechazo]\n\nTe sugerimos solicitar una nueva cita con un horario alternativo a trav\u00E9s de nuestro portal. Agradecemos tu comprensi\u00F3n.`;
     setModalMessage(msg);
   };
 
@@ -744,7 +745,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onLogout
     setIsMessageEdited(false);
     setSuggestedSchedules([]);
     setActiveModal('reschedule');
-    
+
     // Set default suggestion date to tomorrow
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
@@ -764,8 +765,8 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onLogout
       const { date, time, period } = formatScheduledAt(selectedAppt.scheduledAt);
       const displayTime = `${time} ${period}`;
       const reasonText = rejectionReason.trim() ? rejectionReason : '[Escribe el motivo del rechazo]';
-      
-      const msg = `\u26A0 *CITA RECHAZADA* \u26A0\n\nHola *${selectedAppt.customerName}*, lamentamos informarte que no podemos agendar tu cita para el servicio de *${selectedAppt.serviceRequested}* solicitada para el d\u00EDa ${date} a las ${displayTime}.\n\n\u274C *Motivo:* ${reasonText}\n\nPor favor, solicita una nueva cita con un horario alternativo a trav\u00E9s de nuestro portal. \u00A1Gracias por tu comprensi\u00F3n!`;
+
+      const msg = `*CANCELACI\u00D3N DE CITA*\n\nHola *${selectedAppt.customerName}*, lamentamos informarte que no podemos agendar tu cita solicitada para el d\u00EDa ${date} a las ${displayTime}.\n\n*Motivo:* ${reasonText}\n\nTe sugerimos solicitar una nueva cita con un horario alternativo a trav\u00E9s de nuestro portal. Agradecemos tu comprensi\u00F3n.`;
       setModalMessage(msg);
     }
   }, [rejectionReason, activeModal, selectedAppt, isMessageEdited]);
@@ -775,7 +776,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onLogout
     if (activeModal === 'reschedule' && selectedAppt && !isMessageEdited) {
       const { date, time, period } = formatScheduledAt(selectedAppt.scheduledAt);
       const displayTime = `${time} ${period}`;
-      
+
       let suggestionsListText = '[Elige una o m\u00E1s fechas y horarios abajo para sugerir]';
       if (suggestedSchedules.length > 0) {
         suggestionsListText = suggestedSchedules.map((s, idx) => {
@@ -785,7 +786,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onLogout
         }).join('\n');
       }
 
-      const msg = `\uD83D\uDCC5 *PROPUESTA DE REAGENDACI\u00D3N* \uD83D\uDCC5\n\nHola *${selectedAppt.customerName}*, lamentablemente tu cita solicitada para el d\u00EDa *${date}* a las *${displayTime}* para el servicio de *${selectedAppt.serviceRequested}* no puede ser agendada en ese horario debido a falta de disponibilidad.\n\nTe sugerimos las siguientes opciones alternativas para tu cita:\n\n${suggestionsListText}\n\nPor favor, ind\u00EDcanos cu\u00E1l de estas opciones te queda mejor respondiendo a este mensaje para confirmar tu espacio. \u00A1Muchas gracias!`;
+      const msg = `*PROPUESTA DE REAGENDACI\u00D3N*\n\nHola *${selectedAppt.customerName}*, el horario solicitado originalmente para tu cita (${date} a las ${displayTime}) no est\u00E1 disponible.\n\nTe sugerimos las siguientes opciones alternativas:\n\n${suggestionsListText}\n\nPor favor, responde a este mensaje indic\u00E1ndonos cu\u00E1l de estas opciones prefieres para confirmar tu espacio. Muchas gracias.`;
       setModalMessage(msg);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -798,12 +799,12 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onLogout
       const timeFmt = format12h(finalTime);
       const displaySchedule = `${dateFmt} a las ${timeFmt}`;
       const customer = selectedAppt.customerName;
-      const vehicleStr = selectedAppt.vehicle 
-        ? `${selectedAppt.vehicle.brand} ${selectedAppt.vehicle.model} (${selectedAppt.vehicle.year})` 
+      const vehicleStr = selectedAppt.vehicle
+        ? `${selectedAppt.vehicle.brand} ${selectedAppt.vehicle.model} (${selectedAppt.vehicle.year})`
         : 'Gen\u00E9rico';
       const serialStr = selectedAppt.vehicle?.serialNumberLastFour || 'N/A';
-      
-      const msg = `\uD83C\uDF1F *CITA APROBADA* \uD83C\uDF1F\n\nHola *${customer}*, nos complace informarte que tu cita ha sido aprobada.\n\n\uD83D\uDCC5 *Fecha y Hora:* ${displaySchedule.charAt(0).toUpperCase() + displaySchedule.slice(1)}\n\uD83D\uDE97 *Veh\u00EDculo:* ${vehicleStr} - Serie: ${serialStr}\n\uD83D\uDEE0 *Servicio:* ${selectedAppt.serviceRequested}\n\n\u00A1Te esperamos en el taller! Si tienes alguna duda, puedes responder a este mensaje.`;
+
+      const msg = `*CONFIRMACI\u00D3N DE CITA*\n\nHola *${customer}*, te confirmamos que tu cita ha sido reagendada y aprobada.\n\n*Detalles de la cita:*\n- *Fecha y Hora:* ${displaySchedule.charAt(0).toUpperCase() + displaySchedule.slice(1)}\n- *Veh\u00EDculo:* ${vehicleStr} (Serie: ${serialStr})\n- *Servicio:* ${selectedAppt.serviceRequested}\n\nTe esperamos en el taller. Si tienes alguna duda o contratiempo, por favor responde a este mensaje.`;
       setModalMessage(msg);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -888,7 +889,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onLogout
       alert('Debes añadir al menos una fecha y horario sugerido.');
       return;
     }
-    
+
     setUpdatingId(selectedAppt.id);
     setActiveModal(null);
     try {
@@ -896,9 +897,9 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onLogout
       const firstSug = suggestedSchedules[0];
       const isoString = new Date(`${firstSug.date}T${firstSug.time}:00`).toISOString();
       const originalDuration = selectedAppt.duration || 90;
-      
+
       await adminRepo.rescheduleAppointment(accessToken, selectedAppt.id, isoString, originalDuration, modalMessage);
-      
+
       setAppointments((prev) =>
         prev.map((a) => (a.id === selectedAppt.id ? { ...a, status: 'rescheduled' as const, scheduledAt: isoString } : a))
       );
@@ -924,7 +925,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onLogout
     try {
       // Convert selected date/time to ISO format
       const finalIso = new Date(`${finalDate}T${finalTime}:00`).toISOString();
-      
+
       // Step 1: Update the appointment schedule
       await adminRepo.updateAppointment(accessToken, selectedAppt.id, {
         scheduledAt: finalIso,
@@ -952,18 +953,18 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onLogout
   // Generate visual helper list for occupied dates
   const occupiedList = useMemo(() => {
     if (!occupiedSlots) return [];
-    
+
     const list = [];
     const today = new Date();
-    
+
     for (let i = 0; i < 7; i++) {
       const nextDate = new Date();
       nextDate.setDate(today.getDate() + i);
       const dateString = nextDate.toISOString().split('T')[0];
-      
+
       // Format day name in Spanish
       const dayLabel = nextDate.toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric', month: 'short' });
-      
+
       // Check Holiday
       const holiday = occupiedSlots.holidays.find((h: any) => h.date === dateString);
       // Check non-working day
@@ -971,7 +972,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onLogout
       const isNonWorking = occupiedSlots.nonWorkingDaysOfWeek.includes(dayOfWeek);
       const schedule = occupiedSlots.workingHours.find((w: any) => w.dayOfWeek === dayOfWeek);
       const isClosed = isNonWorking || (schedule && !schedule.isWorking);
-      
+
       // Busy slots for this date
       const busyTimes = occupiedSlots.busySlots
         .filter((b: any) => b.date === dateString)
@@ -1000,7 +1001,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onLogout
     const slots = [];
     let minutes = 8 * 60; // 8:00 AM
     const endMinutes = 18 * 60; // 6:00 PM
-    
+
     while (minutes <= endMinutes) {
       const hh = Math.floor(minutes / 60).toString().padStart(2, '0');
       const mm = (minutes % 60).toString().padStart(2, '0');
@@ -1097,6 +1098,28 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onLogout
                 </span>
               </div>
             )}
+            <button
+              onClick={() => setActiveModal('addAppointment')}
+              style={{
+                background: '#091426',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                padding: '8px 16px',
+                fontSize: '13px',
+                fontWeight: '700',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                transition: 'background 0.15s',
+              }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = '#1e293b'; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = '#091426'; }}
+            >
+              <Icon name="Plus" size="xs" />
+              {'Añadir Cita'}
+            </button>
             <button
               onClick={() => fetchAppointments()}
               title="Actualizar"
@@ -1284,12 +1307,12 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onLogout
               </div>
               <button onClick={() => setActiveModal(null)} style={{ background: 'transparent', border: 'none', color: 'white', cursor: 'pointer', opacity: 0.8 }}><Icon name="X" /></button>
             </div>
-            
+
             <div style={{ padding: '28px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <p style={{ fontSize: '14px', color: '#475569', margin: 0 }}>
                 Se aprobará la cita para <strong>{selectedAppt.customerName}</strong> y se abrirá WhatsApp con los detalles de confirmación.
               </p>
-              
+
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 <label style={{ fontSize: '12px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b' }}>Mensaje a enviar (Editable)</label>
                 <textarea
@@ -1330,7 +1353,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onLogout
               </div>
               <button onClick={() => setActiveModal(null)} style={{ background: 'transparent', border: 'none', color: 'white', cursor: 'pointer', opacity: 0.8 }}><Icon name="X" /></button>
             </div>
-            
+
             <div style={{ padding: '28px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 <label style={{ fontSize: '12px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b' }}>Motivo del rechazo *</label>
@@ -1384,7 +1407,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onLogout
               </div>
               <button onClick={() => setActiveModal(null)} style={{ background: 'transparent', border: 'none', color: 'white', cursor: 'pointer', opacity: 0.8 }}><Icon name="X" /></button>
             </div>
-            
+
             <div style={{ display: 'flex', flex: 1, overflow: 'hidden', minHeight: '400px' }}>
               {/* Left Column: Visual helper of occupied schedule */}
               <div style={{ width: '320px', borderRight: '1px solid #e2e8f0', background: '#f8fafc', padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px', overflowY: 'auto' }}>
@@ -1393,7 +1416,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onLogout
                   Visualizador de Agenda (Ayuda)
                 </h4>
                 <p style={{ fontSize: '12px', color: '#64748b', margin: 0 }}>Horarios y citas agendadas de los próximos 7 días laborales.</p>
-                
+
                 {occupiedLoading ? (
                   <div style={{ display: 'flex', justifyContent: 'center', padding: '40px 0' }}><span style={{ fontSize: '13px', color: '#94a3b8' }}>Cargando agenda...</span></div>
                 ) : occupiedList.length === 0 ? (
@@ -1518,7 +1541,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onLogout
               </div>
               <button onClick={() => setActiveModal(null)} style={{ background: 'transparent', border: 'none', color: 'white', cursor: 'pointer', opacity: 0.8 }}><Icon name="X" /></button>
             </div>
-            
+
             <div style={{ padding: '28px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <p style={{ fontSize: '13.5px', color: '#475569', margin: 0 }}>
                 Selecciona la fecha y hora final acordada con el cliente para esta cita reagendada antes de proceder con su aprobación.
@@ -1596,6 +1619,33 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onLogout
               >
                 Actualizar Cita y Aprobar
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 5. Modal A\u00F1adir Cita */}
+      {activeModal === 'addAppointment' && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: '20px' }}>
+          <div style={{ background: 'white', borderRadius: '16px', maxWidth: '600px', width: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)', maxHeight: '90vh', margin: 'auto' }}>
+            <div style={{ padding: '20px 24px', background: '#091426', color: 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <Icon name="Calendar" />
+                <span style={{ fontSize: '18px', fontWeight: '700' }}>Nueva Cita</span>
+              </div>
+              <button
+                onClick={() => {
+                  setActiveModal(null);
+                  fetchAppointments();
+                }}
+                style={{ background: 'transparent', border: 'none', color: 'white', cursor: 'pointer', opacity: 0.8 }}
+              >
+                <Icon name="X" />
+              </button>
+            </div>
+
+            <div style={{ padding: '24px', overflowY: 'auto', flex: 1 }}>
+              <AppointmentForm />
             </div>
           </div>
         </div>
