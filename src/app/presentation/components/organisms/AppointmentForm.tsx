@@ -197,7 +197,7 @@ export const AppointmentForm: React.FC = () => {
               />
             </div>
             <div>
-              <label className="block font-label-caps text-on-surface-variant mb-1">Correo Electrónico (Opcional)</label>
+              <label className="block font-label-caps text-on-surface-variant mb-1">E-mail (Opcional)</label>
               <TextInput
                 value={formCustomerEmail}
                 onChange={(e) => setFormField('formCustomerEmail', e.target.value)}
