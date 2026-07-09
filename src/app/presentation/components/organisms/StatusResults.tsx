@@ -324,6 +324,11 @@ export const StatusResults: React.FC = () => {
                           Vehículo: {appt.vehicle.brand} {appt.vehicle.model} (Serie: {appt.vehicle.serialNumberLastFour})
                         </span>
                       )}
+                      {appt.branchName && (
+                        <span className="text-xs text-gray-500 font-medium">
+                          Sucursal: {appt.branchName}
+                        </span>
+                      )}
                     </Stack>
                     <div>{getAppointmentBadge(appt.status || 'pending')}</div>
                   </Flex>

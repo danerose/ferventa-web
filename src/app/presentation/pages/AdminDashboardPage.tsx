@@ -238,23 +238,43 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
           )}
         </div>
 
-        {/* Service requested */}
-        <div
-          style={{
-            background: '#eff4ff',
-            border: '1px solid #c7d2fe',
-            borderRadius: '8px',
-            padding: '6px 12px',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '6px',
-            alignSelf: 'flex-start',
-          }}
-        >
-          <Icon name="Wrench" size="xs" className="text-[#3730a3]" style={{ flexShrink: 0 }} />
-          <span style={{ fontSize: '12px', fontWeight: '700', color: '#3730a3' }}>
-            {appt.serviceRequested}
-          </span>
+        {/* Service requested & Branch name */}
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          <div
+            style={{
+              background: '#eff4ff',
+              border: '1px solid #c7d2fe',
+              borderRadius: '8px',
+              padding: '6px 12px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+            }}
+          >
+            <Icon name="Wrench" size="xs" className="text-[#3730a3]" style={{ flexShrink: 0 }} />
+            <span style={{ fontSize: '12px', fontWeight: '700', color: '#3730a3' }}>
+              {appt.serviceRequested}
+            </span>
+          </div>
+
+          {appt.branchName && (
+            <div
+              style={{
+                background: '#f0fdf4',
+                border: '1px solid #bbf7d0',
+                borderRadius: '8px',
+                padding: '6px 12px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+              }}
+            >
+              <Icon name="MapPin" size="xs" className="text-[#166534]" style={{ flexShrink: 0 }} />
+              <span style={{ fontSize: '12px', fontWeight: '700', color: '#166534' }}>
+                {appt.branchName}
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Notes */}
@@ -649,6 +669,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onLogout
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState('pending');
+  const [branchFilter, setBranchFilter] = useState('all');
   const [searchValue, setSearchValue] = useState('');
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -798,7 +819,11 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onLogout
         : 'Gen\u00E9rico';
       const serialStr = appt.vehicle?.serialNumberLastFour || 'N/A';
 
-      const msg = `*CONFIRMACI\u00D3N DE CITA*\n\nHola *${customer}*, te confirmamos que tu cita ha sido aprobada.\n\n*Detalles de la cita:*\n- *Fecha:* ${date}\n- *Hora:* ${displayTime}\n- *Veh\u00EDculo:* ${vehicleStr} (Serie: ${serialStr})\n- *Servicio:* ${appt.serviceRequested}\n\nTe esperamos en el taller. Si tienes alguna duda o contratiempo, por favor responde a este mensaje.`;
+      let msg = `*CONFIRMACI\u00D3N DE CITA*\n\nHola *${customer}*, te confirmamos que tu cita ha sido aprobada.\n\n*Detalles de la cita:*\n- *Fecha:* ${date}\n- *Hora:* ${displayTime}\n- *Veh\u00EDculo:* ${vehicleStr} (Serie: ${serialStr})\n- *Servicio:* ${appt.serviceRequested}\n- *Nota:* Debe llevar p\u00F3liza de garant\u00EDa, factura o carta factura (original, foto o copia).`;
+      if (appt.branchName === 'Nova FV Sucursal Uman') {
+        msg += `\n- *Ubicaci\u00F3n:* https://maps.app.goo.gl/uxoSts8ZdXMNM3To6?g_st=ic`;
+      }
+      msg += `\n\nTe esperamos en el taller. Si tienes alguna duda o contratiempo, por favor responde a este mensaje.`;
       setModalMessage(msg);
     }
   };
@@ -904,7 +929,11 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onLogout
         : 'Gen\u00E9rico';
       const serialStr = selectedAppt.vehicle?.serialNumberLastFour || 'N/A';
 
-      const msg = `*CONFIRMACI\u00D3N DE CITA*\n\nHola *${customer}*, te confirmamos que tu cita ha sido reagendada y aprobada.\n\n*Detalles de la cita:*\n- *Fecha y Hora:* ${displaySchedule.charAt(0).toUpperCase() + displaySchedule.slice(1)}\n- *Veh\u00EDculo:* ${vehicleStr} (Serie: ${serialStr})\n- *Servicio:* ${selectedAppt.serviceRequested}\n\nTe esperamos en el taller. Si tienes alguna duda o contratiempo, por favor responde a este mensaje.`;
+      let msg = `*CONFIRMACI\u00D3N DE CITA*\n\nHola *${customer}*, te confirmamos que tu cita ha sido reagendada y aprobada.\n\n*Detalles de la cita:*\n- *Fecha y Hora:* ${displaySchedule.charAt(0).toUpperCase() + displaySchedule.slice(1)}\n- *Veh\u00EDculo:* ${vehicleStr} (Serie: ${serialStr})\n- *Servicio:* ${selectedAppt.serviceRequested}\n- *Nota:* Debe llevar p\u00F3liza de garant\u00EDa, factura o carta factura (original, foto o copia).`;
+      if (selectedAppt.branchName === 'Nova FV Sucursal Uman') {
+        msg += `\n- *Ubicaci\u00F3n:* https://maps.app.goo.gl/uxoSts8ZdXMNM3To6?g_st=ic`;
+      }
+      msg += `\n\nTe esperamos en el taller. Si tienes alguna duda o contratiempo, por favor responde a este mensaje.`;
       setModalMessage(msg);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1116,10 +1145,26 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onLogout
     return list;
   }, [occupiedSlots]);
 
-  const visibleAppointments =
-    statusFilter === 'all'
+  const uniqueBranches = useMemo(() => {
+    const branches = new Set<string>();
+    appointments.forEach((a) => {
+      if (a.branchName) {
+        branches.add(a.branchName);
+      }
+    });
+    return Array.from(branches);
+  }, [appointments]);
+
+  const visibleAppointments = useMemo(() => {
+    let filtered = statusFilter === 'all'
       ? appointments
       : appointments.filter((a) => a.status === statusFilter);
+
+    if (branchFilter !== 'all') {
+      filtered = filtered.filter((a) => a.branchName === branchFilter);
+    }
+    return filtered;
+  }, [appointments, statusFilter, branchFilter]);
 
   const pendingCount = appointments.filter((a) => a.status === 'pending').length;
 
@@ -1161,49 +1206,110 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onLogout
             gap: '16px',
           }}
         >
-          {/* Search */}
-          <div style={{ position: 'relative', maxWidth: '340px', flex: 1 }}>
-            <Icon
-              name="Search"
-              size="sm"
-              style={{
-                position: 'absolute',
-                left: '12px',
-                top: '50%',
-                transform: 'translateY(-50%)',
-                color: '#94a3b8',
-                pointerEvents: 'none',
-              }}
-            />
-            <input
-              type="text"
-              value={searchValue}
-              onChange={handleSearchChange}
-              placeholder="Buscar por cliente, teléfono o serie..."
-              style={{
-                width: '100%',
-                paddingLeft: '38px',
-                paddingRight: '16px',
-                paddingTop: '8px',
-                paddingBottom: '8px',
-                background: '#f8fafc',
-                border: '1px solid #e2e8f0',
-                borderRadius: '8px',
-                fontSize: '13px',
-                color: '#0b1c30',
-                outline: 'none',
-                fontFamily: 'Inter, system-ui, sans-serif',
-                transition: 'border-color 0.15s, box-shadow 0.15s',
-              }}
-              onFocus={(e) => {
-                (e.target as HTMLInputElement).style.borderColor = '#091426';
-                (e.target as HTMLInputElement).style.boxShadow = '0 0 0 3px rgba(9,20,38,0.08)';
-              }}
-              onBlur={(e) => {
-                (e.target as HTMLInputElement).style.borderColor = '#e2e8f0';
-                (e.target as HTMLInputElement).style.boxShadow = 'none';
-              }}
-            />
+          {/* Search and Branch Filter */}
+          <div style={{ display: 'flex', gap: '12px', flex: 1, maxWidth: '560px' }}>
+            {/* Search */}
+            <div style={{ position: 'relative', flex: 1 }}>
+              <Icon
+                name="Search"
+                size="sm"
+                style={{
+                  position: 'absolute',
+                  left: '12px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  color: '#94a3b8',
+                  pointerEvents: 'none',
+                }}
+              />
+              <input
+                type="text"
+                value={searchValue}
+                onChange={handleSearchChange}
+                placeholder="Buscar por cliente, teléfono o serie..."
+                style={{
+                  width: '100%',
+                  paddingLeft: '38px',
+                  paddingRight: '16px',
+                  paddingTop: '8px',
+                  paddingBottom: '8px',
+                  background: '#f8fafc',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '8px',
+                  fontSize: '13px',
+                  color: '#0b1c30',
+                  outline: 'none',
+                  fontFamily: 'Inter, system-ui, sans-serif',
+                  transition: 'border-color 0.15s, box-shadow 0.15s',
+                }}
+                onFocus={(e) => {
+                  (e.target as HTMLInputElement).style.borderColor = '#091426';
+                  (e.target as HTMLInputElement).style.boxShadow = '0 0 0 3px rgba(9,20,38,0.08)';
+                }}
+                onBlur={(e) => {
+                  (e.target as HTMLInputElement).style.borderColor = '#e2e8f0';
+                  (e.target as HTMLInputElement).style.boxShadow = 'none';
+                }}
+              />
+            </div>
+
+            {/* Branch Filter */}
+            <div style={{ position: 'relative', width: '200px', flexShrink: 0 }}>
+              <Icon
+                name="MapPin"
+                size="sm"
+                style={{
+                  position: 'absolute',
+                  left: '12px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  color: '#94a3b8',
+                  pointerEvents: 'none',
+                }}
+              />
+              <select
+                value={branchFilter}
+                onChange={(e) => setBranchFilter(e.target.value)}
+                style={{
+                  width: '100%',
+                  paddingLeft: '38px',
+                  paddingRight: '28px',
+                  paddingTop: '8px',
+                  paddingBottom: '8px',
+                  background: '#f8fafc',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '8px',
+                  fontSize: '13px',
+                  color: '#0b1c30',
+                  outline: 'none',
+                  fontFamily: 'Inter, system-ui, sans-serif',
+                  cursor: 'pointer',
+                  appearance: 'none',
+                  WebkitAppearance: 'none',
+                  backgroundImage: 'none',
+                }}
+              >
+                <option value="all">Todas las sucursales</option>
+                {uniqueBranches.map((branch) => (
+                  <option key={branch} value={branch}>
+                    {branch}
+                  </option>
+                ))}
+              </select>
+              <div
+                style={{
+                  position: 'absolute',
+                  right: '12px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  color: '#94a3b8',
+                  pointerEvents: 'none',
+                  fontSize: '10px',
+                }}
+              >
+                ▼
+              </div>
+            </div>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>

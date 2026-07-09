@@ -23,6 +23,7 @@ export const AppointmentForm: React.FC = () => {
     formSelectedDate,
     formSelectedTime,
     formNotes,
+    formBranchName,
     formValidationError,
 
     // Store Actions
@@ -175,6 +176,7 @@ export const AppointmentForm: React.FC = () => {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          <input type="hidden" name="branchName" value={formBranchName} />
           <div>
             <label className="block font-label-caps text-on-surface-variant mb-1">Nombre Completo *</label>
             <TextInput
@@ -227,7 +229,7 @@ export const AppointmentForm: React.FC = () => {
                   <TextInput
                     value={formBrand}
                     onChange={(e) => setFormField('formBrand', e.target.value)}
-                    placeholder="Toyota"
+                    placeholder="Vento"
                     disabled={bookingLoading}
                   />
                 </div>
@@ -236,7 +238,7 @@ export const AppointmentForm: React.FC = () => {
                   <TextInput
                     value={formModel}
                     onChange={(e) => setFormField('formModel', e.target.value)}
-                    placeholder="Corolla (Opcional)"
+                    placeholder="Modelo de la moto"
                     disabled={bookingLoading}
                   />
                 </div>
@@ -264,9 +266,13 @@ export const AppointmentForm: React.FC = () => {
                   disabled={bookingLoading}
                   className="w-full font-sans rounded border border-[#cbd5e1] text-[#0b1c30] bg-white px-3 py-2 outline-none focus:border-[#091426] focus:border-2 focus:ring-0 transition-all select select-bordered"
                 >
-                  <option value="Mantenimiento Preventivo">Mantenimiento Preventivo</option>
-                  <option value="Diagnóstico de Motor">Diagnóstico de Motor</option>
                   <option value="Frenos y Suspensión">Frenos y Suspensión</option>
+                  <option value="Servicio de mantenimiento">Servicio de mantenimiento</option>
+                  <option value="Garantía">Garantía</option>
+                  <option value="Reparación eléctrica">Reparación eléctrica</option>
+                  <option value="Reparación mecánica">Reparación mecánica</option>
+                  <option value="Ajuste de platicos">Ajuste de plasticos</option>
+                  <option value="Accesorios">Accesorios</option>
                   <option value="Otro">Otro</option>
                 </select>
               </div>

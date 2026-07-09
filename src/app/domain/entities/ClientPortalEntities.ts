@@ -16,6 +16,7 @@ export interface Appointment {
   scheduledAt: string; // ISO string
   notes?: string;
   status?: 'pending' | 'approved' | 'rejected' | 'cancelled' | 'completed' | 'rescheduled';
+  branchName?: string;
 }
 
 export interface MaintenanceTrackHistory {

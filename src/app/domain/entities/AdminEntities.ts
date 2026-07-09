@@ -25,4 +25,5 @@ export interface AdminAppointment {
   notes?: string;
   duration?: number;
   assignedMechanic?: string;
+  branchName?: string;
 }

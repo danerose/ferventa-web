@@ -18,6 +18,7 @@ interface RawAppointment {
   scheduledAt?: string;
   status?: 'pending' | 'approved' | 'rejected' | 'cancelled' | 'completed' | 'rescheduled';
   notes?: string;
+  branchName?: string;
 }
 
 interface RawItem {
@@ -120,6 +121,7 @@ export class APIClientPortalRepository implements ClientPortalRepository {
       scheduledAt: item.scheduledAt || '',
       status: item.status || 'pending',
       notes: item.notes || '',
+      branchName: item.branchName || '',
     }));
   }
 

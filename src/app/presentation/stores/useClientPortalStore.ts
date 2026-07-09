@@ -17,7 +17,7 @@ interface ClientPortalState {
   bookingLoading: boolean;
   bookingSuccess: boolean;
   bookingError: string | null;
-  
+
   // Form Fields
   formCustomerName: string;
   formCustomerPhone: string;
@@ -30,6 +30,7 @@ interface ClientPortalState {
   formSelectedDate: string;
   formSelectedTime: string;
   formNotes: string;
+  formBranchName: string;
   formValidationError: string | null;
 
   // Search States
@@ -60,7 +61,7 @@ export const useClientPortalStore = create<ClientPortalState>((set, get) => ({
   bookingLoading: false,
   bookingSuccess: false,
   bookingError: null,
-  
+
   formCustomerName: '',
   formCustomerPhone: '',
   formCustomerEmail: '',
@@ -72,6 +73,7 @@ export const useClientPortalStore = create<ClientPortalState>((set, get) => ({
   formSelectedDate: '',
   formSelectedTime: '',
   formNotes: '',
+  formBranchName: 'Nova FV Sucursal Uman',
   formValidationError: null,
 
   searchQuery: '',
@@ -109,6 +111,7 @@ export const useClientPortalStore = create<ClientPortalState>((set, get) => ({
       formSelectedDate,
       formSelectedTime,
       formNotes,
+      formBranchName,
     } = get();
 
     set({ bookingLoading: true, bookingSuccess: false, bookingError: null, formValidationError: null });
@@ -142,14 +145,15 @@ export const useClientPortalStore = create<ClientPortalState>((set, get) => ({
         vehicle: {
           brand: formBrand.trim() || 'Genérica',
           model: formModel.trim() || 'Generico',
-          year: formYear.trim() === '' ? '0000' : (parseInt(formYear) || 0),
+          year: formYear.trim() === '' ? 1900 : (parseInt(formYear) || 0),
           serialNumberLastFour: formSerialNumberLastFour.trim(),
         },
         serviceRequested: formServiceRequested,
         scheduledAt: selectedDateObj.toISOString(),
         notes: formNotes.trim(),
+        branchName: formBranchName,
       });
-      
+
       set({ bookingLoading: false, bookingSuccess: true, bookingError: null });
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : 'Error al agendar la cita';
@@ -213,6 +217,7 @@ export const useClientPortalStore = create<ClientPortalState>((set, get) => ({
       formSelectedDate: '',
       formSelectedTime: '',
       formNotes: '',
+      formBranchName: 'Nova FV Sucursal Uman',
       formValidationError: null,
       bookingSuccess: false,
       bookingError: null,

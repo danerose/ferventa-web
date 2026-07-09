@@ -32,6 +32,7 @@ interface RawAdminAppointment {
   notes?: string;
   duration?: number;
   assignedMechanic?: string;
+  branchName?: string;
 }
 
 export class APIAdminRepository {
@@ -82,6 +83,7 @@ export class APIAdminRepository {
       notes: item.notes,
       duration: item.duration,
       assignedMechanic: item.assignedMechanic,
+      branchName: item.branchName,
     }));
   }
 
