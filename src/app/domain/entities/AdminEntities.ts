@@ -26,4 +26,6 @@ export interface AdminAppointment {
   duration?: number;
   assignedMechanic?: string;
   branchName?: string;
+  startTime?: string;
+  endTime?: string;
 }

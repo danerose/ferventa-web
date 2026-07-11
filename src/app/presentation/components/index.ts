@@ -14,7 +14,14 @@ export * from './atoms/Input/AutocompleteInput';
 export * from './atoms/Icon/Icon';
 
 export * from './organisms/AppointmentForm';
+export * from './organisms/Modals';
 export * from './organisms/StatusSearch';
 export * from './organisms/StatusResults';
+export * from './organisms/DashboardFilters';
+export * from './organisms/WeeklyCalendar';
+export * from './organisms/AppointmentDetailDrawer';
+export * from './organisms/Sidebar';
 
 export * from './molecules/DateTimePicker/DateTimePicker';
+export * from './molecules/Modal';
+export * from './molecules/AppointmentCard';
