@@ -233,7 +233,7 @@
                 </div>
             </div>
             <!-- Dashboard Stats Grid (Atmospheric UI) -->
-            <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
                 <div class="bg-white border border-outline-variant p-4 rounded-xl flex items-center gap-4">
                     <div
                         class="w-12 h-12 bg-surface-container rounded-lg flex items-center justify-center text-primary">
@@ -243,15 +243,6 @@
                         <p class="text-on-surface-variant text-xs uppercase tracking-wider font-bold">Total Vehículos
                         </p>
                         <p class="text-2xl font-bold">24</p>
-                    </div>
-                </div>
-                <div class="bg-white border border-indigo-200 p-4 rounded-xl flex items-center gap-4">
-                    <div class="w-12 h-12 bg-indigo-50 rounded-lg flex items-center justify-center text-indigo-600">
-                        <span class="material-symbols-outlined text-[28px]">hourglass_empty</span>
-                    </div>
-                    <div>
-                        <p class="text-indigo-500 text-xs uppercase tracking-wider font-bold">Esp. Cita</p>
-                        <p class="text-2xl font-bold text-indigo-700">3</p>
                     </div>
                 </div>
                 <div class="bg-white border border-outline-variant p-4 rounded-xl flex items-center gap-4">
@@ -286,70 +277,7 @@
             </div>
             <!-- Service Cards Grid -->
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-
-                <!-- Card Item 0 (Awaiting Appointment / Limbo) -->
-                <div
-                    class="service-card bg-white border-2 border-indigo-200 rounded-xl overflow-hidden flex flex-col relative" style="opacity:0.92">
-                    <!-- Limbo ribbon -->
-                    <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-400 via-violet-400 to-indigo-300"></div>
-
-                    <div class="p-5 flex-1">
-                        <div class="mb-4 flex items-center justify-between">
-                            <span
-                                class="bg-indigo-50 text-indigo-700 border border-indigo-200 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-tight inline-flex items-center gap-1 shadow-sm">
-                                <span class="material-symbols-outlined text-[14px]">hourglass_empty</span>Esperando Cita
-                            </span>
-                            <span class="text-indigo-400 text-xs font-medium">Cita: 26 Oct 10:00 AM</span>
-                        </div>
-                        <div class="flex justify-between items-start mb-4">
-                            <div>
-                                <h3 class="font-headline-md text-headline-md text-on-surface">Honda Civic Si</h3>
-                                <p class="text-on-surface-variant font-data-mono text-data-mono uppercase">Placa: HON-7890</p>
-                            </div>
-                            <button class="p-1.5 hover:bg-surface-container rounded-lg text-on-surface-variant">
-                                <span class="material-symbols-outlined">more_vert</span>
-                            </button>
-                        </div>
-
-                        <!-- Limbo info banner -->
-                        <div class="bg-indigo-50 border border-indigo-200 rounded-lg px-4 py-3 mb-5 flex items-start gap-3">
-                            <span class="material-symbols-outlined text-indigo-500 text-[20px] mt-0.5 shrink-0">event_busy</span>
-                            <p class="text-indigo-700 text-xs leading-5">Este mantenimiento se activará automáticamente cuando el cliente acuda a su cita y esta sea marcada como <strong>completada</strong>.</p>
-                        </div>
-
-                        <div class="space-y-3 mb-6">
-                            <div class="flex items-center gap-3">
-                                <span class="material-symbols-outlined text-outline">person</span>
-                                <span class="text-on-surface font-medium">Carlos Mendoza</span>
-                            </div>
-                            <div class="flex items-center gap-3">
-                                <span class="material-symbols-outlined text-outline">calendar_today</span>
-                                <span class="text-on-surface-variant text-body-sm">Cita agendada: 26 Oct, 10:00 AM</span>
-                            </div>
-                            <div class="flex items-center gap-3">
-                                <span class="material-symbols-outlined text-outline">build_circle</span>
-                                <span class="text-on-surface-variant text-body-sm">Revisión general de frenos</span>
-                            </div>
-                        </div>
-
-                        <div class="grid grid-cols-2 gap-3">
-                            <button
-                                class="flex items-center justify-center gap-2 py-2.5 px-4 border border-outline-variant rounded-lg font-body-sm text-body-sm font-semibold opacity-40 cursor-not-allowed"
-                                disabled>
-                                <span class="material-symbols-outlined text-[18px]">photo_camera</span>
-                                Evidencia
-                            </button>
-                            <div class="relative">
-                                <select
-                                    class="w-full bg-indigo-50 border border-indigo-200 rounded-lg font-body-sm text-body-sm font-semibold px-3 py-2.5 outline-none text-indigo-400 cursor-not-allowed pr-10"
-                                    disabled>
-                                    <option value="awaiting_appointment">Esp. Cita</option>
-                                </select>
-                                <span class="material-symbols-outlined absolute right-2.5 top-1/2 -translate-y-1/2 text-indigo-400 text-[16px] pointer-events-none">lock</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                <!-- Card Item 1 (In Progress) -->
                 <div
                     class="service-card bg-white border border-outline-variant rounded-xl overflow-hidden flex flex-col">
 
@@ -552,23 +480,22 @@
     </button>
     <script>
         // Simple micro-interaction for status change
-        document.querySelectorAll('select:not([disabled])').forEach(select => {
+        document.querySelectorAll('select').forEach(select => {
             select.addEventListener('change', function () {
                 const card = this.closest('.service-card');
-                const badgeContainer = card.querySelector('.mb-4');
-                const badge = badgeContainer.querySelector('span.inline-flex, span[class*="px-3"]');
+                const badge = card.querySelector('.absolute.top-3 span');
 
                 if (this.value === 'done') {
-                    badge.className = 'bg-tertiary-fixed-dim text-on-tertiary-fixed-variant px-3 py-1 rounded-full text-xs font-bold uppercase tracking-tight inline-flex items-center gap-1 shadow-sm';
+                    badge.className = 'bg-tertiary-fixed-dim text-on-tertiary-fixed-variant px-3 py-1 rounded-full text-xs font-bold uppercase tracking-tight flex items-center gap-1 shadow-sm';
                     badge.innerHTML = '<span class="material-symbols-outlined text-[14px]">check_circle</span>Terminado';
                     card.style.opacity = '1';
                     card.style.filter = 'none';
                 } else if (this.value === 'pending') {
-                    badge.className = 'bg-surface-container-highest text-on-surface-variant px-3 py-1 rounded-full text-xs font-bold uppercase tracking-tight inline-flex items-center gap-1 shadow-sm border border-outline-variant';
+                    badge.className = 'bg-surface-container-highest text-on-surface-variant px-3 py-1 rounded-full text-xs font-bold uppercase tracking-tight flex items-center gap-1 shadow-sm border border-outline-variant';
                     badge.innerHTML = '<span class="material-symbols-outlined text-[14px]">pause</span>No comenzado';
                     card.style.opacity = '0.9';
                 } else {
-                    badge.className = 'bg-secondary-container text-on-secondary-container px-3 py-1 rounded-full text-xs font-bold uppercase tracking-tight inline-flex items-center gap-1 shadow-sm';
+                    badge.className = 'bg-secondary-container text-on-secondary-container px-3 py-1 rounded-full text-xs font-bold uppercase tracking-tight flex items-center gap-1 shadow-sm';
                     badge.innerHTML = '<span class="material-symbols-outlined text-[14px]">bolt</span>En Proceso';
                     card.style.opacity = '1';
                 }

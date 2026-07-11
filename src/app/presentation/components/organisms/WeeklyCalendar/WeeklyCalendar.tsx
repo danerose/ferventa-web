@@ -75,63 +75,13 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
     return `${startStr} - ${endStr}, ${yearStr}`;
   }, []);
 
-  const getAppointmentPosition = useCallback((appt: AdminAppointment, monday: Date) => {
-    try {
-      const apptDate = new Date(appt.scheduledAt);
-      if (isNaN(apptDate.getTime())) return null;
-
-      const apptDay = apptDate.getUTCDay();
-      if (apptDay === 0) return null; // Skip Sunday
-      const dayIndex = apptDay - 1; // 0 for Monday, 5 for Saturday
-
-      const apptTime = Date.UTC(apptDate.getUTCFullYear(), apptDate.getUTCMonth(), apptDate.getUTCDate());
-      const mondayTime = Date.UTC(monday.getUTCFullYear(), monday.getUTCMonth(), monday.getUTCDate());
-      const diffDays = Math.round((apptTime - mondayTime) / (24 * 60 * 60 * 1000));
-
-      if (diffDays < 0 || diffDays > 5) {
-        return null;
-      }
-
-      const hours = apptDate.getUTCHours();
-      const minutes = apptDate.getUTCMinutes();
-
-      const startMinutes = 8 * 60; // 8:00 AM
-      const currentMinutes = hours * 60 + minutes;
-      const diffMinutes = currentMinutes - startMinutes;
-
-      const top = 64 + (diffMinutes / 60) * 80;
-
-      const duration = appt.duration || 60;
-      const height = (duration / 60) * 80;
-
-      const left = `calc(80px + ${dayIndex} * (100% - 80px) / 6)`;
-      const width = `calc((100% - 80px) / 6)`;
-
-      return { top, height, left, width };
-    } catch (e) {
-      return null;
-    }
-  }, []);
-
-  const handlePrevWeek = useCallback(() => {
-    onWeekRefDateChange((prev) => {
-      const d = new Date(prev);
-      d.setDate(d.getDate() - 7);
-      return d;
-    });
-  }, [onWeekRefDateChange]);
-
-  const handleNextWeek = useCallback(() => {
-    onWeekRefDateChange((prev) => {
-      const d = new Date(prev);
-      d.setDate(d.getDate() + 7);
-      return d;
-    });
-  }, [onWeekRefDateChange]);
-
-  const handleTodayWeek = useCallback(() => {
-    onWeekRefDateChange(new Date());
-  }, [onWeekRefDateChange]);
+  interface PositionedAppointment {
+    appt: AdminAppointment;
+    top: number;
+    height: number;
+    left: string;
+    width: string;
+  }
 
   const visibleTimelineAppointments = useMemo(() => {
     let filtered = timelineAppointments;
@@ -155,6 +105,139 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
 
     return filtered;
   }, [timelineAppointments, branchFilter, searchValue]);
+
+  const positionedAppointments = useMemo(() => {
+    const list: PositionedAppointment[] = [];
+    const mondayTime = Date.UTC(monday.getUTCFullYear(), monday.getUTCMonth(), monday.getUTCDate());
+
+    // Group appointments by dayIndex (0 to 5)
+    const appointmentsByDay: Record<number, { appt: AdminAppointment; start: number; end: number }[]> = {
+      0: [], 1: [], 2: [], 3: [], 4: [], 5: []
+    };
+
+    visibleTimelineAppointments.forEach((appt) => {
+      try {
+        const apptDate = new Date(appt.scheduledAt);
+        if (isNaN(apptDate.getTime())) return;
+
+        const apptDay = apptDate.getUTCDay();
+        if (apptDay === 0) return; // Skip Sunday
+        const dayIndex = apptDay - 1; // 0 for Monday, 5 for Saturday
+
+        const apptTime = Date.UTC(apptDate.getUTCFullYear(), apptDate.getUTCMonth(), apptDate.getUTCDate());
+        const diffDays = Math.round((apptTime - mondayTime) / (24 * 60 * 60 * 1000));
+
+        if (diffDays < 0 || diffDays > 5) return;
+
+        const hours = apptDate.getUTCHours();
+        const minutes = apptDate.getUTCMinutes();
+        const start = hours * 60 + minutes;
+        const duration = appt.duration || 60;
+        const end = start + duration;
+
+        appointmentsByDay[dayIndex].push({ appt, start, end });
+      } catch (e) {
+        // ignore
+      }
+    });
+
+    // For each day, solve the overlap positioning
+    for (let dayIndex = 0; dayIndex < 6; dayIndex++) {
+      const dayAppts = appointmentsByDay[dayIndex];
+      if (dayAppts.length === 0) continue;
+
+      // Sort by start time, then by end time desc
+      dayAppts.sort((a, b) => a.start - b.start || b.end - a.end);
+
+      // Group overlapping appointments
+      const groups: { appt: AdminAppointment; start: number; end: number }[][] = [];
+      let currentGroup: { appt: AdminAppointment; start: number; end: number }[] = [];
+      let groupEnd = -1;
+
+      dayAppts.forEach((item) => {
+        if (item.start >= groupEnd) {
+          if (currentGroup.length > 0) {
+            groups.push(currentGroup);
+          }
+          currentGroup = [item];
+          groupEnd = item.end;
+        } else {
+          currentGroup.push(item);
+          if (item.end > groupEnd) {
+            groupEnd = item.end;
+          }
+        }
+      });
+      if (currentGroup.length > 0) {
+        groups.push(currentGroup);
+      }
+
+      // Position each group
+      groups.forEach((group) => {
+        const columns: { appt: AdminAppointment; start: number; end: number }[][] = [];
+
+        group.forEach((item) => {
+          let placed = false;
+          for (let colIdx = 0; colIdx < columns.length; colIdx++) {
+            const col = columns[colIdx];
+            const lastItem = col[col.length - 1];
+            if (item.start >= lastItem.end) {
+              col.push(item);
+              placed = true;
+              break;
+            }
+          }
+          if (!placed) {
+            columns.push([item]);
+          }
+        });
+
+        const totalCols = columns.length;
+
+        columns.forEach((col, colIdx) => {
+          col.forEach((item) => {
+            const startMinutes = 8 * 60; // 8:00 AM
+            const diffMinutes = item.start - startMinutes;
+            const top = 64 + (diffMinutes / 60) * 80;
+            const height = ((item.end - item.start) / 60) * 80;
+
+            const left = `calc(80px + ${dayIndex} * (100% - 80px) / 6 + ${colIdx} * (100% - 80px) / (6 * ${totalCols}))`;
+            const width = `calc((100% - 80px) / (6 * ${totalCols}) - 4px)`;
+
+            list.push({
+              appt: item.appt,
+              top,
+              height,
+              left,
+              width
+            });
+          });
+        });
+      });
+    }
+
+    return list;
+  }, [visibleTimelineAppointments, monday]);
+
+  const handlePrevWeek = useCallback(() => {
+    onWeekRefDateChange((prev) => {
+      const d = new Date(prev);
+      d.setDate(d.getDate() - 7);
+      return d;
+    });
+  }, [onWeekRefDateChange]);
+
+  const handleNextWeek = useCallback(() => {
+    onWeekRefDateChange((prev) => {
+      const d = new Date(prev);
+      d.setDate(d.getDate() + 7);
+      return d;
+    });
+  }, [onWeekRefDateChange]);
+
+  const handleTodayWeek = useCallback(() => {
+    onWeekRefDateChange(new Date());
+  }, [onWeekRefDateChange]);
 
   return (
     <div
@@ -422,11 +505,8 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
             >
               Cargando citas del calendario...
             </div>
-          ) : visibleTimelineAppointments.length === 0 ? null : (
-            visibleTimelineAppointments.map((appt) => {
-              const pos = getAppointmentPosition(appt, monday);
-              if (!pos) return null;
-
+          ) : positionedAppointments.length === 0 ? null : (
+            positionedAppointments.map(({ appt, top, height, left, width }) => {
               const accent = STATUS_ACCENT[appt.status] || '#cbd5e1';
               const statusStyle = STATUS_STYLES[appt.status] || STATUS_STYLES.pending;
 
@@ -447,10 +527,10 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
                   key={appt.id}
                   style={{
                     position: 'absolute',
-                    top: `${pos.top}px`,
-                    left: pos.left,
-                    width: pos.width,
-                    height: `${pos.height}px`,
+                    top: `${top}px`,
+                    left: left,
+                    width: width,
+                    height: `${height}px`,
                     padding: '2px',
                     zIndex: 10,
                   }}

@@ -1,4 +1,4 @@
-import type { AdminAppointment, AuthUser } from '../../domain/entities/AdminEntities';
+import type { AdminAppointment, AuthUser, AdminMaintenanceOrder } from '../../domain/entities/AdminEntities';
 
 export interface LoginResult {
   accessToken: string;
@@ -190,6 +190,100 @@ export class APIAdminRepository {
     if (res.status === 401) throw new Error('UNAUTHORIZED');
     if (!res.ok || !json.success) {
       throw new Error(json.message || 'Error al actualizar la cita');
+    }
+  }
+
+  async getMaintenances(
+    token: string,
+    filter: { customerId?: string; status?: string } = {}
+  ): Promise<AdminMaintenanceOrder[]> {
+    const params = new URLSearchParams();
+    if (filter.customerId) params.set('customerId', filter.customerId);
+    if (filter.status && filter.status !== 'all') params.set('status', filter.status);
+
+    const res = await fetch(`${this.baseUrl}/maintenance?${params.toString()}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const json = await res.json();
+    if (res.status === 401) throw new Error('UNAUTHORIZED');
+    if (!res.ok || !json.success) {
+      throw new Error(json.message || 'Error al obtener mantenimientos');
+    }
+
+    const raw = Array.isArray(json.data) ? json.data : [];
+    return raw.map((item: any) => ({
+      id: item.id || item._id || '',
+      status: item.status,
+      laborCost: item.laborCost,
+      notes: item.notes,
+      appointment: item.appointment ? {
+        id: item.appointment.id || item.appointment._id || '',
+        scheduledAt: item.appointment.scheduledAt || '',
+        status: item.appointment.status || '',
+      } : null,
+      customer: {
+        id: item.customer?.id || item.customer?._id || '',
+        name: item.customer?.name || 'Sin nombre',
+        phone: item.customer?.phone,
+        email: item.customer?.email,
+      },
+      vehicle: {
+        id: item.vehicle?.id || item.vehicle?._id || '',
+        brand: item.vehicle?.brand || 'Sin marca',
+        model: item.vehicle?.model || 'Sin modelo',
+        year: item.vehicle?.year || 0,
+        serialNumberLastFour: item.vehicle?.serialNumberLastFour || '',
+        color: item.vehicle?.color,
+      },
+      evidence: item.evidence || [],
+      createdAt: item.createdAt,
+      updatedAt: item.updatedAt,
+    }));
+  }
+
+  async updateMaintenance(
+    token: string,
+    id: string,
+    data: Partial<AdminMaintenanceOrder>
+  ): Promise<void> {
+    const res = await fetch(`${this.baseUrl}/maintenance/${id}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(data),
+    });
+    const json = await res.json();
+    if (res.status === 401) throw new Error('UNAUTHORIZED');
+    if (!res.ok || !json.success) {
+      throw new Error(json.message || 'Error al actualizar el mantenimiento');
+    }
+  }
+
+  async uploadMaintenanceEvidence(
+    token: string,
+    id: string,
+    stage: string,
+    photos: File[]
+  ): Promise<void> {
+    const formData = new FormData();
+    formData.append('stage', stage);
+    photos.forEach((photo) => {
+      formData.append('photos', photo);
+    });
+
+    const res = await fetch(`${this.baseUrl}/maintenance/${id}/evidence`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    });
+    const json = await res.json();
+    if (res.status === 401) throw new Error('UNAUTHORIZED');
+    if (!res.ok || !json.success) {
+      throw new Error(json.message || 'Error al subir evidencia');
     }
   }
 }

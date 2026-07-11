@@ -29,3 +29,35 @@ export interface AdminAppointment {
   startTime?: string;
   endTime?: string;
 }
+
+export interface AdminMaintenanceOrder {
+  id: string;
+  status: 'awaiting_appointment' | 'not_started' | 'in_progress' | 'completed' | 'delivered';
+  laborCost: number;
+  notes?: string;
+  appointment?: {
+    id: string;
+    scheduledAt: string;
+    status: string;
+  } | null;
+  customer: {
+    id: string;
+    name: string;
+    phone?: string;
+    email?: string;
+  };
+  vehicle: {
+    id: string;
+    brand: string;
+    model: string;
+    year: number;
+    serialNumberLastFour: string;
+    color?: string;
+  };
+  evidence?: {
+    stage: string;
+    photoUrls: string[];
+  }[];
+  createdAt?: string;
+  updatedAt?: string;
+}
