@@ -1,6 +1,6 @@
 import React from 'react';
 import { Modal } from '@/app/presentation/components/molecules/Modal/Modal';
-import { PrimaryButton, SecondaryButton, TextInput, Icon } from '@/app/presentation/components';
+import { PrimaryButton, SecondaryButton, TextInput } from '@/app/presentation/components';
 import type { AdminAppointment } from '@/app/domain/entities/AdminEntities';
 
 export interface ApproveRescheduledModalProps {
