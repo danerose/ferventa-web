@@ -79,23 +79,23 @@ export const Sidebar: React.FC<SidebarProps> = ({ onLogout, userName }) => {
       {user?.branches && user.branches.length > 0 && (
         <div style={{ padding: '12px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
           <label style={{ display: 'block', fontSize: '11px', color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase', marginBottom: '6px' }}>Sucursal Activa</label>
-          <select 
+          <select
             value={activeBranchId || ''}
             onChange={(e) => setActiveBranchId(e.target.value)}
-            style={{ 
-              width: '100%', 
-              background: 'rgba(255,255,255,0.1)', 
-              border: '1px solid rgba(255,255,255,0.15)', 
-              color: 'white', 
-              borderRadius: '6px', 
-              padding: '8px', 
+            style={{
+              width: '100%',
+              background: 'rgba(255,255,255,0.1)',
+              border: '1px solid rgba(255,255,255,0.15)',
+              color: 'white',
+              borderRadius: '6px',
+              padding: '8px',
               fontSize: '13px',
               outline: 'none',
               cursor: 'pointer'
             }}
           >
             {user.branches.map(branchId => {
-              const branchInfo = branches.find(b => (b.id === branchId || b._id === branchId));
+              const branchInfo = branches.find(b => (b.id === branchId || b.id === branchId));
               return (
                 <option key={branchId} value={branchId} style={{ color: 'black' }}>
                   {branchInfo ? branchInfo.name : `Sucursal ${branchId.substring(0, 4)}...`}
@@ -160,122 +160,122 @@ export const Sidebar: React.FC<SidebarProps> = ({ onLogout, userName }) => {
         })}
       </nav>
 
-    {/* User + Logout */}
-    <div style={{ padding: '12px 10px 20px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-      
-      {/* Bottom Nav Items (Settings & Schedule) */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', marginBottom: '16px' }}>
-        <Link
-          to="/admin/horarios"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px',
-            padding: '10px 14px',
-            borderRadius: '8px',
-            cursor: 'pointer',
-            background: location.pathname.startsWith('/admin/horarios') ? 'rgba(133,83,0,0.2)' : 'transparent',
-            color: location.pathname.startsWith('/admin/horarios') ? '#fbbf24' : 'rgba(255,255,255,0.45)',
-            transition: 'background 0.15s, color 0.15s',
-            fontWeight: location.pathname.startsWith('/admin/horarios') ? '700' : '500',
-            fontSize: '14px',
-            textDecoration: 'none',
-          }}
-        >
-          <Icon name="Calendar" size="sm" style={{ flexShrink: 0 }} />
-          Horarios
-        </Link>
-        <Link
-          to="/admin/settings"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px',
-            padding: '10px 14px',
-            borderRadius: '8px',
-            cursor: 'pointer',
-            background: location.pathname.startsWith('/admin/settings') ? 'rgba(133,83,0,0.2)' : 'transparent',
-            color: location.pathname.startsWith('/admin/settings') ? '#fbbf24' : 'rgba(255,255,255,0.45)',
-            transition: 'background 0.15s, color 0.15s',
-            fontWeight: location.pathname.startsWith('/admin/settings') ? '700' : '500',
-            fontSize: '14px',
-            textDecoration: 'none',
-          }}
-        >
-          <Icon name="Settings" size="sm" style={{ flexShrink: 0 }} />
-          Ajustes
-        </Link>
-      </div>
+      {/* User + Logout */}
+      <div style={{ padding: '12px 10px 20px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
 
-      <div
-        style={{
-          background: 'rgba(255,255,255,0.06)',
-          borderRadius: '10px',
-          padding: '12px',
-          marginBottom: '10px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '10px',
-        }}
-      >
+        {/* Bottom Nav Items (Settings & Schedule) */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', marginBottom: '16px' }}>
+          <Link
+            to="/admin/horarios"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              padding: '10px 14px',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              background: location.pathname.startsWith('/admin/horarios') ? 'rgba(133,83,0,0.2)' : 'transparent',
+              color: location.pathname.startsWith('/admin/horarios') ? '#fbbf24' : 'rgba(255,255,255,0.45)',
+              transition: 'background 0.15s, color 0.15s',
+              fontWeight: location.pathname.startsWith('/admin/horarios') ? '700' : '500',
+              fontSize: '14px',
+              textDecoration: 'none',
+            }}
+          >
+            <Icon name="Calendar" size="sm" style={{ flexShrink: 0 }} />
+            Horarios
+          </Link>
+          <Link
+            to="/admin/settings"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              padding: '10px 14px',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              background: location.pathname.startsWith('/admin/settings') ? 'rgba(133,83,0,0.2)' : 'transparent',
+              color: location.pathname.startsWith('/admin/settings') ? '#fbbf24' : 'rgba(255,255,255,0.45)',
+              transition: 'background 0.15s, color 0.15s',
+              fontWeight: location.pathname.startsWith('/admin/settings') ? '700' : '500',
+              fontSize: '14px',
+              textDecoration: 'none',
+            }}
+          >
+            <Icon name="Settings" size="sm" style={{ flexShrink: 0 }} />
+            Ajustes
+          </Link>
+        </div>
+
         <div
           style={{
-            width: '34px',
-            height: '34px',
-            borderRadius: '50%',
-            background: '#855300',
+            background: 'rgba(255,255,255,0.06)',
+            borderRadius: '10px',
+            padding: '12px',
+            marginBottom: '10px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+          }}
+        >
+          <div
+            style={{
+              width: '34px',
+              height: '34px',
+              borderRadius: '50%',
+              background: '#855300',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+              color: 'white',
+              fontSize: '14px',
+              fontWeight: '700',
+            }}
+          >
+            {userName.charAt(0).toUpperCase()}
+          </div>
+          <div style={{ minWidth: 0 }}>
+            <p style={{ color: 'white', fontSize: '13px', fontWeight: '600', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {userName}
+            </p>
+            <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '11px' }}>Administrador</p>
+          </div>
+        </div>
+
+        <button
+          onClick={onLogout}
+          style={{
+            width: '100%',
+            background: 'transparent',
+            border: '1px solid rgba(255,255,255,0.12)',
+            borderRadius: '8px',
+            padding: '8px 12px',
+            color: 'rgba(255,255,255,0.55)',
+            fontSize: '13px',
+            fontWeight: '600',
+            cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            flexShrink: 0,
-            color: 'white',
-            fontSize: '14px',
-            fontWeight: '700',
+            gap: '8px',
+            transition: 'background 0.15s, color 0.15s',
+          }}
+          onMouseEnter={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.background = 'rgba(239,68,68,0.1)';
+            (e.currentTarget as HTMLButtonElement).style.color = '#fca5a5';
+            (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(239,68,68,0.3)';
+          }}
+          onMouseLeave={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
+            (e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.55)';
+            (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.12)';
           }}
         >
-          {userName.charAt(0).toUpperCase()}
-        </div>
-        <div style={{ minWidth: 0 }}>
-          <p style={{ color: 'white', fontSize: '13px', fontWeight: '600', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {userName}
-          </p>
-          <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '11px' }}>Administrador</p>
-        </div>
+          <Icon name="LogOut" size="xs" />
+          Cerrar Sesión
+        </button>
       </div>
-
-      <button
-        onClick={onLogout}
-        style={{
-          width: '100%',
-          background: 'transparent',
-          border: '1px solid rgba(255,255,255,0.12)',
-          borderRadius: '8px',
-          padding: '8px 12px',
-          color: 'rgba(255,255,255,0.55)',
-          fontSize: '13px',
-          fontWeight: '600',
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: '8px',
-          transition: 'background 0.15s, color 0.15s',
-        }}
-        onMouseEnter={(e) => {
-          (e.currentTarget as HTMLButtonElement).style.background = 'rgba(239,68,68,0.1)';
-          (e.currentTarget as HTMLButtonElement).style.color = '#fca5a5';
-          (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(239,68,68,0.3)';
-        }}
-        onMouseLeave={(e) => {
-          (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
-          (e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.55)';
-          (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.12)';
-        }}
-      >
-        <Icon name="LogOut" size="xs" />
-        Cerrar Sesión
-      </button>
-    </div>
-  </aside>
+    </aside>
   );
 };
