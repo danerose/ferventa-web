@@ -135,7 +135,7 @@ export const useClientPortalStore = create<ClientPortalState>((set, get) => ({
     }
 
     try {
-      const scheduledAtStr = `${formSelectedDate}T${formSelectedTime}:00`;
+      const scheduledAtStr = `${formSelectedDate}T${formSelectedTime}:00Z`;
       const selectedDateObj = new Date(scheduledAtStr);
 
       await bookAppointmentUseCase.execute({
