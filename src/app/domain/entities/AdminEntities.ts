@@ -3,6 +3,7 @@ export interface AuthUser {
   name: string;
   email: string;
   role: string;
+  branches?: string[];
 }
 
 export interface AdminVehicle {
@@ -60,4 +61,25 @@ export interface AdminMaintenanceOrder {
   }[];
   createdAt?: string;
   updatedAt?: string;
+}
+
+export interface Branch {
+  id: string;
+  name: string;
+  address?: string;
+  phone?: string;
+  isActive: boolean;
+}
+
+export interface Schedule {
+  dayOfWeek: number;
+  isWorking: boolean;
+  startTime: string;
+  endTime: string;
+}
+
+export interface Holiday {
+  id: string;
+  date: string;
+  description: string;
 }

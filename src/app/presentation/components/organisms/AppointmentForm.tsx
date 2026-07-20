@@ -24,16 +24,20 @@ export const AppointmentForm: React.FC = () => {
     formSelectedTime,
     formNotes,
     formBranchName,
+    formBranchId,
     formValidationError,
+    branches,
 
     // Store Actions
     setFormField,
     submitBooking,
     resetForm,
+    loadBranches,
   } = useClientPortalStore();
 
-  // Load occupied slots on mount for the next 30 days
+  // Load occupied slots and branches on mount
   useEffect(() => {
+    loadBranches();
     const today = new Date();
     const futureLimit = new Date();
     futureLimit.setDate(today.getDate() + 30);
@@ -45,7 +49,7 @@ export const AppointmentForm: React.FC = () => {
       return `${yyyy}-${mm}-${dd}`;
     };
     loadOccupiedSlots(formatDateStr(today), formatDateStr(futureLimit));
-  }, [loadOccupiedSlots]);
+  }, [loadBranches, loadOccupiedSlots]);
 
   // Clean booking state on unmount
   useEffect(() => {
@@ -176,7 +180,22 @@ export const AppointmentForm: React.FC = () => {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <input type="hidden" name="branchName" value={formBranchName} />
+          <div>
+            <label className="block font-label-caps text-on-surface-variant mb-1">Sucursal *</label>
+            <select
+              value={formBranchId}
+              onChange={(e) => setFormField('formBranchId', e.target.value)}
+              disabled={bookingLoading || branches.length === 0}
+              className="w-full font-sans rounded border border-[#cbd5e1] text-[#0b1c30] bg-white px-3 py-2 outline-none focus:border-[#091426] focus:border-2 focus:ring-0 transition-all select select-bordered"
+            >
+              {branches.map((b) => (
+                <option key={b._id || b.id} value={b._id || b.id}>
+                  {b.name}
+                </option>
+              ))}
+              {branches.length === 0 && <option value="">Cargando sucursales...</option>}
+            </select>
+          </div>
           <div>
             <label className="block font-label-caps text-on-surface-variant mb-1">Nombre Completo *</label>
             <TextInput

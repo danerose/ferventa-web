@@ -86,8 +86,32 @@ interface RawWorkingHours {
 export class APIClientPortalRepository implements ClientPortalRepository {
   private baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
+  private async fetchWithBranch(url: string, options: RequestInit = {}): Promise<Response> {
+    const headers = new Headers(options.headers || {});
+    
+    // Attempt to get from local storage, env var, or fallback
+    const branchId = localStorage.getItem('ferventa_public_branch') || import.meta.env.VITE_DEFAULT_BRANCH_ID || 'default_branch_id';
+    if (branchId) {
+      headers.set('x-branch-id', branchId);
+    }
+
+    return fetch(url, {
+      ...options,
+      headers,
+    });
+  }
+
+  async getPublicBranches(): Promise<any[]> {
+    const res = await fetch(`${this.baseUrl}/branches/public`);
+    const json = await res.json();
+    if (!res.ok || !json.success) {
+      throw new Error(json.message || 'Error al obtener sucursales');
+    }
+    return json.data;
+  }
+
   async bookAppointment(appointment: Appointment): Promise<Appointment> {
-    const response = await fetch(`${this.baseUrl}/appointments/public`, {
+    const response = await this.fetchWithBranch(`${this.baseUrl}/appointments/public`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -104,7 +128,7 @@ export class APIClientPortalRepository implements ClientPortalRepository {
   }
 
   async getAppointmentStatus(query: string): Promise<Appointment[]> {
-    const response = await fetch(`${this.baseUrl}/appointments/public/status?q=${encodeURIComponent(query)}`);
+    const response = await this.fetchWithBranch(`${this.baseUrl}/appointments/public/status?q=${encodeURIComponent(query)}`);
     const json = await response.json();
     if (!response.ok || !json.success) {
       throw new Error(json.message || 'Error al obtener el estatus de las citas');
@@ -127,7 +151,7 @@ export class APIClientPortalRepository implements ClientPortalRepository {
 
   async getMaintenanceTrack(query: string): Promise<MaintenanceTrack | null> {
     try {
-      const response = await fetch(`${this.baseUrl}/maintenance/track/public?q=${encodeURIComponent(query)}`);
+      const response = await this.fetchWithBranch(`${this.baseUrl}/maintenance/track/public?q=${encodeURIComponent(query)}`);
       if (!response.ok) {
         return null;
       }
@@ -170,7 +194,7 @@ export class APIClientPortalRepository implements ClientPortalRepository {
   }
 
   async getOccupiedSlots(startDate: string, endDate: string): Promise<OccupiedSlots> {
-    const response = await fetch(
+    const response = await this.fetchWithBranch(
       `${this.baseUrl}/appointments/occupied-slots?startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`
     );
     const json = await response.json();

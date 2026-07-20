@@ -15,6 +15,7 @@ import {
   CompleteAppointmentModal,
   Sidebar,
   STATUS_LABELS,
+  AlertModal,
 } from '@/app/presentation/components';
 import { useAuthStore } from '@/core/stores/useAuthStore';
 import { useAdminDashboardStore } from '@/core/stores/useAdminDashboardStore';
@@ -99,6 +100,10 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onLogout
     setSelectedTimelineAppt,
     updateAppointmentInStates,
   } = useAdminDashboardStore();
+
+  const [alertState, setAlertState] = React.useState<{ isOpen: boolean; title: string; message: string; isError: boolean }>({
+    isOpen: false, title: '', message: '', isError: false
+  });
 
   const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -460,7 +465,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onLogout
   const handleRejectConfirm = async () => {
     if (!accessToken || !selectedAppt) return;
     if (!rejectionReason.trim()) {
-      alert('Debes indicar el motivo del rechazo.');
+      setAlertState({ isOpen: true, title: 'Atención', message: 'Debes indicar el motivo del rechazo.', isError: true });
       return;
     }
     setUpdatingId(selectedAppt.id);
@@ -484,7 +489,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onLogout
   const handleRescheduleConfirm = async () => {
     if (!accessToken || !selectedAppt) return;
     if (suggestedSchedules.length === 0) {
-      alert('Debes añadir al menos una fecha y horario sugerido.');
+      setAlertState({ isOpen: true, title: 'Atención', message: 'Debes añadir al menos una fecha y horario sugerido.', isError: true });
       return;
     }
 
@@ -925,6 +930,14 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onLogout
         onClose={() => setActiveModal(null)}
         onConfirm={handleCompleteConfirm}
         updating={updatingId === selectedAppt?.id}
+      />
+
+      <AlertModal
+        isOpen={alertState.isOpen}
+        onClose={() => setAlertState({ ...alertState, isOpen: false })}
+        title={alertState.title}
+        message={alertState.message}
+        isError={alertState.isError}
       />
 
       <AddAppointmentModal

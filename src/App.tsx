@@ -17,6 +17,12 @@ import { ClientPortalPage } from './app/presentation/pages/ClientPortalPage';
 import { LoginPage } from './app/presentation/pages/LoginPage';
 import { AdminDashboardPage } from './app/presentation/pages/AdminDashboardPage';
 import { MaintenanceManagementPage } from './app/presentation/pages/MaintenanceManagementPage';
+import { OperationsDashboardPage } from './app/presentation/pages/OperationsDashboardPage';
+import { POSPage } from './app/presentation/pages/POSPage';
+import { InventoryPage } from './app/presentation/pages/InventoryPage';
+import { UsersPage } from './app/presentation/pages/UsersPage';
+import { ScheduleSettingsPage } from './app/presentation/pages/ScheduleSettingsPage';
+import { SettingsPage } from './app/presentation/pages/SettingsPage';
 import { useAuthStore } from './core/stores/useAuthStore';
 
 // Protected Route Component
@@ -93,6 +99,54 @@ function App() {
         element={
           <ProtectedRoute>
             <AdminDashboardPage onLogout={handleLogout} />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/operaciones"
+        element={
+          <ProtectedRoute>
+            <OperationsDashboardPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/pos"
+        element={
+          <ProtectedRoute>
+            <POSPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/inventario"
+        element={
+          <ProtectedRoute>
+            <InventoryPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/usuarios"
+        element={
+          <ProtectedRoute>
+            <UsersPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/horarios"
+        element={
+          <ProtectedRoute>
+            <ScheduleSettingsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/settings"
+        element={
+          <ProtectedRoute>
+            <SettingsPage />
           </ProtectedRoute>
         }
       />

@@ -51,7 +51,7 @@ export const AppointmentCard: React.FC<AppointmentCardProps> = ({
   onCompleteClick,
   updating,
 }) => {
-  const { date, time, period } = formatScheduledAt(appt.scheduledAt);
+  const { date, time, period, dayName } = formatScheduledAt(appt.scheduledAt);
   const accent = STATUS_ACCENT[appt.status] || '#cbd5e1';
   const statusStyle = STATUS_STYLES[appt.status] || STATUS_STYLES.pending;
 
@@ -105,6 +105,17 @@ export const AppointmentCard: React.FC<AppointmentCardProps> = ({
           gap: '4px',
         }}
       >
+        <span
+          style={{
+            fontSize: '11px',
+            fontWeight: '700',
+            letterSpacing: '0.05em',
+            textTransform: 'uppercase',
+            color: '#64748b',
+          }}
+        >
+          {dayName}
+        </span>
         <span
           style={{
             fontSize: '11px',

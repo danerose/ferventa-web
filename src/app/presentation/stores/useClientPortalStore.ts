@@ -31,6 +31,7 @@ interface ClientPortalState {
   formSelectedTime: string;
   formNotes: string;
   formBranchName: string;
+  formBranchId: string;
   formValidationError: string | null;
 
   // Search States
@@ -46,6 +47,9 @@ interface ClientPortalState {
   occupiedSlotsLoading: boolean;
   occupiedSlotsError: string | null;
 
+  // Branches
+  branches: any[];
+
   // Actions
   setFormField: (field: string, value: string) => void;
   setFormValidationError: (error: string | null) => void;
@@ -55,6 +59,7 @@ interface ClientPortalState {
   resetForm: () => void;
   resetBookingState: () => void;
   clearSearchResults: () => void;
+  loadBranches: () => Promise<void>;
 }
 
 export const useClientPortalStore = create<ClientPortalState>((set, get) => ({
@@ -73,7 +78,8 @@ export const useClientPortalStore = create<ClientPortalState>((set, get) => ({
   formSelectedDate: '',
   formSelectedTime: '',
   formNotes: '',
-  formBranchName: 'Nova FV Sucursal Uman',
+  formBranchName: '',
+  formBranchId: '',
   formValidationError: null,
 
   searchQuery: '',
@@ -87,11 +93,19 @@ export const useClientPortalStore = create<ClientPortalState>((set, get) => ({
   occupiedSlotsLoading: false,
   occupiedSlotsError: null,
 
+  branches: [],
+
   setFormField: (field, value) => {
-    set((state) => ({
-      ...state,
-      [field]: value,
-    }));
+    set((state) => {
+      const newState = { ...state, [field]: value };
+      if (field === 'formBranchId') {
+        const branch = state.branches.find(b => b._id === value || b.id === value);
+        if (branch) {
+          newState.formBranchName = branch.name;
+        }
+      }
+      return newState;
+    });
   },
 
   setFormValidationError: (error) => {
@@ -112,6 +126,7 @@ export const useClientPortalStore = create<ClientPortalState>((set, get) => ({
       formSelectedTime,
       formNotes,
       formBranchName,
+      formBranchId,
     } = get();
 
     set({ bookingLoading: true, bookingSuccess: false, bookingError: null, formValidationError: null });
@@ -135,6 +150,10 @@ export const useClientPortalStore = create<ClientPortalState>((set, get) => ({
     }
 
     try {
+      if (formBranchId) {
+        localStorage.setItem('ferventa_public_branch', formBranchId);
+      }
+      
       const scheduledAtStr = `${formSelectedDate}T${formSelectedTime}:00Z`;
       const selectedDateObj = new Date(scheduledAtStr);
 
@@ -239,4 +258,17 @@ export const useClientPortalStore = create<ClientPortalState>((set, get) => ({
       hasSearched: false,
     });
   },
+
+  loadBranches: async () => {
+    try {
+      const branches = await repository.getPublicBranches();
+      set({ branches });
+      const currentBranchId = get().formBranchId;
+      if (branches.length > 0 && !currentBranchId) {
+        set({ formBranchId: branches[0]._id || branches[0].id, formBranchName: branches[0].name });
+      }
+    } catch (e) {
+      console.error('Error fetching public branches:', e);
+    }
+  }
 }));
