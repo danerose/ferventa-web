@@ -90,7 +90,7 @@ export class APIClientPortalRepository implements ClientPortalRepository {
     const headers = new Headers(options.headers || {});
     
     // Attempt to get from local storage, env var, or fallback
-    const branchId = localStorage.getItem('ferventa_public_branch') || import.meta.env.VITE_DEFAULT_BRANCH_ID || 'default_branch_id';
+    const branchId = localStorage.getItem('ferventa_public_branch') || import.meta.env.VITE_DEFAULT_BRANCH_ID;
     if (branchId) {
       headers.set('x-branch-id', branchId);
     }

@@ -34,9 +34,15 @@ export const AppointmentForm: React.FC = () => {
     loadBranches,
   } = useClientPortalStore();
 
-  // Load occupied slots and branches on mount
+  // Load branches on mount
   useEffect(() => {
     loadBranches();
+  }, [loadBranches]);
+
+  // Load occupied slots whenever formBranchId changes
+  useEffect(() => {
+    if (!formBranchId) return;
+
     const today = new Date();
     const futureLimit = new Date();
     futureLimit.setDate(today.getDate() + 30);
@@ -48,7 +54,7 @@ export const AppointmentForm: React.FC = () => {
       return `${yyyy}-${mm}-${dd}`;
     };
     loadOccupiedSlots(formatDateStr(today), formatDateStr(futureLimit));
-  }, [loadBranches, loadOccupiedSlots]);
+  }, [formBranchId, loadOccupiedSlots]);
 
   // Clean booking state on unmount
   useEffect(() => {

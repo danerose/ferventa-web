@@ -103,6 +103,7 @@ export const useClientPortalStore = create<ClientPortalState>((set, get) => ({
         if (branch) {
           newState.formBranchName = branch.name;
         }
+        localStorage.setItem('ferventa_public_branch', value);
       }
       return newState;
     });
@@ -265,7 +266,9 @@ export const useClientPortalStore = create<ClientPortalState>((set, get) => ({
       set({ branches });
       const currentBranchId = get().formBranchId;
       if (branches.length > 0 && !currentBranchId) {
-        set({ formBranchId: branches[0]._id || branches[0].id, formBranchName: branches[0].name });
+        const firstBranchId = branches[0]._id || branches[0].id;
+        set({ formBranchId: firstBranchId, formBranchName: branches[0].name });
+        localStorage.setItem('ferventa_public_branch', firstBranchId);
       }
     } catch (e) {
       console.error('Error fetching public branches:', e);
