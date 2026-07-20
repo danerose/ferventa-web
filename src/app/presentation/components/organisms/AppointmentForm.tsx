@@ -23,7 +23,6 @@ export const AppointmentForm: React.FC = () => {
     formSelectedDate,
     formSelectedTime,
     formNotes,
-    formBranchName,
     formBranchId,
     formValidationError,
     branches,

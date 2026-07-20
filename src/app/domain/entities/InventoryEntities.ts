@@ -19,6 +19,7 @@ export interface Product {
   id: string;
   sku: string;
   name: string;
+  description?: string;
   brand: Brand;
   category: Category;
   provider: Provider;
@@ -27,6 +28,7 @@ export interface Product {
   stock: number;
   minStock: number;
   unit: string;
+  photos?: string[];
   compatibility: string[];
 }
 
@@ -48,6 +50,7 @@ export interface CreateProviderDto {
 export interface CreateProductDto {
   sku: string;
   name: string;
+  description?: string;
   brandId: string;
   categoryId: string;
   providerId: string;
@@ -56,6 +59,7 @@ export interface CreateProductDto {
   stock: number;
   minStock: number;
   unit: string;
+  photos?: string[];
   compatibility: string[];
 }
 
