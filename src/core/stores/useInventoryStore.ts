@@ -12,7 +12,7 @@ interface InventoryState {
   activeTab: 'inventory' | 'providers';
   searchValue: string;
   categoryFilter: string;
-  activeModal: 'addProduct' | 'addProvider' | 'addProductBatch' | 'stockAdjustment' | null;
+  activeModal: 'addProduct' | 'addProvider' | 'addProductBatch' | 'stockAdjustment' | 'addMovement' | null;
   selectedProduct: Product | null;
   selectedProvider: Provider | null;
 
@@ -26,7 +26,7 @@ interface InventoryState {
   setActiveTab: (tab: 'inventory' | 'providers') => void;
   setSearchValue: (val: string) => void;
   setCategoryFilter: (val: string) => void;
-  setActiveModal: (modal: 'addProduct' | 'addProvider' | 'addProductBatch' | 'stockAdjustment' | null) => void;
+  setActiveModal: (modal: 'addProduct' | 'addProvider' | 'addProductBatch' | 'stockAdjustment' | 'addMovement' | null) => void;
   setSelectedProduct: (product: Product | null) => void;
   setSelectedProvider: (provider: Provider | null) => void;
 }

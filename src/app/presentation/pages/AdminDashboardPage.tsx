@@ -654,12 +654,13 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onLogout
   }, []);
 
   return (
-    <div style={{ background: '#f8f9ff', minHeight: '100vh', fontFamily: 'Inter, system-ui, sans-serif' }}>
-      {/* Sidebar */}
-      <Sidebar onLogout={handleUnauthorized} userName={user?.name || 'Admin'} />
+    <div className="print:bg-white" style={{ background: '#f8f9ff', minHeight: '100vh', fontFamily: 'Inter, system-ui, sans-serif' }}>
+      <div className="print:hidden">
+        {/* Sidebar */}
+        <Sidebar onLogout={handleUnauthorized} userName={user?.name || 'Admin'} />
 
-      {/* Main area */}
-      <div style={{ marginLeft: '240px', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+        {/* Main area */}
+        <div style={{ marginLeft: '240px', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
         {/* Top Bar */}
         <DashboardFilters
           searchValue={searchValue}
@@ -818,6 +819,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onLogout
                       onCancelClick={handleCancelClick}
                       onRescheduleApprovedClick={handleRescheduleApprovedClick}
                       onCompleteClick={handleCompleteClick}
+                      onCardClick={setSelectedTimelineAppt}
                       updating={updatingId === appt.id}
                     />
                   ))}
@@ -993,6 +995,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onLogout
           </div>
         ))}
       </div>
+      </div> {/* End print:hidden wrapper */}
     </div>
   );
 };

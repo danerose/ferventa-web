@@ -25,3 +25,4 @@ export * from './organisms/Sidebar';
 export * from './molecules/DateTimePicker/DateTimePicker';
 export * from './molecules/Modal';
 export * from './molecules/AppointmentCard';
+export * from './molecules/SearchableSelect/SearchableSelect';

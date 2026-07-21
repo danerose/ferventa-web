@@ -38,6 +38,7 @@ export interface AppointmentCardProps {
   onCancelClick?: (appt: AdminAppointment) => void;
   onRescheduleApprovedClick?: (appt: AdminAppointment) => void;
   onCompleteClick?: (appt: AdminAppointment) => void;
+  onCardClick?: (appt: AdminAppointment) => void;
   updating: boolean;
 }
 
@@ -49,6 +50,7 @@ export const AppointmentCard: React.FC<AppointmentCardProps> = ({
   onCancelClick,
   onRescheduleApprovedClick,
   onCompleteClick,
+  onCardClick,
   updating,
 }) => {
   const { date, time, period, dayName } = formatScheduledAt(appt.scheduledAt);
@@ -57,6 +59,7 @@ export const AppointmentCard: React.FC<AppointmentCardProps> = ({
 
   return (
     <div
+      onClick={() => onCardClick?.(appt)}
       style={{
         background: 'white',
         border: '1px solid #e2e8f0',
@@ -68,14 +71,19 @@ export const AppointmentCard: React.FC<AppointmentCardProps> = ({
         overflow: 'hidden',
         transition: 'box-shadow 0.15s, border-color 0.15s',
         opacity: updating ? 0.6 : 1,
+        cursor: onCardClick ? 'pointer' : 'default',
       }}
       onMouseEnter={(e) => {
-        (e.currentTarget as HTMLDivElement).style.boxShadow = '0 4px 16px rgba(9,20,38,0.08)';
-        (e.currentTarget as HTMLDivElement).style.borderColor = '#091426';
+        if (onCardClick) {
+          (e.currentTarget as HTMLDivElement).style.boxShadow = '0 4px 16px rgba(9,20,38,0.08)';
+          (e.currentTarget as HTMLDivElement).style.borderColor = '#091426';
+        }
       }}
       onMouseLeave={(e) => {
-        (e.currentTarget as HTMLDivElement).style.boxShadow = 'none';
-        (e.currentTarget as HTMLDivElement).style.borderColor = '#e2e8f0';
+        if (onCardClick) {
+          (e.currentTarget as HTMLDivElement).style.boxShadow = 'none';
+          (e.currentTarget as HTMLDivElement).style.borderColor = '#e2e8f0';
+        }
       }}
     >
       {/* Left accent bar */}
@@ -292,7 +300,7 @@ export const AppointmentCard: React.FC<AppointmentCardProps> = ({
           <PrimaryButton
             size="sm"
             disabled={updating}
-            onClick={() => onApproveClick(appt)}
+            onClick={(e) => { e.stopPropagation(); onApproveClick(appt); }}
             className="w-full bg-[#091426] hover:bg-[#1e293b] text-white border-none rounded-lg"
           >
             <Icon name="CheckCircle" size="xs" className="mr-1.5" />
@@ -305,7 +313,7 @@ export const AppointmentCard: React.FC<AppointmentCardProps> = ({
               size="xs"
               variant="outline"
               disabled={updating}
-              onClick={() => onRescheduleClick(appt)}
+              onClick={(e) => { e.stopPropagation(); onRescheduleClick(appt); }}
               className="text-[#091426] border-[#cbd5e1] hover:bg-[#f1f5f9] rounded-lg py-1.5"
             >
               <Icon name="Calendar" size="xs" className="mr-1" />
@@ -315,7 +323,7 @@ export const AppointmentCard: React.FC<AppointmentCardProps> = ({
               size="xs"
               variant="outline"
               disabled={updating}
-              onClick={() => onRejectClick(appt)}
+              onClick={(e) => { e.stopPropagation(); onRejectClick(appt); }}
               className="text-[#dc2626] border-[#fca5a5] hover:bg-[#fef2f2] rounded-lg py-1.5"
             >
               <Icon name="XCircle" size="xs" className="mr-1" />
@@ -340,7 +348,7 @@ export const AppointmentCard: React.FC<AppointmentCardProps> = ({
           <PrimaryButton
             size="sm"
             disabled={updating}
-            onClick={() => onCompleteClick?.(appt)}
+            onClick={(e) => { e.stopPropagation(); onCompleteClick?.(appt); }}
             className="w-full bg-[#166534] hover:bg-[#15803d] text-white border-none rounded-lg"
           >
             <Icon name="CheckCircle" size="xs" className="mr-1.5" />
@@ -351,7 +359,7 @@ export const AppointmentCard: React.FC<AppointmentCardProps> = ({
           <PrimaryButton
             size="sm"
             disabled={updating}
-            onClick={() => onRescheduleApprovedClick?.(appt)}
+            onClick={(e) => { e.stopPropagation(); onRescheduleApprovedClick?.(appt); }}
             className="w-full bg-[#091426] hover:bg-[#1e293b] text-white border-none rounded-lg"
           >
             <Icon name="Calendar" size="xs" className="mr-1.5" />
@@ -363,7 +371,7 @@ export const AppointmentCard: React.FC<AppointmentCardProps> = ({
             size="sm"
             variant="outline"
             disabled={updating}
-            onClick={() => onCancelClick?.(appt)}
+            onClick={(e) => { e.stopPropagation(); onCancelClick?.(appt); }}
             className="w-full text-[#dc2626] border-[#fca5a5] hover:bg-[#fef2f2] rounded-lg"
           >
             <Icon name="XCircle" size="xs" className="mr-1.5" />

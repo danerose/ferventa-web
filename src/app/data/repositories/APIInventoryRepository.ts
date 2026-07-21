@@ -35,7 +35,20 @@ export class APIInventoryRepository {
     const json = await res.json();
     if (res.status === 401) throw new Error('UNAUTHORIZED');
     if (!res.ok || !json.success) throw new Error(json.message || 'Error al obtener marcas');
-    return json.data;
+    return (json.data || []).map((b: any) => ({ ...b, id: b.id || b._id }));
+  }
+
+  async createBrand(token: string, name: string): Promise<Brand> {
+    const res = await this.fetchWithAuth(`${this.baseUrl}/inventory/brands`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ name }),
+    });
+    const json = await res.json();
+    if (res.status === 401) throw new Error('UNAUTHORIZED');
+    if (!res.ok || !json.success) throw new Error(json.message || 'Error al crear marca');
+    const b = json.data;
+    return { ...b, id: b.id || b._id };
   }
 
   async getCategories(token: string): Promise<Category[]> {
@@ -45,7 +58,20 @@ export class APIInventoryRepository {
     const json = await res.json();
     if (res.status === 401) throw new Error('UNAUTHORIZED');
     if (!res.ok || !json.success) throw new Error(json.message || 'Error al obtener categorias');
-    return json.data;
+    return (json.data || []).map((c: any) => ({ ...c, id: c.id || c._id }));
+  }
+
+  async createCategory(token: string, name: string): Promise<Category> {
+    const res = await this.fetchWithAuth(`${this.baseUrl}/inventory/categories`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ name }),
+    });
+    const json = await res.json();
+    if (res.status === 401) throw new Error('UNAUTHORIZED');
+    if (!res.ok || !json.success) throw new Error(json.message || 'Error al crear categoria');
+    const c = json.data;
+    return { ...c, id: c.id || c._id };
   }
 
   // Providers
@@ -57,7 +83,7 @@ export class APIInventoryRepository {
     const json = await res.json();
     if (res.status === 401) throw new Error('UNAUTHORIZED');
     if (!res.ok || !json.success) throw new Error(json.message || 'Error al obtener proveedores');
-    return json.data;
+    return (json.data || []).map((p: any) => ({ ...p, id: p.id || p._id }));
   }
 
   async createProvider(token: string, data: CreateProviderDto): Promise<Provider> {
@@ -69,7 +95,8 @@ export class APIInventoryRepository {
     const json = await res.json();
     if (res.status === 401) throw new Error('UNAUTHORIZED');
     if (!res.ok || !json.success) throw new Error(json.message || 'Error al crear proveedor');
-    return json.data;
+    const p = json.data;
+    return { ...p, id: p.id || p._id };
   }
 
   // Products
@@ -85,7 +112,7 @@ export class APIInventoryRepository {
     const json = await res.json();
     if (res.status === 401) throw new Error('UNAUTHORIZED');
     if (!res.ok || !json.success) throw new Error(json.message || 'Error al obtener productos');
-    return json.data;
+    return (json.data || []).map((p: any) => ({ ...p, id: p.id || p._id }));
   }
 
   async createProduct(token: string, data: CreateProductDto): Promise<Product> {
@@ -97,7 +124,8 @@ export class APIInventoryRepository {
     const json = await res.json();
     if (res.status === 401) throw new Error('UNAUTHORIZED');
     if (!res.ok || !json.success) throw new Error(json.message || 'Error al crear producto');
-    return json.data;
+    const p = json.data;
+    return { ...p, id: p.id || p._id };
   }
 
   async createProductsBatch(token: string, data: CreateProductDto[]): Promise<{ added: number }> {
@@ -121,7 +149,8 @@ export class APIInventoryRepository {
     const json = await res.json();
     if (res.status === 401) throw new Error('UNAUTHORIZED');
     if (!res.ok || !json.success) throw new Error(json.message || 'Error al actualizar producto');
-    return json.data;
+    const p = json.data;
+    return { ...p, id: p.id || p._id };
   }
 
   async deleteProduct(token: string, id: string): Promise<void> {
@@ -144,7 +173,7 @@ export class APIInventoryRepository {
     const json = await res.json();
     if (res.status === 401) throw new Error('UNAUTHORIZED');
     if (!res.ok || !json.success) throw new Error(json.message || 'Error al obtener movimientos');
-    return json.data;
+    return (json.data || []).map((m: any) => ({ ...m, id: m.id || m._id }));
   }
 
   async createMovement(token: string, data: CreateStockMovementDto): Promise<StockMovement> {
@@ -156,6 +185,7 @@ export class APIInventoryRepository {
     const json = await res.json();
     if (res.status === 401) throw new Error('UNAUTHORIZED');
     if (!res.ok || !json.success) throw new Error(json.message || 'Error al crear movimiento');
-    return json.data;
+    const m = json.data;
+    return { ...m, id: m.id || m._id };
   }
 }

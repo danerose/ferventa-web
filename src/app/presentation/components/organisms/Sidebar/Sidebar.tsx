@@ -95,7 +95,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onLogout, userName }) => {
             }}
           >
             {user.branches.map(branchId => {
-              const branchInfo = branches.find(b => (b.id === branchId || b.id === branchId));
+              const branchInfo = branches.find(b => b.id === branchId || (b as any)._id === branchId);
               return (
                 <option key={branchId} value={branchId} style={{ color: 'black' }}>
                   {branchInfo ? branchInfo.name : `Sucursal ${branchId.substring(0, 4)}...`}

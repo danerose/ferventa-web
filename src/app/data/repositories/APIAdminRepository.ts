@@ -68,7 +68,10 @@ export class APIAdminRepository {
     const json = await res.json();
     if (res.status === 401) throw new Error('UNAUTHORIZED');
     if (!res.ok || !json.success) throw new Error(json.message || 'Error fetching branches');
-    return json.data;
+    return (json.data || []).map((b: any) => ({
+      ...b,
+      id: b.id || b._id,
+    }));
   }
 
   async migrateBranches(): Promise<void> {

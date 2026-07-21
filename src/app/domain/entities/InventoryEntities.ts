@@ -11,8 +11,7 @@ export interface Category {
 export interface Provider {
   id: string;
   name: string;
-  phone?: string;
-  email?: string;
+  providerCode: string;
 }
 
 export interface Product {
@@ -22,7 +21,6 @@ export interface Product {
   description?: string;
   brand: Brand;
   category: Category;
-  provider: Provider;
   costPrice: number;
   sellingPrice: number;
   stock: number;
@@ -43,8 +41,7 @@ export interface StockMovement {
 
 export interface CreateProviderDto {
   name: string;
-  phone?: string;
-  email?: string;
+  providerCode: string;
 }
 
 export interface CreateProductDto {
@@ -53,7 +50,6 @@ export interface CreateProductDto {
   description?: string;
   brandId: string;
   categoryId: string;
-  providerId: string;
   costPrice: number;
   sellingPrice: number;
   stock: number;
@@ -65,6 +61,7 @@ export interface CreateProductDto {
 
 export interface CreateStockMovementDto {
   productId: string;
+  providerId?: string;
   type: 'in' | 'out';
   quantity: number;
   reason: string;

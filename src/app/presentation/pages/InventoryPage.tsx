@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Icon, Sidebar, PrimaryButton, SecondaryButton, TextInput } from '../components';
+import { Icon, Sidebar, PrimaryButton, SecondaryButton, TextInput, SearchableSelect } from '../components';
 import { useAuthStore } from '../../../core/stores/useAuthStore';
 import { useInventoryStore } from '../../../core/stores/useInventoryStore';
 import { APIInventoryRepository } from '../../data/repositories/APIInventoryRepository';
@@ -36,7 +36,6 @@ export const InventoryPage: React.FC = () => {
     description: '',
     brandId: '',
     categoryId: '',
-    providerId: '',
     costPrice: 0,
     sellingPrice: 0,
     stock: 0,
@@ -48,13 +47,123 @@ export const InventoryPage: React.FC = () => {
 
   const [providerForm, setProviderForm] = useState<CreateProviderDto>({
     name: '',
-    phone: '',
-    email: ''
+    providerCode: ''
   });
+
+  const [movementForm, setMovementForm] = useState({
+    productId: '',
+    providerId: '',
+    quantity: 0
+  });
+
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   const handleUnauthorized = () => {
     clearAuth();
     navigate('/login');
+  };
+
+  const handleCreateProvider = async () => {
+    const errors: Record<string, string> = {};
+    if (!providerForm.name) errors.name = 'El nombre es obligatorio';
+    if (!providerForm.providerCode) errors.providerCode = 'El código es obligatorio';
+    
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      return;
+    }
+    
+    setFormErrors({});
+    setLoading(true);
+    try {
+      await inventoryRepo.createProvider(accessToken!, providerForm);
+      const data = await inventoryRepo.getProviders(accessToken!);
+      setProviders(data);
+      setActiveModal(null);
+      setProviderForm({ name: '', providerCode: '' });
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateProduct = async () => {
+    const errors: Record<string, string> = {};
+    if (!productForm.sku) errors.sku = 'Requerido';
+    if (!productForm.name) errors.name = 'Requerido';
+    if (!productForm.brandId) errors.brandId = 'Requerido';
+    if (!productForm.categoryId) errors.categoryId = 'Requerido';
+    
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      return;
+    }
+    
+    setFormErrors({});
+    setLoading(true);
+    try {
+      await inventoryRepo.createProduct(accessToken!, productForm);
+      const data = await inventoryRepo.getProducts(accessToken!, { search: searchValue });
+      setProducts(data);
+      setActiveModal(null);
+      setProductForm({ sku: '', name: '', description: '', brandId: '', categoryId: '', costPrice: 0, sellingPrice: 0, stock: 0, minStock: 0, unit: 'piece', photos: [], compatibility: [] });
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateBrand = async (name: string) => {
+    try {
+      const newBrand = await inventoryRepo.createBrand(accessToken!, name);
+      setBrands([...brands, newBrand]);
+      setProductForm(prev => ({ ...prev, brandId: newBrand.id }));
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const handleCreateCategory = async (name: string) => {
+    try {
+      const newCategory = await inventoryRepo.createCategory(accessToken!, name);
+      setCategories([...categories, newCategory]);
+      setProductForm(prev => ({ ...prev, categoryId: newCategory.id }));
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const handleCreateMovement = async () => {
+    const errors: Record<string, string> = {};
+    if (!movementForm.productId) errors.productId = 'Requerido';
+    if (movementForm.quantity <= 0) errors.quantity = 'Debe ser mayor a 0';
+    
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      return;
+    }
+
+    setFormErrors({});
+    setLoading(true);
+    try {
+      await inventoryRepo.createMovement(accessToken!, {
+        productId: movementForm.productId,
+        providerId: movementForm.providerId || undefined,
+        type: 'in',
+        quantity: movementForm.quantity,
+        reason: 'Ingreso de mercancía'
+      });
+      const data = await inventoryRepo.getProducts(accessToken!, { search: searchValue });
+      setProducts(data);
+      setActiveModal(null);
+      setMovementForm({ productId: '', providerId: '', quantity: 0 });
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -102,6 +211,10 @@ export const InventoryPage: React.FC = () => {
           <div style={{ display: 'flex', gap: '12px' }}>
             {activeTab === 'inventory' ? (
               <>
+                <PrimaryButton onClick={() => setActiveModal('addMovement')} style={{ background: '#16a34a', borderColor: '#16a34a' }}>
+                  <Icon name="Plus" size="sm" className="mr-2" />
+                  Ingreso de Mercancía
+                </PrimaryButton>
                 <SecondaryButton onClick={() => setActiveModal('addProductBatch')}>
                   <Icon name="UploadCloud" size="sm" className="mr-2" />
                   Registro por Lotes
@@ -211,8 +324,7 @@ export const InventoryPage: React.FC = () => {
                 <thead style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
                   <tr>
                     <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '12px', fontWeight: '600', color: '#64748b', textTransform: 'uppercase' }}>Nombre</th>
-                    <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '12px', fontWeight: '600', color: '#64748b', textTransform: 'uppercase' }}>Teléfono</th>
-                    <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '12px', fontWeight: '600', color: '#64748b', textTransform: 'uppercase' }}>Email</th>
+                    <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '12px', fontWeight: '600', color: '#64748b', textTransform: 'uppercase' }}>Código</th>
                     <th style={{ padding: '12px 16px', textAlign: 'center', fontSize: '12px', fontWeight: '600', color: '#64748b', textTransform: 'uppercase' }}>Acciones</th>
                   </tr>
                 </thead>
@@ -220,8 +332,7 @@ export const InventoryPage: React.FC = () => {
                   {providers.length > 0 ? providers.map(provider => (
                     <tr key={provider.id} style={{ borderBottom: '1px solid #e2e8f0' }}>
                       <td style={{ padding: '16px', fontSize: '14px', color: '#0f172a', fontWeight: '600' }}>{provider.name}</td>
-                      <td style={{ padding: '16px', fontSize: '14px', color: '#475569' }}>{provider.phone || 'N/A'}</td>
-                      <td style={{ padding: '16px', fontSize: '14px', color: '#475569' }}>{provider.email || 'N/A'}</td>
+                      <td style={{ padding: '16px', fontSize: '14px', color: '#475569' }}>{provider.providerCode || 'N/A'}</td>
                       <td style={{ padding: '16px', textAlign: 'center' }}>
                         <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}>
                           <Icon name="Edit2" size="sm" />
@@ -249,12 +360,14 @@ export const InventoryPage: React.FC = () => {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div style={{ display: 'flex', gap: '16px' }}>
                 <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '8px' }}>SKU</label>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '8px' }}>SKU / Código</label>
                   <TextInput 
-                    placeholder="SKU-123" 
+                    placeholder="Ej. BAL-001" 
                     value={productForm.sku}
                     onChange={e => setProductForm({...productForm, sku: e.target.value})}
+                    error={!!formErrors.sku}
                   />
+                  {formErrors.sku && <span style={{ color: '#ba1a1a', fontSize: '11px', marginTop: '4px', display: 'block' }}>{formErrors.sku}</span>}
                 </div>
                 <div style={{ flex: 2 }}>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '8px' }}>Nombre del producto</label>
@@ -262,7 +375,9 @@ export const InventoryPage: React.FC = () => {
                     placeholder="Ej. Balatas Delanteras de Cerámica" 
                     value={productForm.name}
                     onChange={e => setProductForm({...productForm, name: e.target.value})}
+                    error={!!formErrors.name}
                   />
+                  {formErrors.name && <span style={{ color: '#ba1a1a', fontSize: '11px', marginTop: '4px', display: 'block' }}>{formErrors.name}</span>}
                 </div>
               </div>
               
@@ -278,38 +393,28 @@ export const InventoryPage: React.FC = () => {
               <div style={{ display: 'flex', gap: '16px' }}>
                 <div style={{ flex: 1 }}>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '8px' }}>Marca</label>
-                  <select 
-                    style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none' }}
-                    value={productForm.brandId}
-                    onChange={e => setProductForm({...productForm, brandId: e.target.value})}
-                  >
-                    <option value="">Seleccione marca...</option>
-                    {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-                  </select>
+                  <SearchableSelect 
+                    options={brands} 
+                    value={productForm.brandId} 
+                    onChange={id => setProductForm({...productForm, brandId: id})}
+                    onCreateNew={handleCreateBrand}
+                    placeholder="Buscar o crear marca..."
+                    error={!!formErrors.brandId}
+                  />
+                  {formErrors.brandId && <span style={{ color: '#ba1a1a', fontSize: '11px', marginTop: '4px', display: 'block' }}>{formErrors.brandId}</span>}
                 </div>
                 <div style={{ flex: 1 }}>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '8px' }}>Categoría</label>
-                  <select 
-                    style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none' }}
-                    value={productForm.categoryId}
-                    onChange={e => setProductForm({...productForm, categoryId: e.target.value})}
-                  >
-                    <option value="">Seleccione categoría...</option>
-                    {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
+                  <SearchableSelect 
+                    options={categories} 
+                    value={productForm.categoryId} 
+                    onChange={id => setProductForm({...productForm, categoryId: id})}
+                    onCreateNew={handleCreateCategory}
+                    placeholder="Buscar o crear categoría..."
+                    error={!!formErrors.categoryId}
+                  />
+                  {formErrors.categoryId && <span style={{ color: '#ba1a1a', fontSize: '11px', marginTop: '4px', display: 'block' }}>{formErrors.categoryId}</span>}
                 </div>
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '8px' }}>Proveedor</label>
-                <select 
-                  style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none' }}
-                  value={productForm.providerId}
-                  onChange={e => setProductForm({...productForm, providerId: e.target.value})}
-                >
-                  <option value="">Seleccione proveedor...</option>
-                  {providers.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                </select>
               </div>
 
               <div style={{ display: 'flex', gap: '16px' }}>
@@ -365,7 +470,7 @@ export const InventoryPage: React.FC = () => {
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '32px' }}>
               <SecondaryButton onClick={() => setActiveModal(null)}>Cancelar</SecondaryButton>
-              <PrimaryButton onClick={() => setActiveModal(null)}>Guardar Producto</PrimaryButton>
+              <PrimaryButton onClick={handleCreateProduct}>Guardar Producto</PrimaryButton>
             </div>
           </div>
         </div>
@@ -383,30 +488,74 @@ export const InventoryPage: React.FC = () => {
                   placeholder="Autopartes S.A." 
                   value={providerForm.name}
                   onChange={e => setProviderForm({...providerForm, name: e.target.value})}
+                  error={!!formErrors.name}
                 />
+                {formErrors.name && <span style={{ color: '#ba1a1a', fontSize: '11px', marginTop: '4px', display: 'block' }}>{formErrors.name}</span>}
               </div>
-              <div style={{ display: 'flex', gap: '16px' }}>
-                <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '8px' }}>Teléfono</label>
-                  <TextInput 
-                    placeholder="8112345678" 
-                    value={providerForm.phone}
-                    onChange={e => setProviderForm({...providerForm, phone: e.target.value})}
-                  />
-                </div>
-                <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '8px' }}>Email</label>
-                  <TextInput 
-                    placeholder="contacto@ejemplo.com" type="email" 
-                    value={providerForm.email}
-                    onChange={e => setProviderForm({...providerForm, email: e.target.value})}
-                  />
-                </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '8px' }}>Código de Proveedor</label>
+                <TextInput 
+                  placeholder="Ej. PROV-001" 
+                  value={providerForm.providerCode}
+                  onChange={e => setProviderForm({...providerForm, providerCode: e.target.value})}
+                  error={!!formErrors.providerCode}
+                />
+                {formErrors.providerCode && <span style={{ color: '#ba1a1a', fontSize: '11px', marginTop: '4px', display: 'block' }}>{formErrors.providerCode}</span>}
               </div>
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '32px' }}>
               <SecondaryButton onClick={() => setActiveModal(null)}>Cancelar</SecondaryButton>
-              <PrimaryButton onClick={() => setActiveModal(null)}>Guardar Proveedor</PrimaryButton>
+              <PrimaryButton onClick={handleCreateProvider}>Guardar Proveedor</PrimaryButton>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Basic Modal for Movement */}
+      {activeModal === 'addMovement' && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }}>
+          <div style={{ background: 'white', padding: '32px', borderRadius: '16px', width: '500px', maxWidth: '90vw' }}>
+            <h2 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '24px' }}>Ingreso de Mercancía</h2>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '8px' }}>Proveedor (Opcional)</label>
+                <SearchableSelect 
+                  options={providers} 
+                  value={movementForm.providerId} 
+                  onChange={id => setMovementForm({...movementForm, providerId: id})}
+                  placeholder="Buscar proveedor..."
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '8px' }}>Producto</label>
+                <SearchableSelect 
+                  options={products} 
+                  value={movementForm.productId} 
+                  onChange={id => setMovementForm({...movementForm, productId: id})}
+                  placeholder="Buscar producto por SKU o nombre..."
+                  error={!!formErrors.productId}
+                />
+                {formErrors.productId && <span style={{ color: '#ba1a1a', fontSize: '11px', marginTop: '4px', display: 'block' }}>{formErrors.productId}</span>}
+                {movementForm.productId && (
+                  <div style={{ marginTop: '8px', fontSize: '12px', color: '#64748b', background: '#f8fafc', padding: '8px', borderRadius: '4px' }}>
+                    Stock actual: <span style={{ fontWeight: '700', color: '#0f172a' }}>{products.find(p => p.id === movementForm.productId)?.stock || 0}</span> {products.find(p => p.id === movementForm.productId)?.unit}
+                  </div>
+                )}
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '8px' }}>Cantidad a ingresar</label>
+                <TextInput 
+                  placeholder="0" type="number" 
+                  value={movementForm.quantity.toString()}
+                  onChange={e => setMovementForm({...movementForm, quantity: parseInt(e.target.value) || 0})}
+                  error={!!formErrors.quantity}
+                />
+                {formErrors.quantity && <span style={{ color: '#ba1a1a', fontSize: '11px', marginTop: '4px', display: 'block' }}>{formErrors.quantity}</span>}
+              </div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '32px' }}>
+              <SecondaryButton onClick={() => setActiveModal(null)}>Cancelar</SecondaryButton>
+              <PrimaryButton onClick={handleCreateMovement}>Registrar Ingreso</PrimaryButton>
             </div>
           </div>
         </div>

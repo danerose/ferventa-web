@@ -484,6 +484,14 @@ export const AppointmentDetailDrawer: React.FC<AppointmentDetailDrawerProps> = (
             gap: '8px',
           }}
         >
+          <SecondaryButton
+            onClick={() => window.print()}
+            className="w-full bg-white border-[#cbd5e1] hover:bg-[#f1f5f9] text-[#091426] py-2.5 rounded-lg text-[13px] mb-4"
+          >
+            <Icon name="Printer" size="sm" className="mr-2" />
+            Imprimir Comprobante
+          </SecondaryButton>
+
           {(appt.status === 'pending' || appt.status === 'rescheduled') && (
             <>
               <PrimaryButton
@@ -564,6 +572,50 @@ export const AppointmentDetailDrawer: React.FC<AppointmentDetailDrawerProps> = (
           )}
         </div>
       </aside>
+
+      {/* Print Layout for Appointment Voucher */}
+      <div className="hidden print:block fixed inset-0 bg-white z-[9999] p-8 text-black font-sans">
+        <div className="text-center mb-8 border-b pb-4">
+          <h1 className="text-2xl font-bold">Ferventa Autopartes</h1>
+          <p className="text-gray-600">Comprobante de Cita</p>
+          <p className="text-sm text-gray-500 mt-2">Folio: {appt.id.slice(-6).toUpperCase()}</p>
+        </div>
+
+        <div className="grid grid-cols-2 gap-8 mb-8">
+          <div>
+            <h3 className="font-bold border-b pb-2 mb-2">Datos del Cliente</h3>
+            <p><strong>Nombre:</strong> {appt.customerName}</p>
+            {appt.customerPhone && <p><strong>Teléfono:</strong> {appt.customerPhone}</p>}
+            {appt.customerEmail && <p><strong>Email:</strong> {appt.customerEmail}</p>}
+          </div>
+          <div>
+            <h3 className="font-bold border-b pb-2 mb-2">Datos del Vehículo</h3>
+            {appt.vehicle ? (
+              <>
+                <p><strong>Marca:</strong> {appt.vehicle.brand}</p>
+                <p><strong>Modelo:</strong> {appt.vehicle.model}</p>
+                <p><strong>Año:</strong> {appt.vehicle.year}</p>
+                <p><strong>Serie (últimos 4):</strong> ***{appt.vehicle.serialNumberLastFour}</p>
+              </>
+            ) : (
+              <p>Vehículo genérico / No especificado</p>
+            )}
+          </div>
+        </div>
+
+        <div className="mb-8">
+          <h3 className="font-bold border-b pb-2 mb-2">Detalles de la Cita</h3>
+          <p><strong>Fecha programada:</strong> {formatScheduledAt(appt.scheduledAt).date} a las {formatScheduledAt(appt.scheduledAt).time} {formatScheduledAt(appt.scheduledAt).period}</p>
+          <p><strong>Estado de la cita:</strong> {STATUS_LABELS[appt.status] || appt.status}</p>
+          <p><strong>Motivo/Servicio:</strong> {appt.serviceRequested}</p>
+          <p><strong>Notas:</strong> {appt.notes || 'Ninguna'}</p>
+        </div>
+
+        <div className="mt-16 text-center text-gray-500 text-sm border-t pt-4">
+          <p>Este documento es un comprobante informativo de su cita.</p>
+          <p>Para dudas o reagendaciones, por favor contáctenos.</p>
+        </div>
+      </div>
     </div>
   );
 };

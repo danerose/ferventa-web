@@ -42,8 +42,9 @@ export const POSPage: React.FC = () => {
 
   useEffect(() => {
     const search = async () => {
-      if (!accessToken || searchValue.trim() === '') {
-        setSearchResults([]);
+      if (!accessToken) return;
+      if (searchValue.trim() === '') {
+        // No limpiamos los resultados para que sigan viéndose después de agregar
         return;
       }
       try {
@@ -86,8 +87,9 @@ export const POSPage: React.FC = () => {
   };
 
   return (
-    <div style={{ background: '#f8f9ff', minHeight: '100vh', fontFamily: 'Inter, system-ui, sans-serif' }}>
-      <Sidebar onLogout={handleUnauthorized} userName={user?.name || 'Admin'} />
+    <div className="print:bg-white" style={{ background: '#f8f9ff', minHeight: '100vh', fontFamily: 'Inter, system-ui, sans-serif' }}>
+      <div className="print:hidden">
+        <Sidebar onLogout={handleUnauthorized} userName={user?.name || 'Admin'} />
 
       <div style={{ marginLeft: '240px', minHeight: '100vh', display: 'flex' }}>
         
@@ -117,7 +119,10 @@ export const POSPage: React.FC = () => {
                     <div style={{ fontSize: '18px', fontWeight: '700', color: '#2563eb' }}>
                       ${product.sellingPrice.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
                     </div>
-                    <PrimaryButton size="sm" onClick={() => addToCart(product, 1)}>
+                    <PrimaryButton size="sm" onClick={() => {
+                      addToCart(product, 1);
+                      setSearchValue('');
+                    }}>
                       Agregar
                     </PrimaryButton>
                   </div>
@@ -134,8 +139,19 @@ export const POSPage: React.FC = () => {
 
         {/* Cart Sidebar */}
         <aside style={{ width: '400px', background: 'white', borderLeft: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column' }}>
-          <div style={{ padding: '24px', borderBottom: '1px solid #e2e8f0' }}>
+          <div style={{ padding: '24px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h2 style={{ fontSize: '18px', fontWeight: '700', color: '#091426' }}>Carrito actual</h2>
+            {cart.length > 0 && (
+              <button 
+                onClick={() => {
+                  clearCart();
+                  setSearchValue('');
+                }}
+                style={{ fontSize: '13px', color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', fontWeight: '600' }}
+              >
+                Limpiar todo
+              </button>
+            )}
           </div>
           
           <div style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
@@ -181,6 +197,17 @@ export const POSPage: React.FC = () => {
               <span>${total.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
             </div>
             
+            <div style={{ display: 'flex', gap: '12px', marginBottom: '12px' }}>
+              <SecondaryButton 
+                className="flex-1 justify-center py-3"
+                disabled={cart.length === 0}
+                onClick={() => window.print()}
+              >
+                <Icon name="Printer" size="sm" className="mr-2" />
+                Cotización
+              </SecondaryButton>
+            </div>
+            
             <PrimaryButton 
               className="w-full justify-center py-3 text-lg" 
               disabled={cart.length === 0}
@@ -191,6 +218,57 @@ export const POSPage: React.FC = () => {
           </div>
         </aside>
 
+      </div>
+      </div> {/* End print:hidden wrapper */}
+
+      {/* Print Layout for Quotation */}
+      <div className="hidden print:block p-8 bg-white text-black">
+        <div className="text-center mb-8 border-b pb-4">
+          <h1 className="text-2xl font-bold">Ferventa Autopartes</h1>
+          <p className="text-gray-600">Cotización de Productos</p>
+          <p className="text-sm text-gray-500 mt-2">Fecha: {new Date().toLocaleDateString('es-MX')} {new Date().toLocaleTimeString('es-MX')}</p>
+        </div>
+
+        <table className="w-full text-left mb-8 border-collapse">
+          <thead>
+            <tr className="border-b-2 border-black">
+              <th className="py-2">Cant.</th>
+              <th className="py-2">Descripción</th>
+              <th className="py-2 text-right">P. Unitario</th>
+              <th className="py-2 text-right">Importe</th>
+            </tr>
+          </thead>
+          <tbody>
+            {cart.map((item, idx) => (
+              <tr key={idx} className="border-b border-gray-200">
+                <td className="py-2">{item.quantity}</td>
+                <td className="py-2">{item.product.name} <br/><span className="text-xs text-gray-500">SKU: {item.product.sku}</span></td>
+                <td className="py-2 text-right">${item.unitPrice.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</td>
+                <td className="py-2 text-right">${item.subtotal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        <div className="w-64 ml-auto">
+          <div className="flex justify-between py-1 text-gray-600">
+            <span>Subtotal:</span>
+            <span>${subtotal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
+          </div>
+          <div className="flex justify-between py-1 text-gray-600 border-b border-black">
+            <span>IVA (16%):</span>
+            <span>${tax.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
+          </div>
+          <div className="flex justify-between py-2 text-xl font-bold">
+            <span>Total:</span>
+            <span>${total.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
+          </div>
+        </div>
+
+        <div className="mt-16 text-center text-gray-500 text-sm">
+          <p>Esta cotización tiene una vigencia de 15 días a partir de su fecha de expedición.</p>
+          <p>Gracias por su preferencia.</p>
+        </div>
       </div>
 
       {/* Payment Modal */}
