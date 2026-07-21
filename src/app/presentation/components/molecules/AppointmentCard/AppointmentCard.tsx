@@ -288,11 +288,11 @@ export const AppointmentCard: React.FC<AppointmentCardProps> = ({
       {(appt.status === 'pending' || appt.status === 'rescheduled') && (
         <div
           style={{
-            width: '180px',
+            width: '220px',
             flexShrink: 0,
             display: 'flex',
             flexDirection: 'column',
-            gap: '8px',
+            gap: '10px',
             justifyContent: 'center',
           }}
         >
@@ -301,20 +301,20 @@ export const AppointmentCard: React.FC<AppointmentCardProps> = ({
             size="sm"
             disabled={updating}
             onClick={(e) => { e.stopPropagation(); onApproveClick(appt); }}
-            className="w-full bg-[#091426] hover:bg-[#1e293b] text-white border-none rounded-lg"
+            className="w-full bg-[#091426] hover:bg-[#1e293b] text-white border-none rounded-lg py-2 text-[13px]"
           >
             <Icon name="CheckCircle" size="xs" className="mr-1.5" />
             Aprobar
           </PrimaryButton>
 
           {/* 2-column grid for Reschedule and Reject */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
             <SecondaryButton
               size="xs"
               variant="outline"
               disabled={updating}
               onClick={(e) => { e.stopPropagation(); onRescheduleClick(appt); }}
-              className="text-[#091426] border-[#cbd5e1] hover:bg-[#f1f5f9] rounded-lg py-1.5"
+              className="text-[#091426] border-[#cbd5e1] hover:bg-[#f1f5f9] rounded-lg py-2 px-2 text-[11.5px] font-semibold"
             >
               <Icon name="Calendar" size="xs" className="mr-1" />
               Reagendar
@@ -324,7 +324,7 @@ export const AppointmentCard: React.FC<AppointmentCardProps> = ({
               variant="outline"
               disabled={updating}
               onClick={(e) => { e.stopPropagation(); onRejectClick(appt); }}
-              className="text-[#dc2626] border-[#fca5a5] hover:bg-[#fef2f2] rounded-lg py-1.5"
+              className="text-[#dc2626] border-[#fca5a5] hover:bg-[#fef2f2] rounded-lg py-2 px-2 text-[11.5px] font-semibold"
             >
               <Icon name="XCircle" size="xs" className="mr-1" />
               Rechazar

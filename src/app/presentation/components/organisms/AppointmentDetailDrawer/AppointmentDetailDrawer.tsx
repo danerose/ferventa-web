@@ -48,6 +48,7 @@ export const AppointmentDetailDrawer: React.FC<AppointmentDetailDrawerProps> = (
 
   return (
     <div
+      className="print:contents"
       style={{
         position: 'fixed',
         inset: 0,
@@ -61,6 +62,7 @@ export const AppointmentDetailDrawer: React.FC<AppointmentDetailDrawerProps> = (
       onClick={onClose}
     >
       <aside
+        className="print:hidden"
         style={{
           width: '360px',
           height: '100%',
@@ -574,11 +576,12 @@ export const AppointmentDetailDrawer: React.FC<AppointmentDetailDrawerProps> = (
       </aside>
 
       {/* Print Layout for Appointment Voucher */}
-      <div className="hidden print:block fixed inset-0 bg-white z-[9999] p-8 text-black font-sans">
+      <div className="hidden print:block fixed inset-0 bg-white z-[9999] p-8 text-black font-sans min-h-screen">
         <div className="text-center mb-8 border-b pb-4">
-          <h1 className="text-2xl font-bold">Ferventa Autopartes</h1>
+          <h1 className="text-2xl font-bold">Moto servicio Nova FV</h1>
           <p className="text-gray-600">Comprobante de Cita</p>
           <p className="text-sm text-gray-500 mt-2">Folio: {appt.id.slice(-6).toUpperCase()}</p>
+          {appt.branchName && <p className="text-sm text-gray-500 font-medium">Sucursal: {appt.branchName}</p>}
         </div>
 
         <div className="grid grid-cols-2 gap-8 mb-8">

@@ -655,347 +655,347 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onLogout
 
   return (
     <div className="print:bg-white" style={{ background: '#f8f9ff', minHeight: '100vh', fontFamily: 'Inter, system-ui, sans-serif' }}>
+      {/* Sidebar */}
       <div className="print:hidden">
-        {/* Sidebar */}
         <Sidebar onLogout={handleUnauthorized} userName={user?.name || 'Admin'} />
+      </div>
 
-        {/* Main area */}
-        <div style={{ marginLeft: '240px', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-        {/* Top Bar */}
-        <DashboardFilters
-          searchValue={searchValue}
-          onSearchChange={handleSearchChange}
-          branchFilter={branchFilter}
-          onBranchChange={setBranchFilter}
-          uniqueBranches={uniqueBranches}
-          viewType={viewType}
-          onViewTypeChange={setViewType}
-          pendingCount={pendingCount}
-          onAddClick={() => setActiveModal('addAppointment')}
-          onRefreshClick={() => (viewType === 'list' ? fetchAppointments() : fetchTimelineAppointments())}
-        />
+      {/* Main area */}
+      <div className="print:hidden" style={{ marginLeft: '240px', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+          {/* Top Bar */}
+          <DashboardFilters
+            searchValue={searchValue}
+            onSearchChange={handleSearchChange}
+            branchFilter={branchFilter}
+            onBranchChange={setBranchFilter}
+            uniqueBranches={uniqueBranches}
+            viewType={viewType}
+            onViewTypeChange={setViewType}
+            pendingCount={pendingCount}
+            onAddClick={() => setActiveModal('addAppointment')}
+            onRefreshClick={() => (viewType === 'list' ? fetchAppointments() : fetchTimelineAppointments())}
+          />
 
-        {/* Content */}
-        <main style={{ flex: 1, padding: '28px', maxWidth: '1280px', width: '100%', margin: '0 auto' }}>
-          {/* Page header */}
-          <div style={{ marginBottom: '24px' }}>
-            <h1
-              style={{
-                fontSize: '26px',
-                fontWeight: '700',
-                color: '#091426',
-                letterSpacing: '-0.02em',
-                marginBottom: '4px',
-              }}
-            >
-              Gestión de Citas
-            </h1>
-            <p style={{ fontSize: '14px', color: '#64748b' }}>
-              Administra las solicitudes de tus clientes y actualiza su estado.
-            </p>
-          </div>
-
-          {viewType === 'list' ? (
-            <>
-              {/* Status Filter Tabs */}
-              <div
+          {/* Content */}
+          <main style={{ flex: 1, padding: '28px', maxWidth: '1280px', width: '100%', margin: '0 auto' }}>
+            {/* Page header */}
+            <div style={{ marginBottom: '24px' }}>
+              <h1
                 style={{
-                  display: 'flex',
-                  gap: '4px',
-                  background: 'white',
-                  border: '1px solid #e2e8f0',
-                  borderRadius: '10px',
-                  padding: '4px',
-                  marginBottom: '20px',
-                  overflowX: 'auto',
-                  flexWrap: 'nowrap',
+                  fontSize: '26px',
+                  fontWeight: '700',
+                  color: '#091426',
+                  letterSpacing: '-0.02em',
+                  marginBottom: '4px',
                 }}
               >
-                {FILTER_TABS.map((tab) => (
-                  <button
-                    key={tab.value}
-                    onClick={() => setStatusFilter(tab.value)}
-                    style={{
-                      padding: '7px 16px',
-                      borderRadius: '7px',
-                      border: 'none',
-                      fontSize: '13px',
-                      fontWeight: '600',
-                      cursor: 'pointer',
-                      whiteSpace: 'nowrap',
-                      transition: 'background 0.15s, color 0.15s',
-                      background: statusFilter === tab.value ? '#091426' : 'transparent',
-                      color: statusFilter === tab.value ? 'white' : '#64748b',
-                      fontFamily: 'Inter, system-ui, sans-serif',
-                    }}
-                  >
-                    {tab.label}
-                  </button>
-                ))}
-              </div>
+                Gestión de Citas
+              </h1>
+              <p style={{ fontSize: '14px', color: '#64748b' }}>
+                Administra las solicitudes de tus clientes y actualiza su estado.
+              </p>
+            </div>
 
-              {/* Content area */}
-              {loading ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  {[1, 2, 3].map((i) => <SkeletonCard key={i} />)}
-                </div>
-              ) : error ? (
+            {viewType === 'list' ? (
+              <>
+                {/* Status Filter Tabs */}
                 <div
                   style={{
-                    background: '#fff1f1',
-                    border: '1px solid rgba(186,26,26,0.2)',
-                    borderRadius: '12px',
-                    padding: '24px',
                     display: 'flex',
-                    alignItems: 'center',
-                    gap: '12px',
-                  }}
-                >
-                  <Icon name="AlertTriangle" className="text-error" />
-                  <div>
-                    <p style={{ fontWeight: '700', color: '#991b1b', marginBottom: '4px' }}>Error al cargar las citas</p>
-                    <p style={{ fontSize: '14px', color: '#7f1d1d' }}>{error}</p>
-                  </div>
-                  <button
-                    onClick={() => fetchAppointments()}
-                    style={{
-                      marginLeft: 'auto',
-                      background: '#991b1b',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '8px',
-                      padding: '8px 16px',
-                      fontSize: '13px',
-                      fontWeight: '600',
-                      cursor: 'pointer',
-                      fontFamily: 'Inter, system-ui, sans-serif',
-                    }}
-                  >
-                    Reintentar
-                  </button>
-                </div>
-              ) : visibleAppointments.length === 0 ? (
-                <div
-                  style={{
+                    gap: '4px',
                     background: 'white',
                     border: '1px solid #e2e8f0',
-                    borderRadius: '16px',
-                    padding: '56px 24px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    gap: '12px',
+                    borderRadius: '10px',
+                    padding: '4px',
+                    marginBottom: '20px',
+                    overflowX: 'auto',
+                    flexWrap: 'nowrap',
                   }}
                 >
+                  {FILTER_TABS.map((tab) => (
+                    <button
+                      key={tab.value}
+                      onClick={() => setStatusFilter(tab.value)}
+                      style={{
+                        padding: '7px 16px',
+                        borderRadius: '7px',
+                        border: 'none',
+                        fontSize: '13px',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        whiteSpace: 'nowrap',
+                        transition: 'background 0.15s, color 0.15s',
+                        background: statusFilter === tab.value ? '#091426' : 'transparent',
+                        color: statusFilter === tab.value ? 'white' : '#64748b',
+                        fontFamily: 'Inter, system-ui, sans-serif',
+                      }}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Content area */}
+                {loading ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {[1, 2, 3].map((i) => <SkeletonCard key={i} />)}
+                  </div>
+                ) : error ? (
                   <div
                     style={{
-                      width: '56px',
-                      height: '56px',
-                      borderRadius: '50%',
-                      background: '#f1f5f9',
+                      background: '#fff1f1',
+                      border: '1px solid rgba(186,26,26,0.2)',
+                      borderRadius: '12px',
+                      padding: '24px',
                       display: 'flex',
                       alignItems: 'center',
-                      justifyContent: 'center',
+                      gap: '12px',
                     }}
                   >
-                    <Icon name="CalendarOff" className="text-[#94a3b8]" />
+                    <Icon name="AlertTriangle" className="text-error" />
+                    <div>
+                      <p style={{ fontWeight: '700', color: '#991b1b', marginBottom: '4px' }}>Error al cargar las citas</p>
+                      <p style={{ fontSize: '14px', color: '#7f1d1d' }}>{error}</p>
+                    </div>
+                    <button
+                      onClick={() => fetchAppointments()}
+                      style={{
+                        marginLeft: 'auto',
+                        background: '#991b1b',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '8px',
+                        padding: '8px 16px',
+                        fontSize: '13px',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        fontFamily: 'Inter, system-ui, sans-serif',
+                      }}
+                    >
+                      Reintentar
+                    </button>
                   </div>
-                  <p style={{ fontWeight: '700', color: '#0b1c30', fontSize: '16px' }}>Sin citas</p>
-                  <p style={{ fontSize: '14px', color: '#94a3b8', textAlign: 'center' }}>
-                    {searchValue
-                      ? `No se encontraron citas para "${searchValue}"`
-                      : `No hay citas con estado "${STATUS_LABELS[statusFilter] ?? statusFilter}"`}
-                  </p>
-                </div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  {visibleAppointments.map((appt) => (
-                    <AppointmentCard
-                      key={appt.id}
-                      appt={appt}
-                      onApproveClick={handleApproveClick}
-                      onRejectClick={handleRejectClick}
-                      onRescheduleClick={handleRescheduleClick}
-                      onCancelClick={handleCancelClick}
-                      onRescheduleApprovedClick={handleRescheduleApprovedClick}
-                      onCompleteClick={handleCompleteClick}
-                      onCardClick={setSelectedTimelineAppt}
-                      updating={updatingId === appt.id}
-                    />
-                  ))}
-                  <p style={{ textAlign: 'center', fontSize: '13px', color: '#94a3b8', paddingTop: '8px' }}>
-                    {visibleAppointments.length} cita{visibleAppointments.length !== 1 ? 's' : ''} mostrada{visibleAppointments.length !== 1 ? 's' : ''}
-                  </p>
-                </div>
-              )}
-            </>
-          ) : (
-            <WeeklyCalendar
-              timelineAppointments={timelineAppointments}
-              timelineLoading={timelineLoading}
-              currentWeekRefDate={currentWeekRefDate}
-              onWeekRefDateChange={setCurrentWeekRefDate}
-              onAppointmentClick={setSelectedTimelineAppt}
-              branchFilter={branchFilter}
-              searchValue={searchValue}
-            />
-          )}
-        </main>
-      </div>
+                ) : visibleAppointments.length === 0 ? (
+                  <div
+                    style={{
+                      background: 'white',
+                      border: '1px solid #e2e8f0',
+                      borderRadius: '16px',
+                      padding: '56px 24px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: '12px',
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: '56px',
+                        height: '56px',
+                        borderRadius: '50%',
+                        background: '#f1f5f9',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <Icon name="CalendarOff" className="text-[#94a3b8]" />
+                    </div>
+                    <p style={{ fontWeight: '700', color: '#0b1c30', fontSize: '16px' }}>Sin citas</p>
+                    <p style={{ fontSize: '14px', color: '#94a3b8', textAlign: 'center' }}>
+                      {searchValue
+                        ? `No se encontraron citas para "${searchValue}"`
+                        : `No hay citas con estado "${STATUS_LABELS[statusFilter] ?? statusFilter}"`}
+                    </p>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {visibleAppointments.map((appt) => (
+                      <AppointmentCard
+                        key={appt.id}
+                        appt={appt}
+                        onApproveClick={handleApproveClick}
+                        onRejectClick={handleRejectClick}
+                        onRescheduleClick={handleRescheduleClick}
+                        onCancelClick={handleCancelClick}
+                        onRescheduleApprovedClick={handleRescheduleApprovedClick}
+                        onCompleteClick={handleCompleteClick}
+                        onCardClick={setSelectedTimelineAppt}
+                        updating={updatingId === appt.id}
+                      />
+                    ))}
+                    <p style={{ textAlign: 'center', fontSize: '13px', color: '#94a3b8', paddingTop: '8px' }}>
+                      {visibleAppointments.length} cita{visibleAppointments.length !== 1 ? 's' : ''} mostrada{visibleAppointments.length !== 1 ? 's' : ''}
+                    </p>
+                  </div>
+                )}
+              </>
+            ) : (
+              <WeeklyCalendar
+                timelineAppointments={timelineAppointments}
+                timelineLoading={timelineLoading}
+                currentWeekRefDate={currentWeekRefDate}
+                onWeekRefDateChange={setCurrentWeekRefDate}
+                onAppointmentClick={setSelectedTimelineAppt}
+                branchFilter={branchFilter}
+                searchValue={searchValue}
+              />
+            )}
+          </main>
+        </div>
 
       {/* --- MODALS --- */}
 
-      <ApproveAppointmentModal
-        isOpen={activeModal === 'approve'}
-        appt={selectedAppt}
-        onClose={() => setActiveModal(null)}
-        modalMessage={modalMessage}
-        onMessageChange={(val) => {
-          setModalMessage(val);
-          setIsMessageEdited(true);
-        }}
-        onConfirm={handleApproveConfirm}
-        updating={updatingId === selectedAppt?.id}
-      />
+        <ApproveAppointmentModal
+          isOpen={activeModal === 'approve'}
+          appt={selectedAppt}
+          onClose={() => setActiveModal(null)}
+          modalMessage={modalMessage}
+          onMessageChange={(val) => {
+            setModalMessage(val);
+            setIsMessageEdited(true);
+          }}
+          onConfirm={handleApproveConfirm}
+          updating={updatingId === selectedAppt?.id}
+        />
 
-      <RejectAppointmentModal
-        isOpen={activeModal === 'reject'}
-        appt={selectedAppt}
-        onClose={() => setActiveModal(null)}
-        rejectionReason={rejectionReason}
-        onRejectionReasonChange={setRejectionReason}
-        modalMessage={modalMessage}
-        onMessageChange={(val) => {
-          setModalMessage(val);
-          setIsMessageEdited(true);
-        }}
-        onConfirm={handleRejectConfirm}
-        updating={updatingId === selectedAppt?.id}
-      />
+        <RejectAppointmentModal
+          isOpen={activeModal === 'reject'}
+          appt={selectedAppt}
+          onClose={() => setActiveModal(null)}
+          rejectionReason={rejectionReason}
+          onRejectionReasonChange={setRejectionReason}
+          modalMessage={modalMessage}
+          onMessageChange={(val) => {
+            setModalMessage(val);
+            setIsMessageEdited(true);
+          }}
+          onConfirm={handleRejectConfirm}
+          updating={updatingId === selectedAppt?.id}
+        />
 
-      <RescheduleAppointmentModal
-        isOpen={activeModal === 'reschedule'}
-        appt={selectedAppt}
-        onClose={() => setActiveModal(null)}
-        occupiedLoading={occupiedLoading}
-        occupiedList={occupiedList}
-        newSuggestionDate={newSuggestionDate}
-        onNewSuggestionDateChange={setNewSuggestionDate}
-        newSuggestionTime={newSuggestionTime}
-        onNewSuggestionTimeChange={setNewSuggestionTime}
-        timeSlotOptions={timeSlotOptions}
-        format12h={format12h}
-        handleAddSuggestion={handleAddSuggestion}
-        suggestedSchedules={suggestedSchedules}
-        handleRemoveSuggestion={handleRemoveSuggestion}
-        modalMessage={modalMessage}
-        onMessageChange={(val) => {
-          setModalMessage(val);
-          setIsMessageEdited(true);
-        }}
-        onConfirm={handleRescheduleConfirm}
-        updating={updatingId === selectedAppt?.id}
-      />
+        <RescheduleAppointmentModal
+          isOpen={activeModal === 'reschedule'}
+          appt={selectedAppt}
+          onClose={() => setActiveModal(null)}
+          occupiedLoading={occupiedLoading}
+          occupiedList={occupiedList}
+          newSuggestionDate={newSuggestionDate}
+          onNewSuggestionDateChange={setNewSuggestionDate}
+          newSuggestionTime={newSuggestionTime}
+          onNewSuggestionTimeChange={setNewSuggestionTime}
+          timeSlotOptions={timeSlotOptions}
+          format12h={format12h}
+          handleAddSuggestion={handleAddSuggestion}
+          suggestedSchedules={suggestedSchedules}
+          handleRemoveSuggestion={handleRemoveSuggestion}
+          modalMessage={modalMessage}
+          onMessageChange={(val) => {
+            setModalMessage(val);
+            setIsMessageEdited(true);
+          }}
+          onConfirm={handleRescheduleConfirm}
+          updating={updatingId === selectedAppt?.id}
+        />
 
-      <ApproveRescheduledModal
-        isOpen={activeModal === 'approveRescheduled'}
-        appt={selectedAppt}
-        onClose={() => setActiveModal(null)}
-        finalDate={finalDate}
-        onFinalDateChange={setFinalDate}
-        finalTime={finalTime}
-        onFinalTimeChange={setFinalTime}
-        timeSlotOptions={timeSlotOptions}
-        format12h={format12h}
-        occupiedSlots={occupiedSlots}
-        occupiedList={occupiedList}
-        modalMessage={modalMessage}
-        onMessageChange={(val) => {
-          setModalMessage(val);
-          setIsMessageEdited(true);
-        }}
-        onConfirm={handleApproveRescheduledConfirm}
-        updating={updatingId === selectedAppt?.id}
-      />
+        <ApproveRescheduledModal
+          isOpen={activeModal === 'approveRescheduled'}
+          appt={selectedAppt}
+          onClose={() => setActiveModal(null)}
+          finalDate={finalDate}
+          onFinalDateChange={setFinalDate}
+          finalTime={finalTime}
+          onFinalTimeChange={setFinalTime}
+          timeSlotOptions={timeSlotOptions}
+          format12h={format12h}
+          occupiedSlots={occupiedSlots}
+          occupiedList={occupiedList}
+          modalMessage={modalMessage}
+          onMessageChange={(val) => {
+            setModalMessage(val);
+            setIsMessageEdited(true);
+          }}
+          onConfirm={handleApproveRescheduledConfirm}
+          updating={updatingId === selectedAppt?.id}
+        />
 
-      <CancelApprovedModal
-        isOpen={activeModal === 'cancelApproved'}
-        appt={selectedAppt}
-        onClose={() => setActiveModal(null)}
-        onConfirm={handleCancelApprovedConfirm}
-        updating={updatingId === selectedAppt?.id}
-      />
+        <CancelApprovedModal
+          isOpen={activeModal === 'cancelApproved'}
+          appt={selectedAppt}
+          onClose={() => setActiveModal(null)}
+          onConfirm={handleCancelApprovedConfirm}
+          updating={updatingId === selectedAppt?.id}
+        />
 
-      <CompleteAppointmentModal
-        isOpen={activeModal === 'complete'}
-        appt={selectedAppt}
-        onClose={() => setActiveModal(null)}
-        onConfirm={handleCompleteConfirm}
-        updating={updatingId === selectedAppt?.id}
-      />
+        <CompleteAppointmentModal
+          isOpen={activeModal === 'complete'}
+          appt={selectedAppt}
+          onClose={() => setActiveModal(null)}
+          onConfirm={handleCompleteConfirm}
+          updating={updatingId === selectedAppt?.id}
+        />
 
-      <AlertModal
-        isOpen={alertState.isOpen}
-        onClose={() => setAlertState({ ...alertState, isOpen: false })}
-        title={alertState.title}
-        message={alertState.message}
-        isError={alertState.isError}
-      />
+        <AlertModal
+          isOpen={alertState.isOpen}
+          onClose={() => setAlertState({ ...alertState, isOpen: false })}
+          title={alertState.title}
+          message={alertState.message}
+          isError={alertState.isError}
+        />
 
-      <AddAppointmentModal
-        isOpen={activeModal === 'addAppointment'}
-        onClose={() => setActiveModal(null)}
-        onSuccess={fetchAppointments}
-      />
+        <AddAppointmentModal
+          isOpen={activeModal === 'addAppointment'}
+          onClose={() => setActiveModal(null)}
+          onSuccess={fetchAppointments}
+        />
 
-      <AppointmentDetailDrawer
-        appt={selectedTimelineAppt}
-        onClose={() => setSelectedTimelineAppt(null)}
-        onApproveClick={handleApproveClick}
-        onRejectClick={handleRejectClick}
-        onRescheduleClick={handleRescheduleClick}
-        onCompleteClick={handleCompleteClick}
-        onRescheduleApprovedClick={handleRescheduleApprovedClick}
-        onCancelClick={handleCancelClick}
-      />
+        <AppointmentDetailDrawer
+          appt={selectedTimelineAppt}
+          onClose={() => setSelectedTimelineAppt(null)}
+          onApproveClick={handleApproveClick}
+          onRejectClick={handleRejectClick}
+          onRescheduleClick={handleRescheduleClick}
+          onCompleteClick={handleCompleteClick}
+          onRescheduleApprovedClick={handleRescheduleApprovedClick}
+          onCancelClick={handleCancelClick}
+        />
 
-      {/* Toasts */}
-      <div
-        style={{
-          position: 'fixed',
-          bottom: '24px',
-          right: '24px',
-          zIndex: 100,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '8px',
-          pointerEvents: 'none',
-        }}
-      >
-        {toasts.map((toast) => (
-          <div
-            key={toast.id}
-            style={{
-              background: toast.type === 'success' ? '#091426' : '#dc2626',
-              color: 'white',
-              borderRadius: '10px',
-              padding: '12px 18px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
-              boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
-              fontSize: '14px',
-              fontWeight: '600',
-              animation: 'slideInRight 0.25s ease',
-              fontFamily: 'Inter, system-ui, sans-serif',
-            }}
-          >
-            <Icon name={toast.type === 'success' ? 'CheckCircle' : 'AlertCircle'} size="sm" />
-            {toast.message}
-          </div>
-        ))}
-      </div>
-      </div> {/* End print:hidden wrapper */}
+        {/* Toasts */}
+        <div
+          style={{
+            position: 'fixed',
+            bottom: '24px',
+            right: '24px',
+            zIndex: 100,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '8px',
+            pointerEvents: 'none',
+          }}
+        >
+          {toasts.map((toast) => (
+            <div
+              key={toast.id}
+              style={{
+                background: toast.type === 'success' ? '#091426' : '#dc2626',
+                color: 'white',
+                borderRadius: '10px',
+                padding: '12px 18px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
+                fontSize: '14px',
+                fontWeight: '600',
+                animation: 'slideInRight 0.25s ease',
+                fontFamily: 'Inter, system-ui, sans-serif',
+              }}
+            >
+              <Icon name={toast.type === 'success' ? 'CheckCircle' : 'AlertCircle'} size="sm" />
+              {toast.message}
+            </div>
+          ))}
+        </div>
     </div>
   );
 };

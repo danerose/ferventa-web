@@ -12,16 +12,59 @@ export interface LoginPageProps {
 export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [emailError, setEmailError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { setAuth } = useAuthStore();
 
+  const validateEmail = (val: string) => {
+    if (!val.trim()) return 'El correo electrónico es obligatorio';
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(val)) return 'Ingresa un correo electrónico válido';
+    return '';
+  };
+
+  const validatePassword = (val: string) => {
+    if (!val) return 'La contraseña es obligatoria';
+    return '';
+  };
+
+  const handleEmailChange = (val: string) => {
+    setEmail(val);
+    if (!val.trim()) {
+      setEmailError('El correo electrónico es obligatorio');
+    } else {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(val)) {
+        setEmailError('Ingresa un correo electrónico válido');
+      } else {
+        setEmailError('');
+      }
+    }
+  };
+
+  const handlePasswordChange = (val: string) => {
+    setPassword(val);
+    if (!val) {
+      setPasswordError('La contraseña es obligatoria');
+    } else {
+      setPasswordError('');
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password) {
-      setError('Por favor ingresa tu correo y contraseña.');
+    const eErr = validateEmail(email);
+    const pErr = validatePassword(password);
+    
+    setEmailError(eErr);
+    setPasswordError(pErr);
+
+    if (eErr || pErr) {
       return;
     }
+
     setError(null);
     setLoading(true);
     try {
@@ -160,7 +203,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+          <form onSubmit={handleSubmit} noValidate style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
             <div>
               <label
                 style={{
@@ -178,7 +221,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
               <TextInput
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => handleEmailChange(e.target.value)}
+                errorMessage={emailError}
                 placeholder="admin@ferventa.com"
                 disabled={loading}
                 autoComplete="email"
@@ -202,7 +246,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
               <TextInput
                 type="password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => handlePasswordChange(e.target.value)}
+                errorMessage={passwordError}
                 placeholder="••••••••"
                 disabled={loading}
                 autoComplete="current-password"

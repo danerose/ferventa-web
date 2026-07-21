@@ -184,7 +184,7 @@ export const AppointmentForm: React.FC = () => {
           </Box>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} noValidate className="space-y-4">
           <div>
             <label className="block font-label-caps text-on-surface-variant mb-1">Sucursal *</label>
             <select

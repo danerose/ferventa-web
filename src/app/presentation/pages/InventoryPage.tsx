@@ -3,23 +3,53 @@ import { useNavigate } from 'react-router-dom';
 import { Icon, Sidebar, PrimaryButton, SecondaryButton, TextInput, SearchableSelect } from '../components';
 import { useAuthStore } from '../../../core/stores/useAuthStore';
 import { useInventoryStore } from '../../../core/stores/useInventoryStore';
-import { APIInventoryRepository } from '../../data/repositories/APIInventoryRepository';
-import type { CreateProductDto, CreateProviderDto } from '../../domain/entities/InventoryEntities';
+import { APIAdminRepository } from '../../data/repositories/APIAdminRepository';
+import { APIClientPortalRepository } from '../../data/repositories/APIClientPortalRepository';
+import type { CreateProductDto, CreateProviderDto, Product, Provider } from '../../domain/entities/InventoryEntities';
+import type { Branch } from '../../domain/entities/AdminEntities';
+import { APIInventoryRepository } from '@/app/data/repositories/APIInventoryRepository';
 
 const inventoryRepo = new APIInventoryRepository();
+const adminRepo = new APIAdminRepository();
+const clientPortalRepo = new APIClientPortalRepository();
 
 export const InventoryPage: React.FC = () => {
   const navigate = useNavigate();
-  const { user, accessToken, clearAuth } = useAuthStore();
-  const { 
-    activeTab, 
-    setActiveTab, 
-    products, 
-    providers, 
+  const { user, accessToken, activeBranchId, clearAuth } = useAuthStore();
+  const [branches, setBranches] = useState<Branch[]>([]);
+
+  useEffect(() => {
+    const fetchBranches = async () => {
+      try {
+        const data = await adminRepo.getBranches();
+        if (data && data.length > 0) {
+          setBranches(data);
+          return;
+        }
+      } catch (err) {}
+      
+      try {
+        const publicData = await clientPortalRepo.getPublicBranches();
+        if (publicData && publicData.length > 0) {
+          setBranches(publicData.map((b: any) => ({ ...b, id: b.id || b._id })));
+        }
+      } catch (err) {}
+    };
+
+    fetchBranches();
+  }, [accessToken]);
+
+  const activeBranch = branches.find(b => b.id === activeBranchId || (b as any)._id === activeBranchId);
+  const activeBranchName = activeBranch ? activeBranch.name : (branches.length > 0 ? branches[0].name : 'Sucursal Principal');
+  const {
+    activeTab,
+    setActiveTab,
+    products,
+    providers,
     brands,
     categories,
-    loading, 
-    searchValue, 
+    loading,
+    searchValue,
     setSearchValue,
     setProducts,
     setProviders,
@@ -56,6 +86,8 @@ export const InventoryPage: React.FC = () => {
     quantity: 0
   });
 
+  const [editingProductId, setEditingProductId] = useState<string | null>(null);
+  const [editingProviderId, setEditingProviderId] = useState<string | null>(null);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   const handleUnauthorized = () => {
@@ -67,19 +99,24 @@ export const InventoryPage: React.FC = () => {
     const errors: Record<string, string> = {};
     if (!providerForm.name) errors.name = 'El nombre es obligatorio';
     if (!providerForm.providerCode) errors.providerCode = 'El código es obligatorio';
-    
+
     if (Object.keys(errors).length > 0) {
       setFormErrors(errors);
       return;
     }
-    
+
     setFormErrors({});
     setLoading(true);
     try {
-      await inventoryRepo.createProvider(accessToken!, providerForm);
+      if (editingProviderId) {
+        await inventoryRepo.updateProvider(accessToken!, editingProviderId, providerForm);
+      } else {
+        await inventoryRepo.createProvider(accessToken!, providerForm);
+      }
       const data = await inventoryRepo.getProviders(accessToken!);
       setProviders(data);
       setActiveModal(null);
+      setEditingProviderId(null);
       setProviderForm({ name: '', providerCode: '' });
     } catch (error) {
       console.error(error);
@@ -94,25 +131,62 @@ export const InventoryPage: React.FC = () => {
     if (!productForm.name) errors.name = 'Requerido';
     if (!productForm.brandId) errors.brandId = 'Requerido';
     if (!productForm.categoryId) errors.categoryId = 'Requerido';
-    
+
     if (Object.keys(errors).length > 0) {
       setFormErrors(errors);
       return;
     }
-    
+
     setFormErrors({});
     setLoading(true);
     try {
-      await inventoryRepo.createProduct(accessToken!, productForm);
+      if (editingProductId) {
+        await inventoryRepo.updateProduct(accessToken!, editingProductId, productForm);
+      } else {
+        await inventoryRepo.createProduct(accessToken!, productForm);
+      }
       const data = await inventoryRepo.getProducts(accessToken!, { search: searchValue });
       setProducts(data);
       setActiveModal(null);
-      setProductForm({ sku: '', name: '', description: '', brandId: '', categoryId: '', costPrice: 0, sellingPrice: 0, stock: 0, minStock: 0, unit: 'piece', photos: [], compatibility: [] });
+      setEditingProductId(null);
+      setProductForm({
+        sku: '', name: '', description: '', brandId: '', categoryId: '', costPrice: 0, sellingPrice: 0, stock: 0, minStock: 0, unit: 'piece', photos: [], compatibility: []
+      });
     } catch (error) {
       console.error(error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleOpenEditProduct = (product: Product) => {
+    setEditingProductId(product.id);
+    setProductForm({
+      sku: product.sku,
+      name: product.name,
+      description: product.description || '',
+      brandId: typeof product.brand === 'object' ? product.brand.id || (product.brand as any)._id : product.brand || '',
+      categoryId: typeof product.category === 'object' ? product.category.id || (product.category as any)._id : product.category || '',
+      costPrice: product.costPrice || 0,
+      sellingPrice: product.sellingPrice || 0,
+      stock: product.stock || 0,
+      minStock: product.minStock || 0,
+      unit: product.unit || 'piece',
+      photos: product.photos || [],
+      compatibility: product.compatibility || []
+    });
+    setFormErrors({});
+    setActiveModal('addProduct');
+  };
+
+  const handleOpenEditProvider = (provider: Provider) => {
+    setEditingProviderId(provider.id);
+    setProviderForm({
+      name: provider.name,
+      providerCode: provider.providerCode || ''
+    });
+    setFormErrors({});
+    setActiveModal('addProvider');
   };
 
   const handleCreateBrand = async (name: string) => {
@@ -139,7 +213,7 @@ export const InventoryPage: React.FC = () => {
     const errors: Record<string, string> = {};
     if (!movementForm.productId) errors.productId = 'Requerido';
     if (movementForm.quantity <= 0) errors.quantity = 'Debe ser mayor a 0';
-    
+
     if (Object.keys(errors).length > 0) {
       setFormErrors(errors);
       return;
@@ -202,7 +276,7 @@ export const InventoryPage: React.FC = () => {
       <Sidebar onLogout={handleUnauthorized} userName={user?.name || 'Admin'} />
 
       <div style={{ marginLeft: '240px', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-        
+
         {/* Top Header */}
         <header style={{ background: 'white', padding: '16px 28px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
@@ -234,13 +308,13 @@ export const InventoryPage: React.FC = () => {
         </header>
 
         <main style={{ flex: 1, padding: '28px', maxWidth: '1280px', width: '100%', margin: '0 auto' }}>
-          
+
           {/* Tabs & Search */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
             <div style={{ display: 'flex', gap: '8px', background: 'white', padding: '4px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-              <button 
+              <button
                 onClick={() => setActiveTab('inventory')}
-                style={{ 
+                style={{
                   padding: '8px 16px', borderRadius: '6px', fontWeight: '600', fontSize: '14px', border: 'none', cursor: 'pointer', transition: 'all 0.2s',
                   background: activeTab === 'inventory' ? '#091426' : 'transparent',
                   color: activeTab === 'inventory' ? 'white' : '#64748b'
@@ -248,9 +322,9 @@ export const InventoryPage: React.FC = () => {
               >
                 Inventario
               </button>
-              <button 
+              <button
                 onClick={() => setActiveTab('providers')}
-                style={{ 
+                style={{
                   padding: '8px 16px', borderRadius: '6px', fontWeight: '600', fontSize: '14px', border: 'none', cursor: 'pointer', transition: 'all 0.2s',
                   background: activeTab === 'providers' ? '#091426' : 'transparent',
                   color: activeTab === 'providers' ? 'white' : '#64748b'
@@ -261,7 +335,7 @@ export const InventoryPage: React.FC = () => {
             </div>
 
             <div style={{ width: '300px' }}>
-              <TextInput 
+              <TextInput
                 placeholder={`Buscar ${activeTab === 'inventory' ? 'productos' : 'proveedores'}...`}
                 value={searchValue}
                 onChange={(e) => setSearchValue(e.target.value)}
@@ -298,7 +372,7 @@ export const InventoryPage: React.FC = () => {
                         ${product.sellingPrice.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
                       </td>
                       <td style={{ padding: '16px' }}>
-                        <span style={{ 
+                        <span style={{
                           padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: '600',
                           background: product.stock <= product.minStock ? '#fef2f2' : '#f0fdf4',
                           color: product.stock <= product.minStock ? '#dc2626' : '#16a34a'
@@ -307,7 +381,7 @@ export const InventoryPage: React.FC = () => {
                         </span>
                       </td>
                       <td style={{ padding: '16px', textAlign: 'center' }}>
-                        <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}>
+                        <button onClick={() => handleOpenEditProduct(product)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}>
                           <Icon name="Edit2" size="sm" />
                         </button>
                       </td>
@@ -334,7 +408,7 @@ export const InventoryPage: React.FC = () => {
                       <td style={{ padding: '16px', fontSize: '14px', color: '#0f172a', fontWeight: '600' }}>{provider.name}</td>
                       <td style={{ padding: '16px', fontSize: '14px', color: '#475569' }}>{provider.providerCode || 'N/A'}</td>
                       <td style={{ padding: '16px', textAlign: 'center' }}>
-                        <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}>
+                        <button onClick={() => handleOpenEditProvider(provider)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}>
                           <Icon name="Edit2" size="sm" />
                         </button>
                       </td>
@@ -355,48 +429,59 @@ export const InventoryPage: React.FC = () => {
       {activeModal === 'addProduct' && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }}>
           <div style={{ background: 'white', padding: '32px', borderRadius: '16px', width: '600px', maxWidth: '90vw', maxHeight: '90vh', overflowY: 'auto' }}>
-            <h2 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '24px' }}>Agregar Producto</h2>
-            
+            <h2 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '24px' }}>
+              {editingProductId ? 'Editar Producto' : 'Agregar Producto'}
+            </h2>
+
+            <div style={{ background: '#e0f2fe', color: '#0369a1', padding: '12px', borderRadius: '8px', fontSize: '13px', fontWeight: '500', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Icon name="Info" size="sm" />
+              Registrando en sucursal: {activeBranchName}
+            </div>
+
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div style={{ display: 'flex', gap: '16px' }}>
                 <div style={{ flex: 1 }}>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '8px' }}>SKU / Código</label>
-                  <TextInput 
-                    placeholder="Ej. BAL-001" 
+                  <TextInput
+                    placeholder="Ej. BAL-001"
                     value={productForm.sku}
-                    onChange={e => setProductForm({...productForm, sku: e.target.value})}
-                    error={!!formErrors.sku}
+                    onChange={e => {
+                      setProductForm({ ...productForm, sku: e.target.value });
+                      if (formErrors.sku) setFormErrors(prev => ({ ...prev, sku: '' }));
+                    }}
+                    errorMessage={formErrors.sku}
                   />
-                  {formErrors.sku && <span style={{ color: '#ba1a1a', fontSize: '11px', marginTop: '4px', display: 'block' }}>{formErrors.sku}</span>}
                 </div>
                 <div style={{ flex: 2 }}>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '8px' }}>Nombre del producto</label>
-                  <TextInput 
-                    placeholder="Ej. Balatas Delanteras de Cerámica" 
+                  <TextInput
+                    placeholder="Ej. Balatas Delanteras de Cerámica"
                     value={productForm.name}
-                    onChange={e => setProductForm({...productForm, name: e.target.value})}
-                    error={!!formErrors.name}
+                    onChange={e => {
+                      setProductForm({ ...productForm, name: e.target.value });
+                      if (formErrors.name) setFormErrors(prev => ({ ...prev, name: '' }));
+                    }}
+                    errorMessage={formErrors.name}
                   />
-                  {formErrors.name && <span style={{ color: '#ba1a1a', fontSize: '11px', marginTop: '4px', display: 'block' }}>{formErrors.name}</span>}
                 </div>
               </div>
-              
+
               <div>
                 <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '8px' }}>Descripción</label>
-                <TextInput 
-                  placeholder="Descripción detallada" 
+                <TextInput
+                  placeholder="Descripción detallada"
                   value={productForm.description}
-                  onChange={e => setProductForm({...productForm, description: e.target.value})}
+                  onChange={e => setProductForm({ ...productForm, description: e.target.value })}
                 />
               </div>
 
               <div style={{ display: 'flex', gap: '16px' }}>
                 <div style={{ flex: 1 }}>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '8px' }}>Marca</label>
-                  <SearchableSelect 
-                    options={brands} 
-                    value={productForm.brandId} 
-                    onChange={id => setProductForm({...productForm, brandId: id})}
+                  <SearchableSelect
+                    options={brands}
+                    value={productForm.brandId}
+                    onChange={id => setProductForm({ ...productForm, brandId: id })}
                     onCreateNew={handleCreateBrand}
                     placeholder="Buscar o crear marca..."
                     error={!!formErrors.brandId}
@@ -405,10 +490,10 @@ export const InventoryPage: React.FC = () => {
                 </div>
                 <div style={{ flex: 1 }}>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '8px' }}>Categoría</label>
-                  <SearchableSelect 
-                    options={categories} 
-                    value={productForm.categoryId} 
-                    onChange={id => setProductForm({...productForm, categoryId: id})}
+                  <SearchableSelect
+                    options={categories}
+                    value={productForm.categoryId}
+                    onChange={id => setProductForm({ ...productForm, categoryId: id })}
                     onCreateNew={handleCreateCategory}
                     placeholder="Buscar o crear categoría..."
                     error={!!formErrors.categoryId}
@@ -420,45 +505,45 @@ export const InventoryPage: React.FC = () => {
               <div style={{ display: 'flex', gap: '16px' }}>
                 <div style={{ flex: 1 }}>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '8px' }}>Costo</label>
-                  <TextInput 
-                    placeholder="0.00" type="number" 
+                  <TextInput
+                    placeholder="0.00" type="number"
                     value={productForm.costPrice.toString()}
-                    onChange={e => setProductForm({...productForm, costPrice: parseFloat(e.target.value) || 0})}
+                    onChange={e => setProductForm({ ...productForm, costPrice: parseFloat(e.target.value) || 0 })}
                   />
                 </div>
                 <div style={{ flex: 1 }}>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '8px' }}>Precio Venta</label>
-                  <TextInput 
-                    placeholder="0.00" type="number" 
+                  <TextInput
+                    placeholder="0.00" type="number"
                     value={productForm.sellingPrice.toString()}
-                    onChange={e => setProductForm({...productForm, sellingPrice: parseFloat(e.target.value) || 0})}
+                    onChange={e => setProductForm({ ...productForm, sellingPrice: parseFloat(e.target.value) || 0 })}
                   />
                 </div>
               </div>
-              
+
               <div style={{ display: 'flex', gap: '16px' }}>
                 <div style={{ flex: 1 }}>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '8px' }}>Stock</label>
-                  <TextInput 
-                    placeholder="0" type="number" 
+                  <TextInput
+                    placeholder="0" type="number"
                     value={productForm.stock.toString()}
-                    onChange={e => setProductForm({...productForm, stock: parseInt(e.target.value) || 0})}
+                    onChange={e => setProductForm({ ...productForm, stock: parseInt(e.target.value) || 0 })}
                   />
                 </div>
                 <div style={{ flex: 1 }}>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '8px' }}>Stock Mínimo</label>
-                  <TextInput 
-                    placeholder="0" type="number" 
+                  <TextInput
+                    placeholder="0" type="number"
                     value={productForm.minStock.toString()}
-                    onChange={e => setProductForm({...productForm, minStock: parseInt(e.target.value) || 0})}
+                    onChange={e => setProductForm({ ...productForm, minStock: parseInt(e.target.value) || 0 })}
                   />
                 </div>
                 <div style={{ flex: 1 }}>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '8px' }}>Unidad</label>
-                  <select 
+                  <select
                     style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none' }}
                     value={productForm.unit}
-                    onChange={e => setProductForm({...productForm, unit: e.target.value})}
+                    onChange={e => setProductForm({ ...productForm, unit: e.target.value })}
                   >
                     <option value="piece">Pieza</option>
                     <option value="kit">Kit</option>
@@ -480,27 +565,39 @@ export const InventoryPage: React.FC = () => {
       {activeModal === 'addProvider' && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }}>
           <div style={{ background: 'white', padding: '32px', borderRadius: '16px', width: '500px', maxWidth: '90vw' }}>
-            <h2 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '24px' }}>Agregar Proveedor</h2>
+            <h2 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '24px' }}>
+              {editingProviderId ? 'Editar Proveedor' : 'Agregar Proveedor'}
+            </h2>
+
+            <div style={{ background: '#e0f2fe', color: '#0369a1', padding: '12px', borderRadius: '8px', fontSize: '13px', fontWeight: '500', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Icon name="Info" size="sm" />
+              Registrando en sucursal: {activeBranchName}
+            </div>
+
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '8px' }}>Nombre</label>
-                <TextInput 
-                  placeholder="Autopartes S.A." 
+                <TextInput
+                  placeholder="Autopartes S.A."
                   value={providerForm.name}
-                  onChange={e => setProviderForm({...providerForm, name: e.target.value})}
-                  error={!!formErrors.name}
+                  onChange={e => {
+                    setProviderForm({ ...providerForm, name: e.target.value });
+                    if (formErrors.name) setFormErrors(prev => ({ ...prev, name: '' }));
+                  }}
+                  errorMessage={formErrors.name}
                 />
-                {formErrors.name && <span style={{ color: '#ba1a1a', fontSize: '11px', marginTop: '4px', display: 'block' }}>{formErrors.name}</span>}
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '8px' }}>Código de Proveedor</label>
-                <TextInput 
-                  placeholder="Ej. PROV-001" 
+                <TextInput
+                  placeholder="Ej. PROV-001"
                   value={providerForm.providerCode}
-                  onChange={e => setProviderForm({...providerForm, providerCode: e.target.value})}
-                  error={!!formErrors.providerCode}
+                  onChange={e => {
+                    setProviderForm({ ...providerForm, providerCode: e.target.value });
+                    if (formErrors.providerCode) setFormErrors(prev => ({ ...prev, providerCode: '' }));
+                  }}
+                  errorMessage={formErrors.providerCode}
                 />
-                {formErrors.providerCode && <span style={{ color: '#ba1a1a', fontSize: '11px', marginTop: '4px', display: 'block' }}>{formErrors.providerCode}</span>}
               </div>
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '32px' }}>
@@ -516,22 +613,28 @@ export const InventoryPage: React.FC = () => {
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }}>
           <div style={{ background: 'white', padding: '32px', borderRadius: '16px', width: '500px', maxWidth: '90vw' }}>
             <h2 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '24px' }}>Ingreso de Mercancía</h2>
+
+            <div style={{ background: '#e0f2fe', color: '#0369a1', padding: '12px', borderRadius: '8px', fontSize: '13px', fontWeight: '500', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Icon name="Info" size="sm" />
+              El stock se añadirá a la sucursal: {activeBranchName}
+            </div>
+
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '8px' }}>Proveedor (Opcional)</label>
-                <SearchableSelect 
-                  options={providers} 
-                  value={movementForm.providerId} 
-                  onChange={id => setMovementForm({...movementForm, providerId: id})}
+                <SearchableSelect
+                  options={providers}
+                  value={movementForm.providerId}
+                  onChange={id => setMovementForm({ ...movementForm, providerId: id })}
                   placeholder="Buscar proveedor..."
                 />
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '8px' }}>Producto</label>
-                <SearchableSelect 
-                  options={products} 
-                  value={movementForm.productId} 
-                  onChange={id => setMovementForm({...movementForm, productId: id})}
+                <SearchableSelect
+                  options={products}
+                  value={movementForm.productId}
+                  onChange={id => setMovementForm({ ...movementForm, productId: id })}
                   placeholder="Buscar producto por SKU o nombre..."
                   error={!!formErrors.productId}
                 />
@@ -544,10 +647,10 @@ export const InventoryPage: React.FC = () => {
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '8px' }}>Cantidad a ingresar</label>
-                <TextInput 
-                  placeholder="0" type="number" 
+                <TextInput
+                  placeholder="0" type="number"
                   value={movementForm.quantity.toString()}
-                  onChange={e => setMovementForm({...movementForm, quantity: parseInt(e.target.value) || 0})}
+                  onChange={e => setMovementForm({ ...movementForm, quantity: parseInt(e.target.value) || 0 })}
                   error={!!formErrors.quantity}
                 />
                 {formErrors.quantity && <span style={{ color: '#ba1a1a', fontSize: '11px', marginTop: '4px', display: 'block' }}>{formErrors.quantity}</span>}

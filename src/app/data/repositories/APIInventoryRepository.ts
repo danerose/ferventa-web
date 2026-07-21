@@ -99,6 +99,19 @@ export class APIInventoryRepository {
     return { ...p, id: p.id || p._id };
   }
 
+  async updateProvider(token: string, id: string, data: Partial<CreateProviderDto>): Promise<Provider> {
+    const res = await this.fetchWithAuth(`${this.baseUrl}/inventory/providers/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify(data),
+    });
+    const json = await res.json();
+    if (res.status === 401) throw new Error('UNAUTHORIZED');
+    if (!res.ok || !json.success) throw new Error(json.message || 'Error al actualizar proveedor');
+    const p = json.data;
+    return { ...p, id: p.id || p._id };
+  }
+
   // Products
   async getProducts(token: string, filter: { search?: string; categoryId?: string; branchId?: string } = {}): Promise<Product[]> {
     const params = new URLSearchParams();

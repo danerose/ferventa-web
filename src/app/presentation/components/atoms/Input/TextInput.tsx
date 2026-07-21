@@ -6,6 +6,7 @@ export interface TextInputProps extends Omit<React.InputHTMLAttributes<HTMLInput
   size?: 'xs' | 'sm' | 'md' | 'lg';
   variant?: 'outline' | 'ghost' | 'soft' | 'bordered';
   error?: boolean;
+  errorMessage?: string;
 }
 
 const colorMap = {
@@ -40,29 +41,38 @@ export const TextInput = React.forwardRef<HTMLInputElement, TextInputProps>(
       size = 'md',
       variant = 'outline',
       error,
+      errorMessage,
       disabled,
       className,
       ...props
     },
     ref
   ) => {
+    const hasError = error || !!errorMessage;
     return (
-      <input
-        ref={ref}
-        type="text"
-        disabled={disabled}
-        className={cn(
-          'w-full font-sans rounded border-[#cbd5e1] text-[#0b1c30] placeholder:text-gray-400 outline-none transition-all duration-150',
-          'focus:ring-0 focus:border-2',
-          disabled && 'bg-gray-100 text-gray-400 cursor-not-allowed opacity-60',
-          variantMap[variant],
-          colorMap[color],
-          sizeMap[size],
-          error && 'border-[#ba1a1a] focus:border-[#ba1a1a] bg-[#ba1a1a]/5 text-[#ba1a1a]',
-          className
+      <div className="w-full">
+        <input
+          ref={ref}
+          type="text"
+          disabled={disabled}
+          className={cn(
+            'w-full font-sans rounded border-[#cbd5e1] text-[#0b1c30] placeholder:text-gray-400 outline-none transition-all duration-150',
+            'focus:ring-0 focus:border-2',
+            disabled && 'bg-gray-100 text-gray-400 cursor-not-allowed opacity-60',
+            variantMap[variant],
+            colorMap[color],
+            sizeMap[size],
+            hasError && 'border-[#ba1a1a] focus:border-[#ba1a1a] bg-[#ba1a1a]/5 text-[#ba1a1a]',
+            className
+          )}
+          {...props}
+        />
+        {errorMessage && (
+          <span className="text-[#ba1a1a] text-[11px] mt-1 block font-medium animate-fadeIn">
+            {errorMessage}
+          </span>
         )}
-        {...props}
-      />
+      </div>
     );
   }
 );
