@@ -52,8 +52,6 @@ export const POSPage: React.FC = () => {
     total,
     applyTax,
     toggleApplyTax,
-    isNotApplicable,
-    toggleNotApplicable,
     setSearchValue,
     setSearchResults,
     addToCart,

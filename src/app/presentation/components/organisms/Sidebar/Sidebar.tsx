@@ -3,9 +3,11 @@ import { Link, useLocation } from 'react-router-dom';
 import { Icon } from '@/app/presentation/components';
 import { useAuthStore } from '@/core/stores/useAuthStore';
 import { APIAdminRepository } from '@/app/data/repositories/APIAdminRepository';
+import { APIClientPortalRepository } from '@/app/data/repositories/APIClientPortalRepository';
 import type { Branch } from '@/app/domain/entities/AdminEntities';
 
 const adminRepo = new APIAdminRepository();
+const clientPortalRepo = new APIClientPortalRepository();
 
 export interface SidebarProps {
   onLogout: () => void;
@@ -27,12 +29,41 @@ export const Sidebar: React.FC<SidebarProps> = ({ onLogout, userName }) => {
   const [branches, setBranches] = React.useState<Branch[]>([]);
 
   React.useEffect(() => {
-    if (accessToken) {
-      adminRepo.getBranches().then(data => {
-        setBranches(data);
-      }).catch(err => console.error("Error fetching branches for sidebar", err));
-    }
+    const fetchBranches = async () => {
+      try {
+        const data = await adminRepo.getBranches();
+        if (data && data.length > 0) {
+          setBranches(data);
+          return;
+        }
+      } catch (err) {}
+
+      try {
+        const publicData = await clientPortalRepo.getPublicBranches();
+        if (publicData && publicData.length > 0) {
+          setBranches(publicData.map((b: any) => ({ ...b, id: b.id || b._id })));
+        }
+      } catch (err) {}
+    };
+
+    fetchBranches();
   }, [accessToken]);
+
+  const availableBranches = React.useMemo(() => {
+    if (branches.length === 0) return [];
+    if (user?.branches && Array.isArray(user.branches) && user.branches.length > 0) {
+      const userBranchIds = user.branches.map((b: any) => (typeof b === 'object' ? b.id || b._id : b));
+      const filtered = branches.filter(b => userBranchIds.includes(b.id) || userBranchIds.includes((b as any)._id));
+      if (filtered.length > 0) return filtered;
+    }
+    return branches;
+  }, [branches, user]);
+
+  React.useEffect(() => {
+    if (availableBranches.length > 0 && (!activeBranchId || !availableBranches.some(b => b.id === activeBranchId))) {
+      setActiveBranchId(availableBranches[0].id);
+    }
+  }, [availableBranches, activeBranchId, setActiveBranchId]);
 
   return (
     <aside
@@ -76,11 +107,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ onLogout, userName }) => {
       </div>
 
       {/* Branch Selector */}
-      {user?.branches && user.branches.length > 0 && (
+      {availableBranches.length > 0 && (
         <div style={{ padding: '12px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
           <label style={{ display: 'block', fontSize: '11px', color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase', marginBottom: '6px' }}>Sucursal Activa</label>
           <select
-            value={activeBranchId || ''}
+            value={activeBranchId || availableBranches[0].id}
             onChange={(e) => {
               setActiveBranchId(e.target.value);
               window.location.reload();
@@ -97,14 +128,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ onLogout, userName }) => {
               cursor: 'pointer'
             }}
           >
-            {user.branches.map(branchId => {
-              const branchInfo = branches.find(b => b.id === branchId || (b as any)._id === branchId);
-              return (
-                <option key={branchId} value={branchId} style={{ color: 'black' }}>
-                  {branchInfo ? branchInfo.name : `Sucursal ${branchId.substring(0, 4)}...`}
-                </option>
-              );
-            })}
+            {availableBranches.map((branch) => (
+              <option key={branch.id} value={branch.id} style={{ color: 'black' }}>
+                {branch.name}
+              </option>
+            ))}
           </select>
         </div>
       )}
