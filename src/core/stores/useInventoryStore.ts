@@ -9,7 +9,7 @@ interface InventoryState {
   movements: StockMovement[];
   loading: boolean;
   error: string | null;
-  activeTab: 'inventory' | 'providers';
+  activeTab: 'inventory' | 'providers' | 'categories' | 'brands';
   searchValue: string;
   categoryFilter: string;
   activeModal: 'addProduct' | 'addProvider' | 'addProductBatch' | 'stockAdjustment' | 'addMovement' | null;
@@ -23,7 +23,7 @@ interface InventoryState {
   setMovements: (movements: StockMovement[]) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
-  setActiveTab: (tab: 'inventory' | 'providers') => void;
+  setActiveTab: (tab: 'inventory' | 'providers' | 'categories' | 'brands') => void;
   setSearchValue: (val: string) => void;
   setCategoryFilter: (val: string) => void;
   setActiveModal: (modal: 'addProduct' | 'addProvider' | 'addProductBatch' | 'stockAdjustment' | 'addMovement' | null) => void;

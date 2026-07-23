@@ -1,4 +1,4 @@
-import type { User, Role, CreateUserDto, UpdateUserDto } from '../../domain/entities/UserEntities';
+import type { User, Role, CreateUserDto, UpdateUserDto, CreateUserResponse, CheckUsernameResponse } from '../../domain/entities/UserEntities';
 
 export class APIUserRepository {
   private baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
@@ -47,7 +47,27 @@ export class APIUserRepository {
     return json.data;
   }
 
-  async createUser(token: string, data: CreateUserDto): Promise<User> {
+  async generateUsername(token: string, name: string): Promise<string> {
+    const res = await this.fetchWithAuth(`${this.baseUrl}/users/generate-username?name=${encodeURIComponent(name)}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const json = await res.json();
+    if (res.status === 401) throw new Error('UNAUTHORIZED');
+    if (!res.ok || !json.success) throw new Error(json.message || 'Error al generar nombre de usuario');
+    return json.data?.username || '';
+  }
+
+  async checkUsername(token: string, username: string): Promise<CheckUsernameResponse> {
+    const res = await this.fetchWithAuth(`${this.baseUrl}/users/check-username?username=${encodeURIComponent(username)}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const json = await res.json();
+    if (res.status === 401) throw new Error('UNAUTHORIZED');
+    if (!res.ok || !json.success) throw new Error(json.message || 'Error al verificar nombre de usuario');
+    return json.data;
+  }
+
+  async createUser(token: string, data: CreateUserDto): Promise<CreateUserResponse> {
     const res = await this.fetchWithAuth(`${this.baseUrl}/users`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -56,7 +76,10 @@ export class APIUserRepository {
     const json = await res.json();
     if (res.status === 401) throw new Error('UNAUTHORIZED');
     if (!res.ok || !json.success) throw new Error(json.message || 'Error al crear usuario');
-    return json.data;
+    if (json.data && json.data.user) {
+      return json.data as CreateUserResponse;
+    }
+    return { user: json.data as User };
   }
 
   async updateUser(token: string, id: string, data: UpdateUserDto): Promise<User> {

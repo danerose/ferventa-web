@@ -50,6 +50,10 @@ export const POSPage: React.FC = () => {
     subtotal,
     tax,
     total,
+    applyTax,
+    toggleApplyTax,
+    isNotApplicable,
+    toggleNotApplicable,
     setSearchValue,
     setSearchResults,
     addToCart,
@@ -57,6 +61,9 @@ export const POSPage: React.FC = () => {
     updateQuantity,
     clearCart
   } = usePOSStore();
+
+  const [customName, setCustomName] = useState('');
+  const [customPrice, setCustomPrice] = useState('');
 
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card' | 'transfer'>('cash');
   const [processing, setProcessing] = useState(false);
@@ -68,6 +75,30 @@ export const POSPage: React.FC = () => {
   const handleUnauthorized = () => {
     clearAuth();
     navigate('/login');
+  };
+
+  const handleAddCustomProduct = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!customName.trim()) return;
+    const price = parseFloat(customPrice) || 0;
+    const customProduct: Product = {
+      id: `custom-${Date.now()}`,
+      sku: `SERV-${Math.floor(1000 + Math.random() * 9000)}`,
+      name: customName.trim(),
+      description: 'Servicio / Producto personalizado',
+      brand: { id: 'custom', name: 'General' },
+      category: { id: 'custom', name: 'Servicios' },
+      costPrice: 0,
+      sellingPrice: price,
+      stock: 999,
+      minStock: 0,
+      unit: 'servicio',
+      photos: [],
+      compatibility: []
+    };
+    addToCart(customProduct, 1);
+    setCustomName('');
+    setCustomPrice('');
   };
 
   useEffect(() => {
@@ -125,9 +156,40 @@ export const POSPage: React.FC = () => {
 
           {/* Main POS Area */}
           <main style={{ flex: 1, padding: '28px', display: 'flex', flexDirection: 'column' }}>
-            <header style={{ marginBottom: '24px' }}>
+            <header style={{ marginBottom: '20px' }}>
               <h1 style={{ fontSize: '24px', fontWeight: '700', color: '#091426' }}>Punto de Venta</h1>
             </header>
+
+            {/* Custom Product / Service Entry Form */}
+            <div style={{ marginBottom: '20px', background: 'white', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '16px' }}>
+              <h3 style={{ fontSize: '14px', fontWeight: '700', color: '#0f172a', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Icon name="PlusCircle" size="sm" className="text-blue-600" />
+                Agregar producto o servicio personalizado
+              </h3>
+              <form onSubmit={handleAddCustomProduct} style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+                <div style={{ flex: '2', minWidth: '200px' }}>
+                  <TextInput
+                    placeholder="Nombre del servicio o producto..."
+                    value={customName}
+                    onChange={(e) => setCustomName(e.target.value)}
+                  />
+                </div>
+                <div style={{ flex: '1', minWidth: '120px' }}>
+                  <TextInput
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="Precio ($)"
+                    value={customPrice}
+                    onChange={(e) => setCustomPrice(e.target.value)}
+                  />
+                </div>
+                <PrimaryButton type="submit" disabled={!customName.trim()}>
+                  <Icon name="Plus" size="sm" className="mr-1" />
+                  Añadir al cobro
+                </PrimaryButton>
+              </form>
+            </div>
 
             {/* Search Bar */}
             <div style={{ marginBottom: '24px', position: 'relative' }}>
@@ -161,7 +223,7 @@ export const POSPage: React.FC = () => {
               ) : (
                 <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#94a3b8' }}>
                   <Icon name="Search" size="lg" className="mb-4" />
-                  <p>Busca un producto para agregarlo al carrito</p>
+                  <p>Busca un producto o agrega uno personalizado arriba</p>
                 </div>
               )}
             </div>
@@ -214,14 +276,31 @@ export const POSPage: React.FC = () => {
             </div>
 
             <div style={{ padding: '24px', borderTop: '1px solid #e2e8f0', background: '#f8fafc' }}>
+              {cart.length > 0 && (
+                <div style={{ marginBottom: '16px', padding: '12px', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <input
+                    type="checkbox"
+                    id="applyTaxCheck"
+                    checked={applyTax}
+                    onChange={(e) => toggleApplyTax(e.target.checked)}
+                    style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: '#2563eb' }}
+                  />
+                  <label htmlFor="applyTaxCheck" style={{ fontSize: '14px', fontWeight: '600', color: '#1e3a8a', cursor: 'pointer', userSelect: 'none' }}>
+                    Aplicar IVA <span style={{ fontSize: '12px', fontWeight: '400', color: '#3b82f6' }}>(16% de impuesto)</span>
+                  </label>
+                </div>
+              )}
+
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '14px', color: '#64748b' }}>
                 <span>Subtotal</span>
                 <span>${subtotal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
               </div>
+
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px', fontSize: '14px', color: '#64748b' }}>
-                <span>IVA (16%)</span>
+                <span>IVA {applyTax ? '(16%)' : '(No aplicable)'}</span>
                 <span>${tax.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
               </div>
+
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '24px', fontSize: '20px', fontWeight: '700', color: '#091426' }}>
                 <span>Total</span>
                 <span>${total.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
@@ -287,7 +366,7 @@ export const POSPage: React.FC = () => {
             <span>${subtotal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
           </div>
           <div className="flex justify-between py-1 text-gray-600 border-b border-black">
-            <span>IVA (16%):</span>
+            <span>IVA {applyTax ? '(16%):' : '(No aplicable):'}</span>
             <span>${tax.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
           </div>
           <div className="flex justify-between py-2 text-xl font-bold">

@@ -19,8 +19,8 @@ export interface Product {
   sku: string;
   name: string;
   description?: string;
-  brand: Brand;
-  category: Category;
+  brand?: Brand;
+  category?: Category;
   costPrice: number;
   sellingPrice: number;
   stock: number;

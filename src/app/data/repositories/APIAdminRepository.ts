@@ -130,11 +130,16 @@ export class APIAdminRepository {
     if (!res.ok || !json.success) throw new Error(json.message || 'Error deleting holiday');
   }
 
-  async login(email: string, password: string): Promise<LoginResult> {
+  async login(usernameOrEmail: string, password: string): Promise<LoginResult> {
+    const isEmail = usernameOrEmail.includes('@');
+    const body = isEmail
+      ? { email: usernameOrEmail.trim(), password }
+      : { username: usernameOrEmail.trim(), password };
+
     const res = await fetch(`${this.baseUrl}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify(body),
     });
     const json = await res.json();
     if (!res.ok || !json.success) {

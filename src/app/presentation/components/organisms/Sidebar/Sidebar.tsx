@@ -81,7 +81,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ onLogout, userName }) => {
           <label style={{ display: 'block', fontSize: '11px', color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase', marginBottom: '6px' }}>Sucursal Activa</label>
           <select
             value={activeBranchId || ''}
-            onChange={(e) => setActiveBranchId(e.target.value)}
+            onChange={(e) => {
+              setActiveBranchId(e.target.value);
+              window.location.reload();
+            }}
             style={{
               width: '100%',
               background: 'rgba(255,255,255,0.1)',

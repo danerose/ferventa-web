@@ -14,11 +14,15 @@ interface POSState {
   subtotal: number;
   tax: number;
   total: number;
+  applyTax: boolean;
+  isNotApplicable: boolean;
 
   addToCart: (product: Product, quantity: number) => void;
   removeFromCart: (productId: string) => void;
   updateQuantity: (productId: string, quantity: number) => void;
   clearCart: () => void;
+  toggleApplyTax: (val?: boolean) => void;
+  toggleNotApplicable: (val?: boolean) => void;
   
   setSearchValue: (val: string) => void;
   setSearchResults: (results: Product[]) => void;
@@ -39,13 +43,33 @@ export const usePOSStore = create<POSState>((set, get) => ({
   subtotal: 0,
   tax: 0,
   total: 0,
+  applyTax: false,
+  isNotApplicable: true,
 
   calculateTotals: () => {
-    const { cart } = get();
+    const { cart, applyTax } = get();
     const subtotal = cart.reduce((acc, item) => acc + item.subtotal, 0);
-    const tax = subtotal * 0.16;
-    const total = subtotal + tax;
-    set({ subtotal, tax, total });
+    if (applyTax) {
+      const tax = subtotal * 0.16;
+      const total = subtotal + tax;
+      set({ subtotal, tax, total, isNotApplicable: false });
+    } else {
+      set({ subtotal, tax: 0, total: subtotal, isNotApplicable: true });
+    }
+  },
+
+  toggleApplyTax: (val) => {
+    const current = get().applyTax;
+    const nextVal = val !== undefined ? val : !current;
+    set({ applyTax: nextVal, isNotApplicable: !nextVal });
+    get().calculateTotals();
+  },
+
+  toggleNotApplicable: (val) => {
+    const current = get().isNotApplicable;
+    const nextVal = val !== undefined ? val : !current;
+    set({ isNotApplicable: nextVal, applyTax: !nextVal });
+    get().calculateTotals();
   },
 
   addToCart: (product, quantity) => {
@@ -85,7 +109,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
   },
 
   clearCart: () => {
-    set({ cart: [], subtotal: 0, tax: 0, total: 0 });
+    set({ cart: [], subtotal: 0, tax: 0, total: 0, applyTax: false, isNotApplicable: true });
   },
 
   setSearchValue: (searchValue) => set({ searchValue }),

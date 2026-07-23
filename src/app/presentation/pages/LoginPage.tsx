@@ -10,18 +10,16 @@ export interface LoginPageProps {
 }
 
 export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
-  const [email, setEmail] = useState('');
+  const [usernameOrEmail, setUsernameOrEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [emailError, setEmailError] = useState('');
+  const [usernameError, setUsernameError] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { setAuth } = useAuthStore();
 
-  const validateEmail = (val: string) => {
-    if (!val.trim()) return 'El correo electrónico es obligatorio';
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(val)) return 'Ingresa un correo electrónico válido';
+  const validateUsernameOrEmail = (val: string) => {
+    if (!val.trim()) return 'El usuario o correo electrónico es obligatorio';
     return '';
   };
 
@@ -30,17 +28,12 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
     return '';
   };
 
-  const handleEmailChange = (val: string) => {
-    setEmail(val);
+  const handleUsernameChange = (val: string) => {
+    setUsernameOrEmail(val);
     if (!val.trim()) {
-      setEmailError('El correo electrónico es obligatorio');
+      setUsernameError('El usuario o correo electrónico es obligatorio');
     } else {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(val)) {
-        setEmailError('Ingresa un correo electrónico válido');
-      } else {
-        setEmailError('');
-      }
+      setUsernameError('');
     }
   };
 
@@ -55,20 +48,20 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const eErr = validateEmail(email);
+    const uErr = validateUsernameOrEmail(usernameOrEmail);
     const pErr = validatePassword(password);
     
-    setEmailError(eErr);
+    setUsernameError(uErr);
     setPasswordError(pErr);
 
-    if (eErr || pErr) {
+    if (uErr || pErr) {
       return;
     }
 
     setError(null);
     setLoading(true);
     try {
-      const result = await adminRepo.login(email, password);
+      const result = await adminRepo.login(usernameOrEmail, password);
       setAuth(result.user, result.accessToken, result.refreshToken);
       onLoginSuccess();
     } catch (err: unknown) {
@@ -216,16 +209,16 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                   marginBottom: '7px',
                 }}
               >
-                Correo Electrónico
+                Usuario o Correo Electrónico
               </label>
               <TextInput
-                type="email"
-                value={email}
-                onChange={(e) => handleEmailChange(e.target.value)}
-                errorMessage={emailError}
-                placeholder="admin@ferventa.com"
+                type="text"
+                value={usernameOrEmail}
+                onChange={(e) => handleUsernameChange(e.target.value)}
+                errorMessage={usernameError}
+                placeholder="Ej. alexis.rojas o alexis@ferventa.com"
                 disabled={loading}
-                autoComplete="email"
+                autoComplete="username"
               />
             </div>
 

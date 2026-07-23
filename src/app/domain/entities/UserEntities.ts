@@ -7,6 +7,7 @@ export interface Role {
 export interface User {
   id: string;
   name: string;
+  username?: string;
   email: string;
   phone?: string;
   role: Role;
@@ -16,7 +17,8 @@ export interface User {
 
 export interface CreateUserDto {
   name: string;
-  email: string;
+  username?: string;
+  email?: string;
   password?: string;
   phone?: string;
   roleId: string;
@@ -25,9 +27,24 @@ export interface CreateUserDto {
 
 export interface UpdateUserDto {
   name?: string;
+  username?: string;
   email?: string;
   phone?: string;
   roleId?: string;
   isActive?: boolean;
   branches?: string[];
 }
+
+export interface CreateUserResponse {
+  user: User;
+  tempPassword?: string;
+  message?: string;
+  whatsappUrl?: string;
+}
+
+export interface CheckUsernameResponse {
+  exists: boolean;
+  available: boolean;
+  username: string;
+}
+

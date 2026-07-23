@@ -51,6 +51,16 @@ export class APIInventoryRepository {
     return { ...b, id: b.id || b._id };
   }
 
+  async deleteBrand(token: string, id: string): Promise<void> {
+    const res = await this.fetchWithAuth(`${this.baseUrl}/inventory/brands/${id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const json = await res.json();
+    if (res.status === 401) throw new Error('UNAUTHORIZED');
+    if (!res.ok || !json.success) throw new Error(json.message || 'Error al eliminar marca');
+  }
+
   async getCategories(token: string): Promise<Category[]> {
     const res = await this.fetchWithAuth(`${this.baseUrl}/inventory/categories`, {
       headers: { Authorization: `Bearer ${token}` },
@@ -72,6 +82,16 @@ export class APIInventoryRepository {
     if (!res.ok || !json.success) throw new Error(json.message || 'Error al crear categoria');
     const c = json.data;
     return { ...c, id: c.id || c._id };
+  }
+
+  async deleteCategory(token: string, id: string): Promise<void> {
+    const res = await this.fetchWithAuth(`${this.baseUrl}/inventory/categories/${id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const json = await res.json();
+    if (res.status === 401) throw new Error('UNAUTHORIZED');
+    if (!res.ok || !json.success) throw new Error(json.message || 'Error al eliminar categoría');
   }
 
   // Providers

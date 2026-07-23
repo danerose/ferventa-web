@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Icon, Sidebar, PrimaryButton, SecondaryButton, TextInput, SearchableSelect } from '../components';
+import { Icon, Sidebar, PrimaryButton, SecondaryButton, TextInput, SearchableSelect, Modal } from '../components';
 import { useAuthStore } from '../../../core/stores/useAuthStore';
 import { useInventoryStore } from '../../../core/stores/useInventoryStore';
 import { APIAdminRepository } from '../../data/repositories/APIAdminRepository';
@@ -89,10 +89,32 @@ export const InventoryPage: React.FC = () => {
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
   const [editingProviderId, setEditingProviderId] = useState<string | null>(null);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [itemToDelete, setItemToDelete] = useState<{ type: 'category' | 'brand'; id: string; name: string } | null>(null);
+  const [deletingItem, setDeletingItem] = useState(false);
 
   const handleUnauthorized = () => {
     clearAuth();
     navigate('/login');
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!itemToDelete || !accessToken) return;
+    setDeletingItem(true);
+    try {
+      if (itemToDelete.type === 'category') {
+        await inventoryRepo.deleteCategory(accessToken, itemToDelete.id);
+        setCategories(categories.filter(c => c.id !== itemToDelete.id));
+      } else {
+        await inventoryRepo.deleteBrand(accessToken, itemToDelete.id);
+        setBrands(brands.filter(b => b.id !== itemToDelete.id));
+      }
+      setItemToDelete(null);
+    } catch (err: any) {
+      if (err.message === 'UNAUTHORIZED') handleUnauthorized();
+      else alert(err.message || 'Error al eliminar');
+    } finally {
+      setDeletingItem(false);
+    }
   };
 
   const handleCreateProvider = async () => {
@@ -245,7 +267,7 @@ export const InventoryPage: React.FC = () => {
       if (!accessToken) return;
       setLoading(true);
       try {
-        if (activeTab === 'inventory') {
+        if (activeTab === 'inventory' || activeTab === 'categories' || activeTab === 'brands') {
           const [productsData, brandsData, categoriesData, providersData] = await Promise.all([
             inventoryRepo.getProducts(accessToken, { search: searchValue }),
             inventoryRepo.getBrands(accessToken),
@@ -255,7 +277,7 @@ export const InventoryPage: React.FC = () => {
           setProducts(productsData);
           setBrands(brandsData);
           setCategories(categoriesData);
-          setProviders(providersData); // We need providers for the add product dropdown
+          setProviders(providersData);
         } else {
           const data = await inventoryRepo.getProviders(accessToken, searchValue);
           setProviders(data);
@@ -280,7 +302,7 @@ export const InventoryPage: React.FC = () => {
         {/* Top Header */}
         <header style={{ background: 'white', padding: '16px 28px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
-            <h1 style={{ fontSize: '20px', fontWeight: '700', color: '#091426' }}>Inventario y Proveedores</h1>
+            <h1 style={{ fontSize: '20px', fontWeight: '700', color: '#091426' }}>Inventario, Categorías y Marcas</h1>
           </div>
           <div style={{ display: 'flex', gap: '12px' }}>
             {activeTab === 'inventory' ? (
@@ -298,12 +320,12 @@ export const InventoryPage: React.FC = () => {
                   Nuevo Producto
                 </PrimaryButton>
               </>
-            ) : (
+            ) : activeTab === 'providers' ? (
               <PrimaryButton onClick={() => setActiveModal('addProvider')}>
                 <Icon name="Plus" size="sm" className="mr-2" />
                 Nuevo Proveedor
               </PrimaryButton>
-            )}
+            ) : null}
           </div>
         </header>
 
@@ -323,6 +345,26 @@ export const InventoryPage: React.FC = () => {
                 Inventario
               </button>
               <button
+                onClick={() => setActiveTab('categories')}
+                style={{
+                  padding: '8px 16px', borderRadius: '6px', fontWeight: '600', fontSize: '14px', border: 'none', cursor: 'pointer', transition: 'all 0.2s',
+                  background: activeTab === 'categories' ? '#091426' : 'transparent',
+                  color: activeTab === 'categories' ? 'white' : '#64748b'
+                }}
+              >
+                Categorías
+              </button>
+              <button
+                onClick={() => setActiveTab('brands')}
+                style={{
+                  padding: '8px 16px', borderRadius: '6px', fontWeight: '600', fontSize: '14px', border: 'none', cursor: 'pointer', transition: 'all 0.2s',
+                  background: activeTab === 'brands' ? '#091426' : 'transparent',
+                  color: activeTab === 'brands' ? 'white' : '#64748b'
+                }}
+              >
+                Marcas
+              </button>
+              <button
                 onClick={() => setActiveTab('providers')}
                 style={{
                   padding: '8px 16px', borderRadius: '6px', fontWeight: '600', fontSize: '14px', border: 'none', cursor: 'pointer', transition: 'all 0.2s',
@@ -336,7 +378,15 @@ export const InventoryPage: React.FC = () => {
 
             <div style={{ width: '300px' }}>
               <TextInput
-                placeholder={`Buscar ${activeTab === 'inventory' ? 'productos' : 'proveedores'}...`}
+                placeholder={`Buscar ${
+                  activeTab === 'inventory'
+                    ? 'productos'
+                    : activeTab === 'categories'
+                    ? 'categorías'
+                    : activeTab === 'brands'
+                    ? 'marcas'
+                    : 'proveedores'
+                }...`}
                 value={searchValue}
                 onChange={(e) => setSearchValue(e.target.value)}
               />
@@ -389,6 +439,68 @@ export const InventoryPage: React.FC = () => {
                   )) : (
                     <tr>
                       <td colSpan={6} style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>No hay productos en el inventario.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            ) : activeTab === 'categories' ? (
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                  <tr>
+                    <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '12px', fontWeight: '600', color: '#64748b', textTransform: 'uppercase' }}>Nombre de Categoría</th>
+                    <th style={{ padding: '12px 16px', textAlign: 'center', fontSize: '12px', fontWeight: '600', color: '#64748b', textTransform: 'uppercase' }}>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {categories.filter(c => c.name.toLowerCase().includes(searchValue.toLowerCase())).length > 0 ? (
+                    categories.filter(c => c.name.toLowerCase().includes(searchValue.toLowerCase())).map(category => (
+                      <tr key={category.id} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                        <td style={{ padding: '16px', fontSize: '14px', color: '#0f172a', fontWeight: '600' }}>{category.name}</td>
+                        <td style={{ padding: '16px', textAlign: 'center' }}>
+                          <button
+                            onClick={() => setItemToDelete({ type: 'category', id: category.id, name: category.name })}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444' }}
+                            title="Eliminar categoría"
+                          >
+                            <Icon name="Trash2" size="sm" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={2} style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>No hay categorías registradas.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            ) : activeTab === 'brands' ? (
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                  <tr>
+                    <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '12px', fontWeight: '600', color: '#64748b', textTransform: 'uppercase' }}>Nombre de Marca</th>
+                    <th style={{ padding: '12px 16px', textAlign: 'center', fontSize: '12px', fontWeight: '600', color: '#64748b', textTransform: 'uppercase' }}>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {brands.filter(b => b.name.toLowerCase().includes(searchValue.toLowerCase())).length > 0 ? (
+                    brands.filter(b => b.name.toLowerCase().includes(searchValue.toLowerCase())).map(brand => (
+                      <tr key={brand.id} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                        <td style={{ padding: '16px', fontSize: '14px', color: '#0f172a', fontWeight: '600' }}>{brand.name}</td>
+                        <td style={{ padding: '16px', textAlign: 'center' }}>
+                          <button
+                            onClick={() => setItemToDelete({ type: 'brand', id: brand.id, name: brand.name })}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444' }}
+                            title="Eliminar marca"
+                          >
+                            <Icon name="Trash2" size="sm" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={2} style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>No hay marcas registradas.</td>
                     </tr>
                   )}
                 </tbody>
@@ -683,6 +795,31 @@ export const InventoryPage: React.FC = () => {
           </div>
         </div>
       )}
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={Boolean(itemToDelete)}
+        onClose={() => setItemToDelete(null)}
+        title={`Eliminar ${itemToDelete?.type === 'category' ? 'Categoría' : 'Marca'}`}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <p style={{ fontSize: '15px', color: '#334155' }}>
+            ¿Estás seguro de que deseas eliminar la {itemToDelete?.type === 'category' ? 'categoría' : 'marca'}{' '}
+            <strong>"{itemToDelete?.name}"</strong>? Esta acción eliminará el elemento de forma permanente.
+          </p>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '16px' }}>
+            <SecondaryButton onClick={() => setItemToDelete(null)} disabled={deletingItem}>
+              Cancelar
+            </SecondaryButton>
+            <PrimaryButton
+              onClick={handleConfirmDelete}
+              loading={deletingItem}
+              style={{ background: '#ef4444', borderColor: '#ef4444' }}
+            >
+              Eliminar
+            </PrimaryButton>
+          </div>
+        </div>
+      </Modal>
 
     </div>
   );
