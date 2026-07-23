@@ -5,6 +5,8 @@ export interface SaleItem {
   quantity: number;
   unitPrice: number;
   subtotal: number;
+  originalPrice?: number;
+  isNoAplica?: boolean;
 }
 
 export interface Sale {

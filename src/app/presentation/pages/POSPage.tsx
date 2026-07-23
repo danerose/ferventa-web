@@ -52,11 +52,14 @@ export const POSPage: React.FC = () => {
     total,
     applyTax,
     toggleApplyTax,
+    isFullDiscount,
+    toggleFullDiscount,
     setSearchValue,
     setSearchResults,
     addToCart,
     removeFromCart,
     updateQuantity,
+    toggleItemNoAplica,
     clearCart
   } = usePOSStore();
 
@@ -255,9 +258,26 @@ export const POSPage: React.FC = () => {
                     <div key={item.product.id} style={{ display: 'flex', gap: '12px', paddingBottom: '16px', borderBottom: '1px solid #f1f5f9' }}>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: '14px', fontWeight: '600', color: '#0f172a' }}>{item.product.name}</div>
-                        <div style={{ fontSize: '13px', color: '#2563eb', fontWeight: '600' }}>
-                          ${item.unitPrice.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '2px' }}>
+                          {item.isNoAplica ? (
+                            <span style={{ fontSize: '13px', color: '#16a34a', fontWeight: '700' }}>
+                              $0.00 <span style={{ fontSize: '10px', background: '#dcfce7', color: '#15803d', padding: '2px 6px', borderRadius: '4px', fontWeight: '600' }}>No aplica</span>
+                            </span>
+                          ) : (
+                            <span style={{ fontSize: '13px', color: '#2563eb', fontWeight: '600' }}>
+                              ${item.unitPrice.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                            </span>
+                          )}
                         </div>
+                        <label style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: item.isNoAplica ? '#16a34a' : '#64748b', fontWeight: '600', cursor: 'pointer', marginTop: '6px', userSelect: 'none' }}>
+                          <input
+                            type="checkbox"
+                            checked={!!item.isNoAplica}
+                            onChange={() => toggleItemNoAplica(item.product.id)}
+                            style={{ width: '14px', height: '14px', accentColor: '#16a34a' }}
+                          />
+                          No aplica
+                        </label>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <button onClick={() => updateQuantity(item.product.id, item.quantity - 1)} style={{ width: '28px', height: '28px', borderRadius: '4px', border: '1px solid #cbd5e1', background: 'white', cursor: 'pointer' }}>-</button>
@@ -275,17 +295,32 @@ export const POSPage: React.FC = () => {
 
             <div style={{ padding: '24px', borderTop: '1px solid #e2e8f0', background: '#f8fafc' }}>
               {cart.length > 0 && (
-                <div style={{ marginBottom: '16px', padding: '12px', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <input
-                    type="checkbox"
-                    id="applyTaxCheck"
-                    checked={applyTax}
-                    onChange={(e) => toggleApplyTax(e.target.checked)}
-                    style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: '#2563eb' }}
-                  />
-                  <label htmlFor="applyTaxCheck" style={{ fontSize: '14px', fontWeight: '600', color: '#1e3a8a', cursor: 'pointer', userSelect: 'none' }}>
-                    Aplicar IVA <span style={{ fontSize: '12px', fontWeight: '400', color: '#3b82f6' }}>(16% de impuesto)</span>
-                  </label>
+                <div style={{ marginBottom: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div style={{ padding: '10px 12px', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <input
+                      type="checkbox"
+                      id="applyTaxCheck"
+                      checked={applyTax}
+                      onChange={(e) => toggleApplyTax(e.target.checked)}
+                      style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: '#2563eb' }}
+                    />
+                    <label htmlFor="applyTaxCheck" style={{ fontSize: '13px', fontWeight: '600', color: '#1e3a8a', cursor: 'pointer', userSelect: 'none' }}>
+                      Aplicar IVA <span style={{ fontSize: '11px', fontWeight: '400', color: '#3b82f6' }}>(16% de impuesto)</span>
+                    </label>
+                  </div>
+
+                  <div style={{ padding: '10px 12px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <input
+                      type="checkbox"
+                      id="fullDiscountCheck"
+                      checked={isFullDiscount}
+                      onChange={(e) => toggleFullDiscount(e.target.checked)}
+                      style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: '#16a34a' }}
+                    />
+                    <label htmlFor="fullDiscountCheck" style={{ fontSize: '13px', fontWeight: '600', color: '#14532d', cursor: 'pointer', userSelect: 'none' }}>
+                      No aplica <span style={{ fontSize: '11px', fontWeight: '400', color: '#16a34a' }}>(100% Descuento / Gratis)</span>
+                    </label>
+                  </div>
                 </div>
               )}
 
@@ -294,10 +329,23 @@ export const POSPage: React.FC = () => {
                 <span>${subtotal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px', fontSize: '14px', color: '#64748b' }}>
-                <span>IVA {applyTax ? '(16%)' : '(No aplicable)'}</span>
-                <span>${tax.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
-              </div>
+              {isFullDiscount ? (
+                <>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '14px', color: '#16a34a', fontWeight: '600' }}>
+                    <span>Descuento (100%)</span>
+                    <span>-${subtotal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px', fontSize: '14px', color: '#64748b' }}>
+                    <span>IVA (0%)</span>
+                    <span>$0.00</span>
+                  </div>
+                </>
+              ) : (
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px', fontSize: '14px', color: '#64748b' }}>
+                  <span>IVA {applyTax ? '(16%)' : '(No aplicable)'}</span>
+                  <span>${tax.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
+                </div>
+              )}
 
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '24px', fontSize: '20px', fontWeight: '700', color: '#091426' }}>
                 <span>Total</span>
@@ -363,10 +411,23 @@ export const POSPage: React.FC = () => {
             <span>Subtotal:</span>
             <span>${subtotal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
           </div>
-          <div className="flex justify-between py-1 text-gray-600 border-b border-black">
-            <span>IVA {applyTax ? '(16%):' : '(No aplicable):'}</span>
-            <span>${tax.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
-          </div>
+          {isFullDiscount ? (
+            <>
+              <div className="flex justify-between py-1 text-green-600 font-medium">
+                <span>Descuento (100%):</span>
+                <span>-${subtotal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
+              </div>
+              <div className="flex justify-between py-1 text-gray-600 border-b border-black">
+                <span>IVA (0%):</span>
+                <span>$0.00</span>
+              </div>
+            </>
+          ) : (
+            <div className="flex justify-between py-1 text-gray-600 border-b border-black">
+              <span>IVA {applyTax ? '(16%):' : '(No aplicable):'}</span>
+              <span>${tax.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
+            </div>
+          )}
           <div className="flex justify-between py-2 text-xl font-bold">
             <span>Total:</span>
             <span>${total.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>

@@ -34,7 +34,10 @@ export class APIUserRepository {
     const json = await res.json();
     if (res.status === 401) throw new Error('UNAUTHORIZED');
     if (!res.ok || !json.success) throw new Error(json.message || 'Error al obtener roles');
-    return json.data;
+    return (json.data || []).map((r: any) => ({
+      ...r,
+      id: r.id || r._id,
+    }));
   }
 
   async getUsers(token: string): Promise<User[]> {
@@ -44,7 +47,11 @@ export class APIUserRepository {
     const json = await res.json();
     if (res.status === 401) throw new Error('UNAUTHORIZED');
     if (!res.ok || !json.success) throw new Error(json.message || 'Error al obtener usuarios');
-    return json.data;
+    return (json.data || []).map((u: any) => ({
+      ...u,
+      id: u.id || u._id,
+      role: u.role ? { ...u.role, id: u.role.id || u.role._id } : u.role,
+    }));
   }
 
   async generateUsername(token: string, name: string): Promise<string> {
@@ -68,10 +75,16 @@ export class APIUserRepository {
   }
 
   async createUser(token: string, data: CreateUserDto): Promise<CreateUserResponse> {
+    const payload: Record<string, any> = { ...data };
+    if (!payload.password || !payload.password.trim()) delete payload.password;
+    if (!payload.email || !payload.email.trim()) delete payload.email;
+    if (!payload.username || !payload.username.trim()) delete payload.username;
+    if (!payload.phone || !payload.phone.trim()) delete payload.phone;
+
     const res = await this.fetchWithAuth(`${this.baseUrl}/users`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify(data),
+      body: JSON.stringify(payload),
     });
     const json = await res.json();
     if (res.status === 401) throw new Error('UNAUTHORIZED');

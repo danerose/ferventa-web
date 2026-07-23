@@ -10,15 +10,38 @@ import type { CreateUserDto, CreateUserResponse } from '../../domain/entities/Us
 const userRepo = new APIUserRepository();
 const adminRepo = new APIAdminRepository();
 
+const ROLE_TRANSLATIONS: Record<string, string> = {
+  admin: 'Administrador',
+  administrator: 'Administrador',
+  mechanic: 'Mecánico',
+  warehouse: 'Almacén',
+  receptionist: 'Recepción',
+  reception: 'Recepción',
+  cashier: 'Cajero',
+  seller: 'Vendedor',
+  vendor: 'Vendedor',
+  salesperson: 'Vendedor',
+  sales: 'Ventas / Vendedor',
+  customer: 'Cliente',
+  client: 'Cliente',
+  user: 'Usuario',
+};
+
+const translateRoleName = (rawName?: string): string => {
+  if (!rawName) return '-';
+  const lower = rawName.toLowerCase().trim();
+  return ROLE_TRANSLATIONS[lower] || rawName;
+};
+
 export const UsersPage: React.FC = () => {
   const navigate = useNavigate();
   const { user, accessToken, clearAuth } = useAuthStore();
-  const { 
-    users, 
+  const {
+    users,
     roles,
     branches,
-    loading, 
-    searchValue, 
+    loading,
+    searchValue,
     setSearchValue,
     setUsers,
     setRoles,
@@ -48,6 +71,14 @@ export const UsersPage: React.FC = () => {
   const [isGeneratingUsername, setIsGeneratingUsername] = useState(false);
   const [savingUser, setSavingUser] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<{
+    name?: string;
+    username?: string;
+    email?: string;
+    phone?: string;
+    roleId?: string;
+    branches?: string;
+  }>({});
 
   // Success / WhatsApp Modal State
   const [successData, setSuccessData] = useState<CreateUserResponse | null>(null);
@@ -86,19 +117,24 @@ export const UsersPage: React.FC = () => {
     // eslint-disable-next-line
   }, [accessToken]);
 
-  const filteredUsers = users.filter(u => 
-    u.name.toLowerCase().includes(searchValue.toLowerCase()) || 
+  const filteredUsers = users.filter(u =>
+    u.name.toLowerCase().includes(searchValue.toLowerCase()) ||
     (u.username && u.username.toLowerCase().includes(searchValue.toLowerCase())) ||
     u.email.toLowerCase().includes(searchValue.toLowerCase())
   );
 
   const handleBranchToggle = (branchId: string) => {
-    setFormData(prev => ({
-      ...prev,
-      branches: prev.branches.includes(branchId) 
+    setFormData(prev => {
+      const nextBranches = prev.branches.includes(branchId)
         ? prev.branches.filter(id => id !== branchId)
-        : [...prev.branches, branchId]
-    }));
+        : [...prev.branches, branchId];
+      if (nextBranches.length > 0) {
+        setFieldErrors(e => ({ ...e, branches: undefined }));
+      } else {
+        setFieldErrors(e => ({ ...e, branches: 'Debes asignar al menos una sucursal al usuario' }));
+      }
+      return { ...prev, branches: nextBranches };
+    });
   };
 
   // Real-time username check function
@@ -132,6 +168,9 @@ export const UsersPage: React.FC = () => {
   // Name change handler: auto-generate username if not manually edited
   const handleNameChange = (val: string) => {
     setFormData(prev => ({ ...prev, name: val }));
+    if (val.trim().length >= 3) {
+      setFieldErrors(e => ({ ...e, name: undefined }));
+    }
 
     if (!usernameEditedManually && accessToken && val.trim().length >= 3) {
       if (generateDebounceRef.current) clearTimeout(generateDebounceRef.current);
@@ -156,42 +195,89 @@ export const UsersPage: React.FC = () => {
   const handleUsernameChange = (val: string) => {
     setUsernameEditedManually(true);
     setFormData(prev => ({ ...prev, username: val }));
+    if (val.trim().length > 0 && val.trim().length < 3) {
+      setFieldErrors(e => ({ ...e, username: 'El nombre de usuario debe tener al menos 3 caracteres' }));
+    } else {
+      setFieldErrors(e => ({ ...e, username: undefined }));
+    }
     checkUsernameAvailability(val);
   };
 
+  const handleEmailChange = (val: string) => {
+    setFormData(prev => ({ ...prev, email: val }));
+    if (val.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val.trim())) {
+      setFieldErrors(e => ({ ...e, email: 'Ingresa un correo electrónico válido' }));
+    } else {
+      setFieldErrors(e => ({ ...e, email: undefined }));
+    }
+  };
+
+  const handlePhoneChange = (val: string) => {
+    setFormData(prev => ({ ...prev, phone: val }));
+    const digits = val.replace(/[\s\-\(\)\+]/g, '');
+    if (val.trim() && !/^\d{7,15}$/.test(digits)) {
+      setFieldErrors(e => ({ ...e, phone: 'El teléfono debe contener entre 7 y 15 dígitos numéricos' }));
+    } else {
+      setFieldErrors(e => ({ ...e, phone: undefined }));
+    }
+  };
+
   const handleOpenAddModal = () => {
+    const defaultRoleId = roles.length > 0 ? (roles[0].id || (roles[0] as any)._id || roles[0].name) : '';
     setFormData({
       name: '',
       username: '',
       email: '',
       password: '',
       phone: '',
-      roleId: roles.length > 0 ? roles[0].id : '',
-      branches: branches.map(b => b.id)
+      roleId: defaultRoleId,
+      branches: branches.map(b => b.id || (b as any)._id)
     });
     setUsernameEditedManually(false);
     setUsernameStatus({ checking: false });
     setSubmitError(null);
+    setFieldErrors({});
     setActiveModal('addUser');
   };
 
   const handleSaveUser = async () => {
     if (!accessToken) return;
 
+    const errors: typeof fieldErrors = {};
+
     if (!formData.name.trim()) {
-      setSubmitError('El nombre completo es requerido');
-      return;
+      errors.name = 'El nombre completo es requerido';
+    } else if (formData.name.trim().length < 3) {
+      errors.name = 'El nombre completo debe tener al menos 3 caracteres';
     }
+
+    if (formData.email && formData.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
+      errors.email = 'Ingresa un correo electrónico válido (ej. usuario@dominio.com)';
+    }
+
+    if (formData.phone && formData.phone.trim()) {
+      const digits = formData.phone.replace(/[\s\-\(\)\+]/g, '');
+      if (!/^\d{7,15}$/.test(digits)) {
+        errors.phone = 'El teléfono debe contener entre 7 y 15 dígitos numéricos';
+      }
+    }
+
     if (!formData.roleId) {
-      setSubmitError('Debes seleccionar un rol');
-      return;
+      errors.roleId = 'Debes seleccionar un rol para el usuario';
     }
+
     if (formData.branches.length === 0) {
-      setSubmitError('Debes asignar al menos una sucursal');
-      return;
+      errors.branches = 'Debes asignar al menos una sucursal';
     }
+
     if (usernameStatus.available === false) {
-      setSubmitError('El nombre de usuario no está disponible');
+      errors.username = 'El nombre de usuario no está disponible';
+    }
+
+    setFieldErrors(errors);
+
+    if (Object.keys(errors).length > 0) {
+      setSubmitError('Por favor verifica los campos resaltados en el formulario');
       return;
     }
 
@@ -223,7 +309,7 @@ export const UsersPage: React.FC = () => {
       <Sidebar onLogout={handleUnauthorized} userName={user?.name || 'Admin'} />
 
       <div style={{ marginLeft: '240px', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-        
+
         {/* Top Header */}
         <header style={{ background: 'white', padding: '16px 28px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
@@ -238,11 +324,11 @@ export const UsersPage: React.FC = () => {
         </header>
 
         <main style={{ flex: 1, padding: '28px', maxWidth: '1280px', width: '100%', margin: '0 auto' }}>
-          
+
           {/* Search */}
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '24px' }}>
             <div style={{ width: '320px' }}>
-              <TextInput 
+              <TextInput
                 placeholder="Buscar por nombre, usuario o correo..."
                 value={searchValue}
                 onChange={(e) => setSearchValue(e.target.value)}
@@ -272,9 +358,9 @@ export const UsersPage: React.FC = () => {
                       <td style={{ padding: '16px', fontSize: '14px', color: '#0f172a', fontWeight: '600' }}>{u.name}</td>
                       <td style={{ padding: '16px', fontSize: '14px', color: '#855300', fontWeight: '600' }}>{u.username || '-'}</td>
                       <td style={{ padding: '16px', fontSize: '14px', color: '#475569' }}>{u.email}</td>
-                      <td style={{ padding: '16px', fontSize: '14px', color: '#475569' }}>{u.role?.name || '-'}</td>
+                      <td style={{ padding: '16px', fontSize: '14px', color: '#475569' }}>{translateRoleName(u.role?.name)}</td>
                       <td style={{ padding: '16px' }}>
-                        <span style={{ 
+                        <span style={{
                           padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: '600',
                           background: u.isActive ? '#f0fdf4' : '#fef2f2',
                           color: u.isActive ? '#16a34a' : '#dc2626'
@@ -305,7 +391,7 @@ export const UsersPage: React.FC = () => {
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }}>
           <div style={{ background: 'white', padding: '32px', borderRadius: '16px', width: '540px', maxWidth: '90vw', maxHeight: '90vh', overflowY: 'auto' }}>
             <h2 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '20px' }}>Nuevo Usuario</h2>
-            
+
             {submitError && (
               <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', color: '#991b1b', padding: '12px', borderRadius: '8px', marginBottom: '16px', fontSize: '14px' }}>
                 {submitError}
@@ -315,10 +401,11 @@ export const UsersPage: React.FC = () => {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px' }}>Nombre completo *</label>
-                <TextInput 
-                  placeholder="Ej. Juan Pérez" 
-                  value={formData.name} 
-                  onChange={(e) => handleNameChange(e.target.value)} 
+                <TextInput
+                  placeholder="Ej. Juan Pérez"
+                  value={formData.name}
+                  onChange={(e) => handleNameChange(e.target.value)}
+                  errorMessage={fieldErrors.name}
                 />
               </div>
 
@@ -334,10 +421,11 @@ export const UsersPage: React.FC = () => {
                     <span style={{ fontSize: '11px', color: '#dc2626', fontWeight: '600' }}>❌ No disponible</span>
                   )}
                 </div>
-                <TextInput 
-                  placeholder="juan.perez (Se autogenera si se deja vacío)" 
-                  value={formData.username || ''} 
-                  onChange={(e) => handleUsernameChange(e.target.value)} 
+                <TextInput
+                  placeholder="juan.perez (Se autogenera si se deja vacío)"
+                  value={formData.username || ''}
+                  onChange={(e) => handleUsernameChange(e.target.value)}
+                  errorMessage={fieldErrors.username}
                 />
                 <p style={{ fontSize: '11px', color: '#64748b', marginTop: '4px' }}>
                   Si no se especifica, se autogenera basado en el nombre.
@@ -346,63 +434,71 @@ export const UsersPage: React.FC = () => {
 
               <div style={{ display: 'flex', gap: '16px' }}>
                 <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px' }}>Correo (Opcional)</label>
-                  <TextInput 
-                    placeholder="juan@ferventa.com" 
-                    type="email" 
-                    value={formData.email || ''} 
-                    onChange={(e) => setFormData({...formData, email: e.target.value})} 
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px' }}>Correo</label>
+                  <TextInput
+                    placeholder="juan@ferventa.com"
+                    type="email"
+                    value={formData.email || ''}
+                    onChange={(e) => handleEmailChange(e.target.value)}
+                    errorMessage={fieldErrors.email}
                   />
                 </div>
                 <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px' }}>Teléfono (Opcional)</label>
-                  <TextInput 
-                    placeholder="8112345678" 
-                    value={formData.phone || ''} 
-                    onChange={(e) => setFormData({...formData, phone: e.target.value})} 
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px' }}>Teléfono</label>
+                  <TextInput
+                    placeholder="8112345678"
+                    value={formData.phone || ''}
+                    onChange={(e) => handlePhoneChange(e.target.value)}
+                    errorMessage={fieldErrors.phone}
                   />
                 </div>
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px' }}>Contraseña (Opcional)</label>
-                <TextInput 
-                  placeholder="Se genera contraseña temporal si se deja vacía" 
-                  type="password" 
-                  value={formData.password || ''} 
-                  onChange={(e) => setFormData({...formData, password: e.target.value})} 
-                />
               </div>
 
               <div>
                 <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px' }}>Rol *</label>
-                <select 
-                  style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none' }}
+                <select
+                  style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: fieldErrors.roleId ? '1px solid #ba1a1a' : '1px solid #cbd5e1', outline: 'none' }}
                   value={formData.roleId}
-                  onChange={(e) => setFormData({...formData, roleId: e.target.value})}
+                  onChange={(e) => {
+                    setFormData({ ...formData, roleId: e.target.value });
+                    if (e.target.value) setFieldErrors(prev => ({ ...prev, roleId: undefined }));
+                  }}
                 >
                   <option value="">Selecciona un rol</option>
-                  {roles.map(r => (
-                    <option key={r.id} value={r.id}>{r.name}</option>
-                  ))}
+                  {roles.map(r => {
+                    const roleVal = r.id || (r as any)._id || r.name;
+                    return (
+                      <option key={roleVal} value={roleVal}>{translateRoleName(r.name)}</option>
+                    );
+                  })}
                 </select>
+                {fieldErrors.roleId && (
+                  <span style={{ color: '#ba1a1a', fontSize: '11px', marginTop: '4px', display: 'block', fontWeight: 500 }}>
+                    {fieldErrors.roleId}
+                  </span>
+                )}
               </div>
-              
+
               <div>
                 <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px' }}>Sucursales Asignadas *</label>
-                <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '120px', overflowY: 'auto' }}>
+                <div style={{ border: fieldErrors.branches ? '1px solid #ba1a1a' : '1px solid #e2e8f0', borderRadius: '8px', padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '120px', overflowY: 'auto' }}>
                   {branches.map(b => (
                     <label key={b.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', color: '#334155' }}>
-                      <input 
-                        type="checkbox" 
+                      <input
+                        type="checkbox"
                         checked={formData.branches.includes(b.id)}
                         onChange={() => handleBranchToggle(b.id)}
-                      /> 
+                      />
                       {b.name}
                     </label>
                   ))}
-                  {branches.length === 0 && <span style={{fontSize: '12px', color: '#94a3b8'}}>No hay sucursales disponibles</span>}
+                  {branches.length === 0 && <span style={{ fontSize: '12px', color: '#94a3b8' }}>No hay sucursales disponibles</span>}
                 </div>
+                {fieldErrors.branches && (
+                  <span style={{ color: '#ba1a1a', fontSize: '11px', marginTop: '4px', display: 'block', fontWeight: 500 }}>
+                    {fieldErrors.branches}
+                  </span>
+                )}
               </div>
 
             </div>
@@ -419,7 +515,7 @@ export const UsersPage: React.FC = () => {
       {successData && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 60 }}>
           <div style={{ background: 'white', padding: '32px', borderRadius: '20px', width: '560px', maxWidth: '90vw', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)' }}>
-            
+
             <div style={{ textAlign: 'center', marginBottom: '20px' }}>
               <div style={{ width: '52px', height: '52px', background: '#dcfce7', borderRadius: '50%', color: '#16a34a', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: '12px' }}>
                 <Icon name="Check" size="md" />
@@ -494,14 +590,14 @@ export const UsersPage: React.FC = () => {
               )}
 
               <div style={{ display: 'flex', gap: '10px' }}>
-                <SecondaryButton 
+                <SecondaryButton
                   onClick={handleCopyMessage}
                   className="flex-1 justify-center"
                 >
                   <Icon name="Copy" size="xs" className="mr-2" />
                   {copiedMessage ? '¡Copiado!' : 'Copiar mensaje'}
                 </SecondaryButton>
-                <SecondaryButton 
+                <SecondaryButton
                   onClick={() => setSuccessData(null)}
                   className="flex-1 justify-center"
                 >

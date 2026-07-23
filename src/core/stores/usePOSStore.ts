@@ -15,14 +15,15 @@ interface POSState {
   tax: number;
   total: number;
   applyTax: boolean;
-  isNotApplicable: boolean;
+  isFullDiscount: boolean;
 
   addToCart: (product: Product, quantity: number) => void;
   removeFromCart: (productId: string) => void;
   updateQuantity: (productId: string, quantity: number) => void;
+  toggleItemNoAplica: (productId: string, val?: boolean) => void;
   clearCart: () => void;
   toggleApplyTax: (val?: boolean) => void;
-  toggleNotApplicable: (val?: boolean) => void;
+  toggleFullDiscount: (val?: boolean) => void;
   
   setSearchValue: (val: string) => void;
   setSearchResults: (results: Product[]) => void;
@@ -44,31 +45,33 @@ export const usePOSStore = create<POSState>((set, get) => ({
   tax: 0,
   total: 0,
   applyTax: false,
-  isNotApplicable: true,
+  isFullDiscount: false,
 
   calculateTotals: () => {
-    const { cart, applyTax } = get();
+    const { cart, applyTax, isFullDiscount } = get();
     const subtotal = cart.reduce((acc, item) => acc + item.subtotal, 0);
-    if (applyTax) {
+    if (isFullDiscount) {
+      set({ subtotal, tax: 0, total: 0 });
+    } else if (applyTax) {
       const tax = subtotal * 0.16;
       const total = subtotal + tax;
-      set({ subtotal, tax, total, isNotApplicable: false });
+      set({ subtotal, tax, total });
     } else {
-      set({ subtotal, tax: 0, total: subtotal, isNotApplicable: true });
+      set({ subtotal, tax: 0, total: subtotal });
     }
   },
 
   toggleApplyTax: (val) => {
     const current = get().applyTax;
     const nextVal = val !== undefined ? val : !current;
-    set({ applyTax: nextVal, isNotApplicable: !nextVal });
+    set({ applyTax: nextVal });
     get().calculateTotals();
   },
 
-  toggleNotApplicable: (val) => {
-    const current = get().isNotApplicable;
+  toggleFullDiscount: (val) => {
+    const current = get().isFullDiscount;
     const nextVal = val !== undefined ? val : !current;
-    set({ isNotApplicable: nextVal, applyTax: !nextVal });
+    set({ isFullDiscount: nextVal });
     get().calculateTotals();
   },
 
@@ -84,7 +87,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
       );
       set({ cart: updatedCart });
     } else {
-      set({ cart: [...cart, { product, quantity, unitPrice: product.sellingPrice, subtotal: quantity * product.sellingPrice }] });
+      set({ cart: [...cart, { product, quantity, unitPrice: product.sellingPrice, originalPrice: product.sellingPrice, isNoAplica: false, subtotal: quantity * product.sellingPrice }] });
     }
     get().calculateTotals();
   },
@@ -108,8 +111,30 @@ export const usePOSStore = create<POSState>((set, get) => ({
     get().calculateTotals();
   },
 
+  toggleItemNoAplica: (productId, val) => {
+    const updatedCart = get().cart.map(item => {
+      if (item.product.id !== productId) return item;
+
+      const isNoAplica = val !== undefined ? val : !item.isNoAplica;
+      const originalPrice = item.originalPrice ?? (item.unitPrice > 0 ? item.unitPrice : item.product.sellingPrice);
+      const newUnitPrice = isNoAplica ? 0 : originalPrice;
+      const newSubtotal = item.quantity * newUnitPrice;
+
+      return {
+        ...item,
+        originalPrice,
+        isNoAplica,
+        unitPrice: newUnitPrice,
+        subtotal: newSubtotal,
+      };
+    });
+
+    set({ cart: updatedCart });
+    get().calculateTotals();
+  },
+
   clearCart: () => {
-    set({ cart: [], subtotal: 0, tax: 0, total: 0, applyTax: false, isNotApplicable: true });
+    set({ cart: [], subtotal: 0, tax: 0, total: 0, applyTax: false, isFullDiscount: false });
   },
 
   setSearchValue: (searchValue) => set({ searchValue }),
