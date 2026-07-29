@@ -136,7 +136,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
 
   addServiceToCart: (service) => {
     const { cart } = get();
-    
+
     // 1. Add the service itself (labor/base cost)
     const serviceItem: CartItem = {
       cartId: makeCartId(),
@@ -149,7 +149,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
       subtotal: service.basePrice,
       isNoAplica: false,
     };
-    
+
     // 2. Add each supply as a regular product item so they can be modified independently
     const supplyItems: CartItem[] = service.supplies.map(supply => ({
       cartId: makeCartId(),
@@ -213,7 +213,6 @@ export const usePOSStore = create<POSState>((set, get) => ({
     const updatedCart = get().cart.map((item) => {
       if (item.cartId !== cartId) return item;
       const isNoAplica = val !== undefined ? val : !item.isNoAplica;
-      const price = isNoAplica ? 0 : item.originalPrice;
       return {
         ...item,
         isNoAplica,
