@@ -9,10 +9,10 @@ interface InventoryState {
   movements: StockMovement[];
   loading: boolean;
   error: string | null;
-  activeTab: 'inventory' | 'providers' | 'categories' | 'brands';
+  activeTab: 'inventory' | 'providers' | 'categories' | 'brands' | 'services';
   searchValue: string;
   categoryFilter: string;
-  activeModal: 'addProduct' | 'addProvider' | 'addProductBatch' | 'stockAdjustment' | 'addMovement' | null;
+  activeModal: 'addProduct' | 'addProvider' | 'addProductBatch' | 'stockAdjustment' | 'addMovement' | 'addService' | null;
   selectedProduct: Product | null;
   selectedProvider: Provider | null;
 
@@ -23,10 +23,10 @@ interface InventoryState {
   setMovements: (movements: StockMovement[]) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
-  setActiveTab: (tab: 'inventory' | 'providers' | 'categories' | 'brands') => void;
+  setActiveTab: (tab: 'inventory' | 'providers' | 'categories' | 'brands' | 'services') => void;
   setSearchValue: (val: string) => void;
   setCategoryFilter: (val: string) => void;
-  setActiveModal: (modal: 'addProduct' | 'addProvider' | 'addProductBatch' | 'stockAdjustment' | 'addMovement' | null) => void;
+  setActiveModal: (modal: 'addProduct' | 'addProvider' | 'addProductBatch' | 'stockAdjustment' | 'addMovement' | 'addService' | null) => void;
   setSelectedProduct: (product: Product | null) => void;
   setSelectedProvider: (provider: Provider | null) => void;
 }

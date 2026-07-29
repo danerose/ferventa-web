@@ -8,10 +8,13 @@ import { APIClientPortalRepository } from '../../data/repositories/APIClientPort
 import type { CreateProductDto, CreateProviderDto, Product, Provider } from '../../domain/entities/InventoryEntities';
 import type { Branch } from '../../domain/entities/AdminEntities';
 import { APIInventoryRepository } from '@/app/data/repositories/APIInventoryRepository';
+import { APIServicesRepository } from '../../data/repositories/APIServicesRepository';
+import type { PredefinedService, CreateServiceDto } from '../../domain/entities/SalesEntities';
 
 const inventoryRepo = new APIInventoryRepository();
 const adminRepo = new APIAdminRepository();
 const clientPortalRepo = new APIClientPortalRepository();
+const servicesRepo = new APIServicesRepository();
 
 export const InventoryPage: React.FC = () => {
   const navigate = useNavigate();
@@ -26,14 +29,14 @@ export const InventoryPage: React.FC = () => {
           setBranches(data);
           return;
         }
-      } catch (err) {}
-      
+      } catch (err) { }
+
       try {
         const publicData = await clientPortalRepo.getPublicBranches();
         if (publicData && publicData.length > 0) {
           setBranches(publicData.map((b: any) => ({ ...b, id: b.id || b._id })));
         }
-      } catch (err) {}
+      } catch (err) { }
     };
 
     fetchBranches();
@@ -91,6 +94,16 @@ export const InventoryPage: React.FC = () => {
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [itemToDelete, setItemToDelete] = useState<{ type: 'category' | 'brand'; id: string; name: string } | null>(null);
   const [deletingItem, setDeletingItem] = useState(false);
+
+  // ── Services state ────────────────────────────────────────────────────────
+  const [services, setServices] = useState<PredefinedService[]>([]);
+  const [serviceLoading, setServiceLoading] = useState(false);
+  const [editingServiceId, setEditingServiceId] = useState<string | null>(null);
+  const [serviceForm, setServiceForm] = useState<CreateServiceDto>({
+    name: '', description: '', basePrice: 0, isActive: true, supplies: []
+  });
+  const [serviceFormErrors, setServiceFormErrors] = useState<Record<string, string>>({});
+  const [serviceToDelete, setServiceToDelete] = useState<PredefinedService | null>(null);
 
   const handleUnauthorized = () => {
     clearAuth();
@@ -262,6 +275,96 @@ export const InventoryPage: React.FC = () => {
     }
   };
 
+  // ── Services CRUD ──────────────────────────────────────────────────────────
+  const loadServices = async () => {
+    if (!accessToken) return;
+    setServiceLoading(true);
+    try {
+      const data = await servicesRepo.getServices(accessToken);
+      setServices(data);
+    } catch (err: any) {
+      if (err.message === 'UNAUTHORIZED') handleUnauthorized();
+    } finally {
+      setServiceLoading(false);
+    }
+  };
+
+  const handleSaveService = async () => {
+    const errors: Record<string, string> = {};
+    if (!serviceForm.name.trim()) errors.name = 'El nombre es obligatorio';
+    if (serviceForm.basePrice < 0) errors.basePrice = 'El precio debe ser mayor a 0';
+    if (Object.keys(errors).length > 0) { setServiceFormErrors(errors); return; }
+    setServiceFormErrors({});
+    setServiceLoading(true);
+    try {
+      if (editingServiceId) {
+        await servicesRepo.updateService(accessToken!, editingServiceId, serviceForm);
+      } else {
+        await servicesRepo.createService(accessToken!, serviceForm);
+      }
+      await loadServices();
+      setActiveModal(null);
+      setEditingServiceId(null);
+      setServiceForm({ name: '', description: '', basePrice: 0, isActive: true, supplies: [] });
+    } catch (err: any) {
+      if (err.message === 'UNAUTHORIZED') handleUnauthorized();
+      else alert(err.message || 'Error al guardar servicio');
+    } finally {
+      setServiceLoading(false);
+    }
+  };
+
+  const handleToggleServiceActive = async (service: PredefinedService) => {
+    try {
+      await servicesRepo.updateService(accessToken!, service.id, { isActive: !service.isActive });
+      setServices(prev => prev.map(s => s.id === service.id ? { ...s, isActive: !s.isActive } : s));
+    } catch (err: any) {
+      if (err.message === 'UNAUTHORIZED') handleUnauthorized();
+    }
+  };
+
+  const handleDeleteService = async () => {
+    if (!serviceToDelete || !accessToken) return;
+    setServiceLoading(true);
+    try {
+      await servicesRepo.deleteService(accessToken, serviceToDelete.id);
+      setServices(prev => prev.filter(s => s.id !== serviceToDelete.id));
+      setServiceToDelete(null);
+    } catch (err: any) {
+      if (err.message === 'UNAUTHORIZED') handleUnauthorized();
+      else alert(err.message || 'Error al eliminar servicio');
+    } finally {
+      setServiceLoading(false);
+    }
+  };
+
+  const handleOpenEditService = (service: PredefinedService) => {
+    setEditingServiceId(service.id);
+    setServiceForm({
+      name: service.name,
+      description: service.description || '',
+      basePrice: service.basePrice,
+      isActive: service.isActive,
+      supplies: service.supplies.map(s => ({ productId: s.product._id, quantity: s.quantity })),
+    });
+    setServiceFormErrors({});
+    setActiveModal('addService');
+  };
+
+  // Service supply helpers
+  const addSupply = (productId: string) => {
+    if (!productId) return;
+    const existing = serviceForm.supplies.find(s => s.productId === productId);
+    if (existing) return;
+    setServiceForm(prev => ({ ...prev, supplies: [...prev.supplies, { productId, quantity: 1 }] }));
+  };
+  const removeSupply = (productId: string) => {
+    setServiceForm(prev => ({ ...prev, supplies: prev.supplies.filter(s => s.productId !== productId) }));
+  };
+  const updateSupplyQty = (productId: string, qty: number) => {
+    setServiceForm(prev => ({ ...prev, supplies: prev.supplies.map(s => s.productId === productId ? { ...s, quantity: Math.max(1, qty) } : s) }));
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       if (!accessToken) return;
@@ -278,6 +381,11 @@ export const InventoryPage: React.FC = () => {
           setBrands(brandsData);
           setCategories(categoriesData);
           setProviders(providersData);
+        } else if (activeTab === 'services') {
+          await loadServices();
+          // Also load products for the supply picker
+          const productsData = await inventoryRepo.getProducts(accessToken, {});
+          setProducts(productsData);
         } else {
           const data = await inventoryRepo.getProviders(accessToken, searchValue);
           setProviders(data);
@@ -325,6 +433,14 @@ export const InventoryPage: React.FC = () => {
                 <Icon name="Plus" size="sm" className="mr-2" />
                 Nuevo Proveedor
               </PrimaryButton>
+            ) : activeTab === 'services' ? (
+              <PrimaryButton
+                onClick={() => { setEditingServiceId(null); setServiceForm({ name: '', description: '', basePrice: 0, isActive: true, supplies: [] }); setActiveModal('addService'); }}
+                style={{ background: '#f59e0b', borderColor: '#f59e0b' }}
+              >
+                <Icon name="Plus" size="sm" className="mr-2" />
+                Nuevo Servicio
+              </PrimaryButton>
             ) : null}
           </div>
         </header>
@@ -333,60 +449,34 @@ export const InventoryPage: React.FC = () => {
 
           {/* Tabs & Search */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-            <div style={{ display: 'flex', gap: '8px', background: 'white', padding: '4px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-              <button
-                onClick={() => setActiveTab('inventory')}
-                style={{
-                  padding: '8px 16px', borderRadius: '6px', fontWeight: '600', fontSize: '14px', border: 'none', cursor: 'pointer', transition: 'all 0.2s',
-                  background: activeTab === 'inventory' ? '#091426' : 'transparent',
-                  color: activeTab === 'inventory' ? 'white' : '#64748b'
-                }}
-              >
-                Inventario
-              </button>
-              <button
-                onClick={() => setActiveTab('categories')}
-                style={{
-                  padding: '8px 16px', borderRadius: '6px', fontWeight: '600', fontSize: '14px', border: 'none', cursor: 'pointer', transition: 'all 0.2s',
-                  background: activeTab === 'categories' ? '#091426' : 'transparent',
-                  color: activeTab === 'categories' ? 'white' : '#64748b'
-                }}
-              >
-                Categorías
-              </button>
-              <button
-                onClick={() => setActiveTab('brands')}
-                style={{
-                  padding: '8px 16px', borderRadius: '6px', fontWeight: '600', fontSize: '14px', border: 'none', cursor: 'pointer', transition: 'all 0.2s',
-                  background: activeTab === 'brands' ? '#091426' : 'transparent',
-                  color: activeTab === 'brands' ? 'white' : '#64748b'
-                }}
-              >
-                Marcas
-              </button>
-              <button
-                onClick={() => setActiveTab('providers')}
-                style={{
-                  padding: '8px 16px', borderRadius: '6px', fontWeight: '600', fontSize: '14px', border: 'none', cursor: 'pointer', transition: 'all 0.2s',
-                  background: activeTab === 'providers' ? '#091426' : 'transparent',
-                  color: activeTab === 'providers' ? 'white' : '#64748b'
-                }}
-              >
-                Proveedores
-              </button>
+            <div style={{ display: 'flex', gap: '8px', background: 'white', padding: '4px', borderRadius: '8px', border: '1px solid #e2e8f0', flexWrap: 'wrap' }}>
+              {['inventory', 'categories', 'brands', 'providers', 'services'].map(tab => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab as any)}
+                  style={{
+                    padding: '8px 16px', borderRadius: '6px', fontWeight: '600', fontSize: '14px', border: 'none', cursor: 'pointer', transition: 'all 0.2s',
+                    background: activeTab === tab ? (tab === 'services' ? '#f59e0b' : '#091426') : 'transparent',
+                    color: activeTab === tab ? 'white' : '#64748b'
+                  }}
+                >
+                  {tab === 'inventory' ? 'Inventario'
+                    : tab === 'categories' ? 'Categorías'
+                      : tab === 'brands' ? 'Marcas'
+                        : tab === 'providers' ? 'Proveedores'
+                          : 'Servicios'}
+                </button>
+              ))}
             </div>
 
             <div style={{ width: '300px' }}>
               <TextInput
-                placeholder={`Buscar ${
-                  activeTab === 'inventory'
-                    ? 'productos'
-                    : activeTab === 'categories'
-                    ? 'categorías'
-                    : activeTab === 'brands'
-                    ? 'marcas'
-                    : 'proveedores'
-                }...`}
+                placeholder={`Buscar ${activeTab === 'inventory' ? 'productos'
+                    : activeTab === 'categories' ? 'categorías'
+                      : activeTab === 'brands' ? 'marcas'
+                        : activeTab === 'services' ? 'servicios'
+                          : 'proveedores'
+                  }...`}
                 value={searchValue}
                 onChange={(e) => setSearchValue(e.target.value)}
               />
@@ -505,7 +595,7 @@ export const InventoryPage: React.FC = () => {
                   )}
                 </tbody>
               </table>
-            ) : (
+            ) : activeTab === 'providers' ? (
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
                   <tr>
@@ -532,6 +622,77 @@ export const InventoryPage: React.FC = () => {
                   )}
                 </tbody>
               </table>
+            ) : (
+              /* ── Services tab ────────────────────────────────────────────── */
+              serviceLoading ? (
+                <div style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>Cargando servicios...</div>
+              ) : (
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead style={{ background: '#fffbeb', borderBottom: '1px solid #fde68a' }}>
+                    <tr>
+                      <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '12px', fontWeight: '600', color: '#92400e', textTransform: 'uppercase' }}>Servicio</th>
+                      <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '12px', fontWeight: '600', color: '#92400e', textTransform: 'uppercase' }}>Insumos</th>
+                      <th style={{ padding: '12px 16px', textAlign: 'right', fontSize: '12px', fontWeight: '600', color: '#92400e', textTransform: 'uppercase' }}>Precio Base</th>
+                      <th style={{ padding: '12px 16px', textAlign: 'center', fontSize: '12px', fontWeight: '600', color: '#92400e', textTransform: 'uppercase' }}>Estado</th>
+                      <th style={{ padding: '12px 16px', textAlign: 'center', fontSize: '12px', fontWeight: '600', color: '#92400e', textTransform: 'uppercase' }}>Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {services.filter(s => s.name.toLowerCase().includes(searchValue.toLowerCase())).length > 0 ? (
+                      services.filter(s => s.name.toLowerCase().includes(searchValue.toLowerCase())).map(service => (
+                        <tr key={service.id} style={{ borderBottom: '1px solid #fde68a', opacity: service.isActive ? 1 : 0.6 }}>
+                          <td style={{ padding: '16px' }}>
+                            <div style={{ fontSize: '14px', fontWeight: '700', color: '#0f172a' }}>{service.name}</div>
+                            {service.description && <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>{service.description}</div>}
+                          </td>
+                          <td style={{ padding: '16px' }}>
+                            {service.supplies.length === 0 ? (
+                              <span style={{ fontSize: '12px', color: '#94a3b8' }}>Sin insumos</span>
+                            ) : (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                {service.supplies.map((s, i) => (
+                                  <span key={i} style={{ fontSize: '12px', color: '#475569' }}>• {s.product.name} ×{s.quantity}</span>
+                                ))}
+                              </div>
+                            )}
+                          </td>
+                          <td style={{ padding: '16px', textAlign: 'right', fontSize: '15px', fontWeight: '700', color: '#d97706' }}>
+                            ${service.basePrice.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                          </td>
+                          <td style={{ padding: '16px', textAlign: 'center' }}>
+                            <button
+                              onClick={() => handleToggleServiceActive(service)}
+                              style={{
+                                padding: '4px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: '700', border: 'none', cursor: 'pointer',
+                                background: service.isActive ? '#dcfce7' : '#f1f5f9',
+                                color: service.isActive ? '#16a34a' : '#94a3b8',
+                              }}
+                            >
+                              {service.isActive ? 'Activo' : 'Inactivo'}
+                            </button>
+                          </td>
+                          <td style={{ padding: '16px', textAlign: 'center' }}>
+                            <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                              <button onClick={() => handleOpenEditService(service)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }} title="Editar">
+                                <Icon name="Edit2" size="sm" />
+                              </button>
+                              <button onClick={() => setServiceToDelete(service)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444' }} title="Eliminar">
+                                <Icon name="Trash2" size="sm" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={5} style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>
+                          No hay servicios configurados. Crea el primer servicio con el botón de arriba.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              )
             )}
           </div>
         </main>
@@ -813,6 +974,137 @@ export const InventoryPage: React.FC = () => {
             <PrimaryButton
               onClick={handleConfirmDelete}
               loading={deletingItem}
+              style={{ background: '#ef4444', borderColor: '#ef4444' }}
+            >
+              Eliminar
+            </PrimaryButton>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Add / Edit Service Modal */}
+      {activeModal === 'addService' && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }}>
+          <div style={{ background: 'white', padding: '32px', borderRadius: '16px', width: '620px', maxWidth: '95vw', maxHeight: '90vh', overflowY: 'auto' }}>
+            <h2 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Icon name="Wrench" size="sm" />
+              {editingServiceId ? 'Editar Servicio' : 'Nuevo Servicio del Taller'}
+            </h2>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {/* Name */}
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '8px' }}>Nombre del servicio *</label>
+                <TextInput
+                  placeholder="Ej. 1er Mantenimiento"
+                  value={serviceForm.name}
+                  onChange={e => { setServiceForm(p => ({ ...p, name: e.target.value })); if (serviceFormErrors.name) setServiceFormErrors(p => ({ ...p, name: '' })); }}
+                  errorMessage={serviceFormErrors.name}
+                />
+              </div>
+
+              {/* Description */}
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '8px' }}>Descripción</label>
+                <TextInput
+                  placeholder="Mantenimiento preventivo básico..."
+                  value={serviceForm.description}
+                  onChange={e => setServiceForm(p => ({ ...p, description: e.target.value }))}
+                />
+              </div>
+
+              {/* Base Price */}
+              <div style={{ maxWidth: '200px' }}>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '8px' }}>Precio base de mano de obra ($) *</label>
+                <TextInput
+                  type="number" min="0" step="0.01"
+                  placeholder="450.00"
+                  value={serviceForm.basePrice.toString()}
+                  onChange={e => setServiceForm(p => ({ ...p, basePrice: parseFloat(e.target.value) || 0 }))}
+                  errorMessage={serviceFormErrors.basePrice}
+                />
+                <p style={{ fontSize: '11px', color: '#94a3b8', marginTop: '4px' }}>Este precio puede editarse manualmente en el POS al momento de la venta.</p>
+              </div>
+
+              {/* Supplies */}
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '8px' }}>Insumos del inventario</label>
+                <p style={{ fontSize: '12px', color: '#64748b', marginBottom: '10px' }}>Selecciona los productos que se descuentan del stock al vender este servicio.</p>
+
+                {/* Existing supplies list */}
+                {serviceForm.supplies.length > 0 && (
+                  <div style={{ border: '1px solid #fde68a', borderRadius: '8px', marginBottom: '12px', overflow: 'hidden' }}>
+                    {serviceForm.supplies.map((supply, idx) => {
+                      const prod = products.find(p => p.id === supply.productId);
+                      return (
+                        <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 14px', borderBottom: idx < serviceForm.supplies.length - 1 ? '1px solid #fde68a' : 'none', background: '#fffbeb' }}>
+                          <span style={{ flex: 1, fontSize: '13px', fontWeight: '600', color: '#0f172a' }}>{prod?.name ?? supply.productId}</span>
+                          <span style={{ fontSize: '11px', color: '#94a3b8' }}>SKU: {prod?.sku ?? '-'}</span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <button onClick={() => updateSupplyQty(supply.productId, supply.quantity - 1)} style={{ width: '24px', height: '24px', borderRadius: '4px', border: '1px solid #fde68a', background: 'white', cursor: 'pointer', fontWeight: '700' }}>−</button>
+                            <span style={{ fontWeight: '700', fontSize: '13px', minWidth: '20px', textAlign: 'center' }}>{supply.quantity}</span>
+                            <button onClick={() => updateSupplyQty(supply.productId, supply.quantity + 1)} style={{ width: '24px', height: '24px', borderRadius: '4px', border: '1px solid #fde68a', background: 'white', cursor: 'pointer', fontWeight: '700' }}>+</button>
+                          </div>
+                          <button onClick={() => removeSupply(supply.productId)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444' }}>
+                            <Icon name="X" size="sm" />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Add supply picker */}
+                <SearchableSelect
+                  options={products.filter(p => !serviceForm.supplies.find(s => s.productId === p.id))}
+                  value=""
+                  onChange={(id) => { if (id) addSupply(id); }}
+                  placeholder="Agregar insumo del inventario..."
+                />
+              </div>
+
+              {/* Active toggle */}
+              <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', userSelect: 'none' }}>
+                <input
+                  type="checkbox"
+                  checked={serviceForm.isActive}
+                  onChange={e => setServiceForm(p => ({ ...p, isActive: e.target.checked }))}
+                  style={{ width: '16px', height: '16px', accentColor: '#f59e0b' }}
+                />
+                <span style={{ fontSize: '13px', fontWeight: '600', color: '#0f172a' }}>Disponible en el POS</span>
+              </label>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '28px' }}>
+              <SecondaryButton onClick={() => setActiveModal(null)}>Cancelar</SecondaryButton>
+              <PrimaryButton
+                onClick={handleSaveService}
+                loading={serviceLoading}
+                style={{ background: '#f59e0b', borderColor: '#f59e0b' }}
+              >
+                {editingServiceId ? 'Guardar Cambios' : 'Crear Servicio'}
+              </PrimaryButton>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Service Confirmation */}
+      <Modal
+        isOpen={Boolean(serviceToDelete)}
+        onClose={() => setServiceToDelete(null)}
+        title="Eliminar Servicio"
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <p style={{ fontSize: '15px', color: '#334155' }}>
+            ¿Estás seguro de que deseas eliminar el servicio <strong>"{serviceToDelete?.name}"</strong>?
+            Esta acción es permanente.
+          </p>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '16px' }}>
+            <SecondaryButton onClick={() => setServiceToDelete(null)} disabled={serviceLoading}>Cancelar</SecondaryButton>
+            <PrimaryButton
+              onClick={handleDeleteService}
+              loading={serviceLoading}
               style={{ background: '#ef4444', borderColor: '#ef4444' }}
             >
               Eliminar

@@ -1,15 +1,21 @@
 import { create } from 'zustand';
 import type { Product } from '../../app/domain/entities/InventoryEntities';
-import type { SaleItem } from '../../app/domain/entities/SalesEntities';
+import type {
+  CartItem,
+  PredefinedService,
+} from '../../app/domain/entities/SalesEntities';
 
 interface POSState {
-  cart: SaleItem[];
+  cart: CartItem[];
   searchValue: string;
   searchResults: Product[];
+  serviceSearchValue: string;
+  serviceResults: PredefinedService[];
   loading: boolean;
   error: string | null;
   activeModal: 'payment' | 'checkoutSuccess' | null;
-  
+  activeTab: 'products' | 'services';
+
   // Totals
   subtotal: number;
   tax: number;
@@ -17,30 +23,48 @@ interface POSState {
   applyTax: boolean;
   isFullDiscount: boolean;
 
-  addToCart: (product: Product, quantity: number) => void;
-  removeFromCart: (productId: string) => void;
-  updateQuantity: (productId: string, quantity: number) => void;
-  toggleItemNoAplica: (productId: string, val?: boolean) => void;
+  // Cart actions
+  addProductToCart: (product: Product, quantity?: number) => void;
+  addServiceToCart: (service: PredefinedService) => void;
+  removeFromCart: (cartId: string) => void;
+  updateQuantity: (cartId: string, quantity: number) => void;
+  updateUnitPrice: (cartId: string, newPrice: number) => void;
+  toggleItemNoAplica: (cartId: string, val?: boolean) => void;
   clearCart: () => void;
+
+  // Totals toggles
   toggleApplyTax: (val?: boolean) => void;
   toggleFullDiscount: (val?: boolean) => void;
-  
+  calculateTotals: () => void;
+  setActiveTab: (tab: 'products' | 'services') => void;
+
+  // Search
   setSearchValue: (val: string) => void;
   setSearchResults: (results: Product[]) => void;
+  setServiceSearchValue: (val: string) => void;
+  setServiceResults: (results: PredefinedService[]) => void;
+
+  // Misc
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   setActiveModal: (modal: 'payment' | 'checkoutSuccess' | null) => void;
-  calculateTotals: () => void;
+}
+
+function makeCartId(): string {
+  return `cart-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
 export const usePOSStore = create<POSState>((set, get) => ({
   cart: [],
   searchValue: '',
   searchResults: [],
+  serviceSearchValue: '',
+  serviceResults: [],
   loading: false,
   error: null,
   activeModal: null,
-  
+  activeTab: 'products',
+
   subtotal: 0,
   tax: 0,
   total: 0,
@@ -54,91 +78,169 @@ export const usePOSStore = create<POSState>((set, get) => ({
       set({ subtotal, tax: 0, total: 0 });
     } else if (applyTax) {
       const tax = subtotal * 0.16;
-      const total = subtotal + tax;
-      set({ subtotal, tax, total });
+      set({ subtotal, tax, total: subtotal + tax });
     } else {
       set({ subtotal, tax: 0, total: subtotal });
     }
   },
 
   toggleApplyTax: (val) => {
-    const current = get().applyTax;
-    const nextVal = val !== undefined ? val : !current;
-    set({ applyTax: nextVal });
+    const next = val !== undefined ? val : !get().applyTax;
+    set({ applyTax: next });
     get().calculateTotals();
   },
 
   toggleFullDiscount: (val) => {
-    const current = get().isFullDiscount;
-    const nextVal = val !== undefined ? val : !current;
-    set({ isFullDiscount: nextVal });
+    const next = val !== undefined ? val : !get().isFullDiscount;
+    set({ isFullDiscount: next });
     get().calculateTotals();
   },
 
-  addToCart: (product, quantity) => {
+  addProductToCart: (product, quantity = 1) => {
     const { cart } = get();
-    const existing = cart.find(item => item.product.id === product.id);
-    
+    const existing = cart.find(
+      (item) => item.type === 'product' && item.product?.id === product.id
+    );
+
+    const currentQty = existing ? existing.quantity : 0;
+    if (currentQty + quantity > product.stock) {
+      get().setError(`Stock insuficiente. Solo hay ${product.stock} unidades disponibles de ${product.name}.`);
+      return;
+    }
+
     if (existing) {
-      const updatedCart = cart.map(item => 
-        item.product.id === product.id 
-          ? { ...item, quantity: item.quantity + quantity, subtotal: (item.quantity + quantity) * item.unitPrice }
+      const newQty = existing.quantity + quantity;
+      const updatedCart = cart.map((item) =>
+        item.cartId === existing.cartId
+          ? { ...item, quantity: newQty, subtotal: newQty * item.unitPrice }
           : item
       );
       set({ cart: updatedCart });
     } else {
-      set({ cart: [...cart, { product, quantity, unitPrice: product.sellingPrice, originalPrice: product.sellingPrice, isNoAplica: false, subtotal: quantity * product.sellingPrice }] });
+      const newItem: CartItem = {
+        cartId: makeCartId(),
+        type: 'product',
+        product,
+        name: product.name,
+        sku: product.sku,
+        quantity,
+        unitPrice: product.sellingPrice,
+        originalPrice: product.sellingPrice,
+        subtotal: quantity * product.sellingPrice,
+        isNoAplica: false,
+      };
+      set({ cart: [...cart, newItem] });
     }
     get().calculateTotals();
   },
 
-  removeFromCart: (productId) => {
-    set({ cart: get().cart.filter(item => item.product.id !== productId) });
+  addServiceToCart: (service) => {
+    const { cart } = get();
+    
+    // 1. Add the service itself (labor/base cost)
+    const serviceItem: CartItem = {
+      cartId: makeCartId(),
+      type: 'service',
+      service,
+      name: service.name,
+      quantity: 1,
+      unitPrice: service.basePrice,
+      originalPrice: service.basePrice,
+      subtotal: service.basePrice,
+      isNoAplica: false,
+    };
+    
+    // 2. Add each supply as a regular product item so they can be modified independently
+    const supplyItems: CartItem[] = service.supplies.map(supply => ({
+      cartId: makeCartId(),
+      parentCartId: serviceItem.cartId,
+      type: 'product',
+      product: supply.product as any, // Cast since the structure is mostly compatible
+      name: supply.product.name,
+      sku: supply.product.sku,
+      quantity: supply.quantity,
+      unitPrice: supply.product.sellingPrice,
+      originalPrice: supply.product.sellingPrice,
+      subtotal: supply.product.sellingPrice * supply.quantity,
+      isNoAplica: false,
+    }));
+
+    set({ cart: [...cart, serviceItem, ...supplyItems] });
     get().calculateTotals();
   },
 
-  updateQuantity: (productId, quantity) => {
+  removeFromCart: (cartId) => {
+    set({ cart: get().cart.filter((item) => item.cartId !== cartId && item.parentCartId !== cartId) });
+    get().calculateTotals();
+  },
+
+  updateQuantity: (cartId, quantity) => {
     if (quantity <= 0) {
-      get().removeFromCart(productId);
+      get().removeFromCart(cartId);
       return;
     }
-    const updatedCart = get().cart.map(item => 
-      item.product.id === productId 
-        ? { ...item, quantity, subtotal: quantity * item.unitPrice }
+
+    const item = get().cart.find(i => i.cartId === cartId);
+    if (item?.type === 'product' && item.product && quantity > item.product.stock) {
+      get().setError(`Stock insuficiente. Solo hay ${item.product.stock} unidades disponibles de ${item.product.name}.`);
+      return;
+    }
+
+    const updatedCart = get().cart.map((item) =>
+      item.cartId === cartId
+        ? { ...item, quantity, subtotal: item.isNoAplica ? 0 : quantity * item.unitPrice }
         : item
     );
     set({ cart: updatedCart });
     get().calculateTotals();
   },
 
-  toggleItemNoAplica: (productId, val) => {
-    const updatedCart = get().cart.map(item => {
-      if (item.product.id !== productId) return item;
-
-      const isNoAplica = val !== undefined ? val : !item.isNoAplica;
-      const originalPrice = item.originalPrice ?? (item.unitPrice > 0 ? item.unitPrice : item.product.sellingPrice);
-      const newUnitPrice = isNoAplica ? 0 : originalPrice;
-      const newSubtotal = item.quantity * newUnitPrice;
-
+  updateUnitPrice: (cartId, newPrice) => {
+    const updatedCart = get().cart.map((item) => {
+      if (item.cartId !== cartId) return item;
+      const price = Math.max(0, newPrice);
       return {
         ...item,
-        originalPrice,
-        isNoAplica,
-        unitPrice: newUnitPrice,
-        subtotal: newSubtotal,
+        unitPrice: price,
+        subtotal: item.isNoAplica ? 0 : item.quantity * price,
       };
     });
+    set({ cart: updatedCart });
+    get().calculateTotals();
+  },
 
+  toggleItemNoAplica: (cartId, val) => {
+    const updatedCart = get().cart.map((item) => {
+      if (item.cartId !== cartId) return item;
+      const isNoAplica = val !== undefined ? val : !item.isNoAplica;
+      const price = isNoAplica ? 0 : item.originalPrice;
+      return {
+        ...item,
+        isNoAplica,
+        unitPrice: isNoAplica ? 0 : item.unitPrice === 0 ? item.originalPrice : item.unitPrice,
+        subtotal: item.quantity * (isNoAplica ? 0 : item.unitPrice === 0 ? item.originalPrice : item.unitPrice),
+      };
+    });
     set({ cart: updatedCart });
     get().calculateTotals();
   },
 
   clearCart: () => {
-    set({ cart: [], subtotal: 0, tax: 0, total: 0, applyTax: false, isFullDiscount: false });
+    set({
+      cart: [],
+      subtotal: 0,
+      tax: 0,
+      total: 0,
+      applyTax: false,
+      isFullDiscount: false,
+    });
   },
 
+  setActiveTab: (activeTab) => set({ activeTab }),
   setSearchValue: (searchValue) => set({ searchValue }),
   setSearchResults: (searchResults) => set({ searchResults }),
+  setServiceSearchValue: (serviceSearchValue) => set({ serviceSearchValue }),
+  setServiceResults: (serviceResults) => set({ serviceResults }),
   setLoading: (loading) => set({ loading }),
   setError: (error) => set({ error }),
   setActiveModal: (activeModal) => set({ activeModal }),
