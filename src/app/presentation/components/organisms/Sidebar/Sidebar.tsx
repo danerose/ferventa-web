@@ -21,6 +21,7 @@ const NAV_ITEMS = [
   { icon: 'Wrench', label: 'Mantenimiento', path: '/admin/mantenimiento', disabled: false },
   { icon: 'Package', label: 'Inventario', path: '/admin/inventario', disabled: false },
   { icon: 'Users', label: 'Usuarios', path: '/admin/usuarios', disabled: false },
+  { icon: 'Clock', label: 'Asistencia', path: '/admin/asistencia', disabled: false },
 ];
 
 export const Sidebar: React.FC<SidebarProps> = ({ onLogout, userName }) => {

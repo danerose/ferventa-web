@@ -23,6 +23,7 @@ import { InventoryPage } from './app/presentation/pages/InventoryPage';
 import { UsersPage } from './app/presentation/pages/UsersPage';
 import { ScheduleSettingsPage } from './app/presentation/pages/ScheduleSettingsPage';
 import { SettingsPage } from './app/presentation/pages/SettingsPage';
+import { AttendancePage } from './app/presentation/pages/AttendancePage';
 import { useAuthStore } from './core/stores/useAuthStore';
 
 // Protected Route Component
@@ -155,6 +156,14 @@ function App() {
         element={
           <ProtectedRoute>
             <MaintenanceManagementPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/asistencia"
+        element={
+          <ProtectedRoute>
+            <AttendancePage />
           </ProtectedRoute>
         }
       />
