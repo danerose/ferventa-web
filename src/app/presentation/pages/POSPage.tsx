@@ -232,7 +232,7 @@ export const POSPage: React.FC = () => {
         .filter(item => !item.isNoAplica)
         .map(item => ({
           type: item.type,
-          ...(item.type === 'product' ? { productId: item.product?.id ?? item.product?.id } : { serviceId: item.service?.id }),
+          ...(item.type === 'product' ? { productId: item.product?.id ?? (item.product as any)?._id } : { serviceId: item.service?.id ?? (item.service as any)?._id }),
           quantity: item.quantity,
           unitPrice: item.unitPrice,
           discount: 0,
@@ -242,7 +242,7 @@ export const POSPage: React.FC = () => {
       const finalItems = isFullDiscount
         ? cart.map(item => ({
           type: item.type,
-          ...(item.type === 'product' ? { productId: item.product?.id } : { serviceId: item.service?.id }),
+          ...(item.type === 'product' ? { productId: item.product?.id ?? (item.product as any)?._id } : { serviceId: item.service?.id ?? (item.service as any)?._id }),
           quantity: item.quantity,
           unitPrice: 0,
         }))
@@ -731,6 +731,7 @@ export const POSPage: React.FC = () => {
             {[
               { value: 'cash', icon: 'DollarSign', label: 'Efectivo' },
               { value: 'card', icon: 'CreditCard', label: 'Tarjeta (Terminal MP)' },
+              { value: 'transfer', icon: 'Smartphone', label: 'Transferencia' },
             ].map(({ value, icon, label }) => (
               <button
                 key={value}
