@@ -4,11 +4,13 @@ import { Icon, Sidebar } from '../components';
 import { useAuthStore } from '../../../core/stores/useAuthStore';
 import { APISalesRepository } from '../../data/repositories/APISalesRepository';
 import { APIAdminRepository } from '../../data/repositories/APIAdminRepository';
+import { APIInventoryRepository } from '../../data/repositories/APIInventoryRepository';
 import type { Sale } from '../../domain/entities/SalesEntities';
 import type { Branch } from '../../domain/entities/AdminEntities';
 
 const salesRepo = new APISalesRepository();
 const adminRepo = new APIAdminRepository();
+const inventoryRepo = new APIInventoryRepository();
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -336,9 +338,9 @@ export const OperationsDashboardPage: React.FC = () => {
   // ── Dashboard KPI state ──────────────────────────────────────────────────
   const [todaySales, setTodaySales] = useState<Sale[]>([]);
   const [yesterdaySales, setYesterdaySales] = useState<Sale[]>([]);
-  const [pendingAppointments] = useState(0);
-  const [activeWorkorders] = useState(0);
-  const [lowStockItems] = useState(0);
+  const [pendingAppointments, setPendingAppointments] = useState(0);
+  const [activeWorkorders, setActiveWorkorders] = useState(0);
+  const [lowStockItems, setLowStockItems] = useState(0);
   const [dashLoading, setDashLoading] = useState(true);
 
   // ── Sales tab state ─────────────────────────────────────────────────────
@@ -357,7 +359,7 @@ export const OperationsDashboardPage: React.FC = () => {
     navigate('/login');
   };
 
-  // ── Load today & yesterday sales for Dashboard KPIs ──────────────────────
+  // ── Load sales, maintenances & inventory for Dashboard KPIs ──────────────────────
   useEffect(() => {
     if (!accessToken) return;
     const loadDashboard = async () => {
@@ -368,14 +370,16 @@ export const OperationsDashboardPage: React.FC = () => {
         yd.setDate(yd.getDate() - 1);
         const yesterday = toDateString(yd);
 
-        const [todayData, ydData] = await Promise.all([
-          salesRepo.getSales(accessToken, { startDate: today, endDate: today, isCancelled: false }),
-          salesRepo.getSales(accessToken, { startDate: yesterday, endDate: yesterday, isCancelled: false }),
+        const [todayData, ydData, maintenancesData, productsData] = await Promise.all([
+          salesRepo.getSales(accessToken, { startDate: today, endDate: today, isCancelled: false }).catch(() => []),
+          salesRepo.getSales(accessToken, { startDate: yesterday, endDate: yesterday, isCancelled: false }).catch(() => []),
+          adminRepo.getMaintenances(accessToken).catch(() => []),
+          inventoryRepo.getProducts(accessToken).catch(() => []),
         ]);
 
         // Filter by active branch if branchId is set
         const filterBranch = (sales: Sale[]) => {
-          if (!activeBranchId) return sales;
+          if (!activeBranchId || activeBranchId === '000000000000000000000000') return sales;
           return sales.filter(s => {
             const salebranchId = (s.branch as any)?._id || (s.branch as any)?.id || s.branch?.id;
             return !salebranchId || salebranchId === activeBranchId;
@@ -384,6 +388,40 @@ export const OperationsDashboardPage: React.FC = () => {
 
         setTodaySales(filterBranch(todayData));
         setYesterdaySales(filterBranch(ydData));
+
+        // Active work orders (maintenances not awaiting_appointment and not delivered)
+        const activeM = (maintenancesData || []).filter((m: any) => {
+          if (m.status === 'awaiting_appointment' || m.status === 'delivered') return false;
+          if (activeBranchId && activeBranchId !== '000000000000000000000000') {
+            const mBranchId = (m.branch as any)?._id || (m.branch as any)?.id || (typeof m.branch === 'string' ? m.branch : '');
+            if (mBranchId && mBranchId !== activeBranchId) return false;
+          }
+          return true;
+        });
+        setActiveWorkorders(activeM.length);
+
+        // Pending appointments (maintenances awaiting_appointment)
+        const pendingAppts = (maintenancesData || []).filter((m: any) => {
+          if (m.status !== 'awaiting_appointment') return false;
+          if (activeBranchId && activeBranchId !== '000000000000000000000000') {
+            const mBranchId = (m.branch as any)?._id || (m.branch as any)?.id || (typeof m.branch === 'string' ? m.branch : '');
+            if (mBranchId && mBranchId !== activeBranchId) return false;
+          }
+          return true;
+        });
+        setPendingAppointments(pendingAppts.length);
+
+        // Low stock items count
+        const lowStock = (productsData || []).filter((p: any) => {
+          if (activeBranchId && activeBranchId !== '000000000000000000000000') {
+            const pBranchId = (p.branch as any)?._id || (p.branch as any)?.id || (typeof p.branch === 'string' ? p.branch : '');
+            if (pBranchId && pBranchId !== activeBranchId) return false;
+          }
+          const minS = p.minStock !== undefined && p.minStock !== null ? p.minStock : 5;
+          return (p.stock || 0) <= minS;
+        });
+        setLowStockItems(lowStock.length);
+
       } catch (err: any) {
         if (err.message === 'UNAUTHORIZED') handleUnauthorized();
         console.error(err);
@@ -709,12 +747,14 @@ export const OperationsDashboardPage: React.FC = () => {
                 <div style={{ background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
                   <div style={{ padding: '16px 20px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <h3 style={{ fontSize: '16px', fontWeight: '700', color: '#0f172a', margin: 0 }}>Ventas de Hoy</h3>
-                    <button
-                      onClick={() => setPageTab('ventas')}
-                      style={{ fontSize: '13px', color: '#2563eb', background: 'none', border: 'none', cursor: 'pointer', fontWeight: '600' }}
-                    >
-                      Ver estadísticas completas →
-                    </button>
+                    {isAdmin && (
+                      <button
+                        onClick={() => setPageTab('ventas')}
+                        style={{ fontSize: '13px', color: '#2563eb', background: 'none', border: 'none', cursor: 'pointer', fontWeight: '600' }}
+                      >
+                        Ver estadísticas completas →
+                      </button>
+                    )}
                   </div>
                   <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
@@ -755,8 +795,8 @@ export const OperationsDashboardPage: React.FC = () => {
             </>
           )}
 
-          {/* ═══════ TAB: VENTAS ══════════════════════════════════════════════ */}
-          {pageTab === 'ventas' && (
+          {/* ═══════ TAB: VENTAS (Admin Only) ════════════════════════════════════ */}
+          {isAdmin && pageTab === 'ventas' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
 
               {/* Filter bar */}
