@@ -1,9 +1,12 @@
 import { create } from 'zustand';
 import type { Product } from '../../app/domain/entities/InventoryEntities';
-export type {
+import type {
   CartItem,
   PredefinedService,
 } from '../../app/domain/entities/SalesEntities';
+
+export type { CartItem, PredefinedService };
+
 
 interface POSState {
   cart: CartItem[];

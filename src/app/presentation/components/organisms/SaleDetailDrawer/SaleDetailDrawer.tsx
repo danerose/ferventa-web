@@ -4,6 +4,7 @@ import { PrimaryButton } from '../../atoms/Button/PrimaryButton';
 import { SecondaryButton } from '../../atoms/Button/SecondaryButton';
 import { Modal } from '../../molecules/Modal';
 import { KbdBadge } from '../../atoms/KbdBadge/KbdBadge';
+import { TextInput } from '../../atoms/Input/TextInput';
 import type { Sale } from '@/app/domain/entities/SalesEntities';
 
 interface SaleDetailDrawerProps {
@@ -533,27 +534,20 @@ export const SaleDetailDrawer: React.FC<SaleDetailDrawerProps> = ({
             <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#0f172a', marginBottom: '6px' }}>
               Motivo de la Cancelación <span style={{ color: '#ef4444' }}>*</span>
             </label>
-            <textarea
+            <TextInput
               autoFocus
               disabled={cancelling}
               placeholder="Ej. Devolución de producto, Error en cobro, Solicitud del cliente..."
               value={cancelReason}
               onChange={(e) => setCancelReason(e.target.value)}
-              rows={3}
-              style={{
-                width: '100%',
-                padding: '10px 12px',
-                borderRadius: '8px',
-                border: '1px solid #cbd5e1',
-                fontSize: '14px',
-                color: '#0f172a',
-                outline: 'none',
-                fontFamily: 'inherit',
-                resize: 'vertical',
-                background: cancelling ? '#f1f5f9' : '#ffffff',
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleConfirmCancel();
+                }
               }}
+              errorMessage={cancelError || undefined}
             />
-            {cancelError && <span style={{ fontSize: '12px', color: '#ef4444', marginTop: '4px', display: 'block' }}>{cancelError}</span>}
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '8px' }}>

@@ -63,7 +63,6 @@ export const InventoryPage: React.FC = () => {
     activeModal,
     setActiveModal,
     page,
-    limit,
     total,
     totalPages,
     setPage,
