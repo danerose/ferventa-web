@@ -613,9 +613,9 @@ export const UsersPage: React.FC = () => {
           <div style={{ background: 'white', padding: '32px', borderRadius: '16px', width: '540px', maxWidth: '90vw', maxHeight: '90vh', overflowY: 'auto' }}>
             <h2 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '20px', color: '#0f172a' }}>Editar Usuario</h2>
 
-            {submitError && (
+            {editError && (
               <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', color: '#991b1b', padding: '12px', borderRadius: '8px', marginBottom: '16px', fontSize: '14px' }}>
-                {submitError}
+                {editError}
               </div>
             )}
 
