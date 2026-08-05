@@ -117,6 +117,23 @@ export class APIAttendanceRepository {
   }
 
   /**
+   * Obtener el estado de asistencia de hoy o una fecha específica para todos los usuarios asignados a una sucursal
+   */
+  async getBranchTodayStatus(branchId?: string, date?: string): Promise<any> {
+    const params = new URLSearchParams();
+    if (branchId) params.append('branchId', branchId);
+    if (date) params.append('date', date);
+    const query = params.toString() ? `?${params.toString()}` : '';
+    const res = await this.fetchWithAuth(`${this.baseUrl}/attendance/branch/today${query}`);
+    const json = await res.json();
+    if (res.status === 401) throw new Error('No autorizado. Por favor vuelve a iniciar sesión.');
+    if (!res.ok || !json.success) {
+      throw new Error(json.message || 'Error al obtener estado de asistencia de la sucursal');
+    }
+    return json.data?.data ?? json.data;
+  }
+
+  /**
    * Mis registros personales de asistencia
    */
   async getMyRecords(startDate?: string, endDate?: string): Promise<AttendanceRecord[]> {

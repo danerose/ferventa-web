@@ -1,44 +1,15 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Icon, Sidebar, PrimaryButton, ConfirmModal, AlertModal } from '../components';
+import { Icon, Sidebar } from '../components';
 import { useAuthStore } from '../../../core/stores/useAuthStore';
-import { APIAdminRepository } from '../../data/repositories/APIAdminRepository';
-
-const adminRepo = new APIAdminRepository();
 
 export const SettingsPage: React.FC = () => {
   const navigate = useNavigate();
   const { user, clearAuth } = useAuthStore();
-  const [loading, setLoading] = useState(false);
-
-  const [showConfirm, setShowConfirm] = useState(false);
-  const [alert, setAlert] = useState<{ isOpen: boolean; title: string; message: string; isError: boolean }>({
-    isOpen: false,
-    title: '',
-    message: '',
-    isError: false,
-  });
 
   const handleUnauthorized = () => {
     clearAuth();
     navigate('/login');
-  };
-
-  const executeMigration = async () => {
-    setLoading(true);
-    try {
-      await adminRepo.migrateBranches();
-      setAlert({ isOpen: true, title: 'Éxito', message: 'Migración ejecutada con éxito.', isError: false });
-    } catch (e: any) {
-      if (e.message === 'UNAUTHORIZED') handleUnauthorized();
-      else setAlert({ isOpen: true, title: 'Error', message: 'Error en la migración: ' + e.message, isError: true });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleMigration = () => {
-    setShowConfirm(true);
   };
 
   return (
@@ -53,45 +24,25 @@ export const SettingsPage: React.FC = () => {
         </header>
 
         <main style={{ flex: 1, padding: '28px', maxWidth: '800px', width: '100%', margin: '0 auto' }}>
-          
-          <div style={{ background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', padding: '24px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
-              <div style={{ padding: '12px', background: '#fef3c7', borderRadius: '8px', color: '#d97706' }}>
-                <Icon name="Database" size="md" />
-              </div>
-              <div>
-                <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#0f172a' }}>Migración de Sucursales</h3>
-                <p style={{ fontSize: '14px', color: '#475569', marginTop: '4px' }}>
-                  Ejecuta este proceso para migrar los registros antiguos del sistema (productos, usuarios, citas, etc.) hacia la nueva estructura multi-sucursal. Se asignarán a la sucursal por defecto.
-                </p>
-              </div>
+
+          <div style={{ background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', padding: '48px', textAlign: 'center' }}>
+            <div style={{ width: '64px', height: '64px', background: '#f1f5f9', borderRadius: '16px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
+              <Icon name="Settings" size="lg" className="text-primary" />
             </div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '24px' }}>
-              <PrimaryButton onClick={handleMigration} disabled={loading}>
-                {loading ? 'Migrando...' : 'Migrar Datos'}
-              </PrimaryButton>
+            <h2 style={{ fontSize: '20px', fontWeight: '700', color: '#0f172a', marginBottom: '8px' }}>Ajustes del Sistema</h2>
+            <p style={{ fontSize: '14px', color: '#64748b', maxWidth: '400px', margin: '0 auto' }}>
+              Las opciones de configuración avanzada del sistema estarán disponibles próximamente.
+            </p>
+            <div style={{ marginTop: '24px', padding: '16px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', display: 'inline-block', textAlign: 'left' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '13px', color: '#475569' }}>
+                <Icon name="Info" size="sm" className="text-primary" style={{ flexShrink: 0 }} />
+                <span>Versión del sistema: <strong style={{ color: '#091426' }}>Ferventa v1.0</strong></span>
+              </div>
             </div>
           </div>
 
         </main>
       </div>
-
-      <ConfirmModal
-        isOpen={showConfirm}
-        onClose={() => setShowConfirm(false)}
-        onConfirm={executeMigration}
-        title="Migración de Sucursales"
-        message="¿Estás seguro de que deseas ejecutar la migración de sucursales? Esta acción es irreversible."
-        confirmText="Sí, Migrar"
-      />
-
-      <AlertModal
-        isOpen={alert.isOpen}
-        onClose={() => setAlert({ ...alert, isOpen: false })}
-        title={alert.title}
-        message={alert.message}
-        isError={alert.isError}
-      />
     </div>
   );
 };

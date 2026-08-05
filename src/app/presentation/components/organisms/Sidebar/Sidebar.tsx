@@ -14,20 +14,74 @@ export interface SidebarProps {
   userName: string;
 }
 
-const NAV_ITEMS = [
-  { icon: 'LayoutDashboard', label: 'Dashboard', path: '/admin/operaciones', disabled: false },
-  { icon: 'ShoppingCart', label: 'Punto de Venta', path: '/admin/pos', disabled: false },
-  { icon: 'CalendarCheck', label: 'Citas', path: '/admin/citas', disabled: false },
-  { icon: 'Wrench', label: 'Mantenimiento', path: '/admin/mantenimiento', disabled: false },
-  { icon: 'Package', label: 'Inventario', path: '/admin/inventario', disabled: false },
-  { icon: 'Users', label: 'Usuarios', path: '/admin/usuarios', disabled: false },
-  { icon: 'Clock', label: 'Asistencia', path: '/admin/asistencia', disabled: false },
+// Nav items visible to ALL authenticated users
+const COMMON_NAV_ITEMS = [
+  { icon: 'LayoutDashboard', label: 'Dashboard', path: '/admin/operaciones' },
+  { icon: 'CalendarCheck', label: 'Citas', path: '/admin/citas' },
+  { icon: 'ShoppingCart', label: 'Punto de Venta', path: '/admin/pos' },
+  { icon: 'Package', label: 'Inventario', path: '/admin/inventario' },
+  { icon: 'Clock', label: 'Asistencia', path: '/admin/asistencia' },
 ];
+
+// Nav items visible ONLY to admin
+const ADMIN_ONLY_NAV_ITEMS = [
+  { icon: 'Wrench', label: 'Mantenimiento', path: '/admin/mantenimiento' },
+  { icon: 'Users', label: 'Usuarios', path: '/admin/usuarios' },
+];
+
+// Bottom nav items: all visible to admin, only none to regular users
+const ADMIN_ONLY_BOTTOM_ITEMS = [
+  { icon: 'Calendar', label: 'Horarios', path: '/admin/horarios' },
+  { icon: 'Settings', label: 'Ajustes', path: '/admin/settings' },
+];
+
+function isAdminUser(user: any): boolean {
+  if (!user) return false;
+  const roleVal = user.role;
+  if (typeof roleVal === 'string') {
+    const r = roleVal.toLowerCase();
+    return r === 'admin' || r === 'administrator';
+  }
+  if (roleVal && typeof roleVal === 'object' && roleVal.name) {
+    const r = String(roleVal.name).toLowerCase();
+    return r === 'admin' || r === 'administrator';
+  }
+  return false;
+}
+
+function getRoleLabel(user: any): string {
+  if (!user) return 'Usuario';
+  const roleVal = user.role;
+  let roleName = '';
+  if (typeof roleVal === 'string') {
+    roleName = roleVal;
+  } else if (roleVal && typeof roleVal === 'object' && roleVal.name) {
+    roleName = String(roleVal.name);
+  }
+  const ROLE_LABELS: Record<string, string> = {
+    admin: 'Administrador',
+    administrator: 'Administrador',
+    mechanic: 'Mecánico',
+    warehouse: 'Almacén',
+    receptionist: 'Recepción',
+    reception: 'Recepción',
+    cashier: 'Cajero',
+    seller: 'Vendedor',
+    vendor: 'Vendedor',
+    salesperson: 'Vendedor',
+    sales: 'Ventas',
+    customer: 'Cliente',
+    user: 'Usuario',
+  };
+  return ROLE_LABELS[roleName.toLowerCase()] || roleName || 'Usuario';
+}
 
 export const Sidebar: React.FC<SidebarProps> = ({ onLogout, userName }) => {
   const location = useLocation();
   const { user, accessToken, activeBranchId, setActiveBranchId } = useAuthStore();
   const [branches, setBranches] = React.useState<Branch[]>([]);
+
+  const isAdmin = isAdminUser(user);
 
   React.useEffect(() => {
     const fetchBranches = async () => {
@@ -65,6 +119,27 @@ export const Sidebar: React.FC<SidebarProps> = ({ onLogout, userName }) => {
       setActiveBranchId(availableBranches[0].id);
     }
   }, [availableBranches, activeBranchId, setActiveBranchId]);
+
+  const navItems = isAdmin
+    ? [...COMMON_NAV_ITEMS, ...ADMIN_ONLY_NAV_ITEMS]
+    : COMMON_NAV_ITEMS;
+
+  const bottomItems = isAdmin ? ADMIN_ONLY_BOTTOM_ITEMS : [];
+
+  const navLinkStyle = (path: string) => ({
+    display: 'flex' as const,
+    alignItems: 'center' as const,
+    gap: '10px',
+    padding: '10px 14px',
+    borderRadius: '8px',
+    cursor: 'pointer' as const,
+    background: location.pathname.startsWith(path) ? 'rgba(133,83,0,0.2)' : 'transparent',
+    color: location.pathname.startsWith(path) ? '#fbbf24' : 'rgba(255,255,255,0.45)',
+    transition: 'background 0.15s, color 0.15s',
+    fontWeight: location.pathname.startsWith(path) ? '700' : '500',
+    fontSize: '14px',
+    textDecoration: 'none' as const,
+  });
 
   return (
     <aside
@@ -139,105 +214,37 @@ export const Sidebar: React.FC<SidebarProps> = ({ onLogout, userName }) => {
       )}
 
       {/* Navigation */}
-      <nav style={{ flex: 1, padding: '12px 10px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-        {NAV_ITEMS.map((item) => {
-          const isActive = location.pathname.startsWith(item.path) && !item.disabled;
-
-          if (item.disabled) {
-            return (
-              <div
-                key={item.label}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '10px',
-                  padding: '10px 14px',
-                  borderRadius: '8px',
-                  cursor: 'not-allowed',
-                  background: 'transparent',
-                  color: 'rgba(255,255,255,0.25)',
-                  fontSize: '14px',
-                  fontWeight: '500',
-                }}
-              >
-                <Icon name={item.icon as 'Wrench'} size="sm" style={{ flexShrink: 0 }} />
-                {item.label}
-              </div>
-            );
-          }
-
-          return (
-            <Link
-              key={item.label}
-              to={item.path}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                padding: '10px 14px',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                background: isActive ? 'rgba(133,83,0,0.2)' : 'transparent',
-                color: isActive ? '#fbbf24' : 'rgba(255,255,255,0.45)',
-                transition: 'background 0.15s, color 0.15s',
-                fontWeight: isActive ? '700' : '500',
-                fontSize: '14px',
-                textDecoration: 'none',
-              }}
-            >
-              <Icon name={item.icon as 'Wrench'} size="sm" style={{ flexShrink: 0 }} />
-              {item.label}
-            </Link>
-          );
-        })}
+      <nav style={{ flex: 1, padding: '12px 10px', display: 'flex', flexDirection: 'column', gap: '2px', overflowY: 'auto' }}>
+        {navItems.map((item) => (
+          <Link
+            key={item.label}
+            to={item.path}
+            style={navLinkStyle(item.path)}
+          >
+            <Icon name={item.icon as 'Wrench'} size="sm" style={{ flexShrink: 0 }} />
+            {item.label}
+          </Link>
+        ))}
       </nav>
 
       {/* User + Logout */}
       <div style={{ padding: '12px 10px 20px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
 
-        {/* Bottom Nav Items (Settings & Schedule) */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', marginBottom: '16px' }}>
-          <Link
-            to="/admin/horarios"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
-              padding: '10px 14px',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              background: location.pathname.startsWith('/admin/horarios') ? 'rgba(133,83,0,0.2)' : 'transparent',
-              color: location.pathname.startsWith('/admin/horarios') ? '#fbbf24' : 'rgba(255,255,255,0.45)',
-              transition: 'background 0.15s, color 0.15s',
-              fontWeight: location.pathname.startsWith('/admin/horarios') ? '700' : '500',
-              fontSize: '14px',
-              textDecoration: 'none',
-            }}
-          >
-            <Icon name="Calendar" size="sm" style={{ flexShrink: 0 }} />
-            Horarios
-          </Link>
-          <Link
-            to="/admin/settings"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
-              padding: '10px 14px',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              background: location.pathname.startsWith('/admin/settings') ? 'rgba(133,83,0,0.2)' : 'transparent',
-              color: location.pathname.startsWith('/admin/settings') ? '#fbbf24' : 'rgba(255,255,255,0.45)',
-              transition: 'background 0.15s, color 0.15s',
-              fontWeight: location.pathname.startsWith('/admin/settings') ? '700' : '500',
-              fontSize: '14px',
-              textDecoration: 'none',
-            }}
-          >
-            <Icon name="Settings" size="sm" style={{ flexShrink: 0 }} />
-            Ajustes
-          </Link>
-        </div>
+        {/* Bottom Nav Items — Admin Only */}
+        {bottomItems.length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', marginBottom: '16px' }}>
+            {bottomItems.map((item) => (
+              <Link
+                key={item.label}
+                to={item.path}
+                style={navLinkStyle(item.path)}
+              >
+                <Icon name={item.icon as 'Wrench'} size="sm" style={{ flexShrink: 0 }} />
+                {item.label}
+              </Link>
+            ))}
+          </div>
+        )}
 
         <div
           style={{
@@ -271,7 +278,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onLogout, userName }) => {
             <p style={{ color: 'white', fontSize: '13px', fontWeight: '600', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {userName}
             </p>
-            <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '11px' }}>Administrador</p>
+            <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '11px' }}>{getRoleLabel(user)}</p>
           </div>
         </div>
 

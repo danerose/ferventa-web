@@ -21,23 +21,43 @@ export const UserBreakdownModal: React.FC<UserBreakdownModalProps> = ({
   const [breakdown, setBreakdown] = useState<UserAttendanceBreakdown | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  // Period filter state
+  const [periodPreset, setPeriodPreset] = useState<string>('all');
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
 
-  useEffect(() => {
-    if (isOpen && userId) {
-      loadBreakdown();
-    } else {
-      setBreakdown(null);
-    }
-  }, [isOpen, userId]);
+  const toLocalYYYYMMDD = (d: Date) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
 
-  const loadBreakdown = async () => {
+  const formatFriendlyDate = (dateStr: string) => {
+    if (!dateStr) return '';
+    try {
+      const parts = dateStr.split('-').map(Number);
+      if (parts.length < 3) return dateStr;
+      const [y, m, d] = parts;
+      const dateObj = new Date(y, m - 1, d);
+      const dayName = dateObj.toLocaleDateString('es-MX', { weekday: 'long' });
+      const capitalizedDay = dayName.charAt(0).toUpperCase() + dayName.slice(1);
+      const monthName = dateObj.toLocaleDateString('es-MX', { month: 'short' });
+      return `${capitalizedDay}, ${d} de ${monthName} ${y}`;
+    } catch {
+      return dateStr;
+    }
+  };
+
+  const loadBreakdown = async (overrideStart?: string, overrideEnd?: string) => {
     if (!userId) return;
     setIsLoading(true);
     setErrorMsg(null);
+    const s = overrideStart !== undefined ? overrideStart : startDate;
+    const e = overrideEnd !== undefined ? overrideEnd : endDate;
     try {
-      const data = await attendanceRepo.getUserBreakdown(userId, startDate || undefined, endDate || undefined);
+      const data = await attendanceRepo.getUserBreakdown(userId, s || undefined, e || undefined);
       setBreakdown(data);
     } catch (err: any) {
       setErrorMsg(err.message || 'Error al obtener el desglose del usuario');
@@ -46,9 +66,57 @@ export const UserBreakdownModal: React.FC<UserBreakdownModalProps> = ({
     }
   };
 
-  const handleFilter = (e: React.FormEvent) => {
-    e.preventDefault();
-    loadBreakdown();
+  useEffect(() => {
+    if (isOpen && userId) {
+      setPeriodPreset('all');
+      setStartDate('');
+      setEndDate('');
+      loadBreakdown('', '');
+    } else {
+      setBreakdown(null);
+    }
+    // eslint-disable-next-line
+  }, [isOpen, userId]);
+
+  const applyPreset = (preset: string) => {
+    setPeriodPreset(preset);
+    let sDate = '';
+    let eDate = '';
+    const now = new Date();
+
+    if (preset === 'today') {
+      sDate = toLocalYYYYMMDD(now);
+      eDate = sDate;
+    } else if (preset === 'yesterday') {
+      const yd = new Date();
+      yd.setDate(yd.getDate() - 1);
+      sDate = toLocalYYYYMMDD(yd);
+      eDate = sDate;
+    } else if (preset === 'week') {
+      const dayOfWeek = now.getDay() === 0 ? 6 : now.getDay() - 1;
+      const monday = new Date(now);
+      monday.setDate(now.getDate() - dayOfWeek);
+      sDate = toLocalYYYYMMDD(monday);
+      eDate = toLocalYYYYMMDD(now);
+    } else if (preset === 'biweekly') {
+      const dayOfMonth = now.getDate();
+      const startFortnight = new Date(now.getFullYear(), now.getMonth(), dayOfMonth <= 15 ? 1 : 16);
+      sDate = toLocalYYYYMMDD(startFortnight);
+      eDate = toLocalYYYYMMDD(now);
+    } else if (preset === 'month') {
+      const startMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      sDate = toLocalYYYYMMDD(startMonth);
+      eDate = toLocalYYYYMMDD(now);
+    } else if (preset === 'all') {
+      sDate = '';
+      eDate = '';
+    }
+
+    if (preset !== 'custom') {
+      setStartDate(sDate);
+      setEndDate(eDate);
+      loadBreakdown(sDate, eDate);
+    }
   };
 
   const formatMinutes = (totalMin: number = 0) => {
@@ -58,7 +126,21 @@ export const UserBreakdownModal: React.FC<UserBreakdownModalProps> = ({
     return `${h}h ${m < 10 ? '0' : ''}${m}m`;
   };
 
+  const safeFormatTime = (isoString?: string, fallback = '-') => {
+    if (!isoString) return fallback;
+    try {
+      const d = new Date(isoString);
+      if (isNaN(d.getTime())) return fallback;
+      return d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: true });
+    } catch {
+      return fallback;
+    }
+  };
+
   if (!isOpen) return null;
+
+  const totals = breakdown?.totals || { totalShifts: 0, totalWorkMinutes: 0, totalBreakMinutes: 0, netWorkMinutes: 0 };
+  const recordsList = Array.isArray(breakdown?.records) ? breakdown!.records : [];
 
   return (
     <div style={{
@@ -77,8 +159,8 @@ export const UserBreakdownModal: React.FC<UserBreakdownModalProps> = ({
         borderRadius: '12px',
         border: '1px solid #e2e8f0',
         width: '100%',
-        maxWidth: '900px',
-        maxHeight: '90vh',
+        maxWidth: '920px',
+        maxHeight: '92vh',
         display: 'flex',
         flexDirection: 'column',
         boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)',
@@ -100,30 +182,69 @@ export const UserBreakdownModal: React.FC<UserBreakdownModalProps> = ({
           </button>
         </div>
 
-        {/* Date Filter Bar */}
-        <form onSubmit={handleFilter} style={{ padding: '12px 24px', background: '#f1f5f9', borderBottom: '1px solid #e2e8f0', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '12px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#475569' }}>
-            <span>Desde:</span>
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              style={{ padding: '6px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px', background: 'white' }}
-            />
-          </div>
+        {/* Period Preset Filter Bar */}
+        <div style={{ padding: '14px 24px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '12px', fontWeight: '600', color: '#64748b', marginRight: '4px' }}>Filtrar por:</span>
+              {[
+                { id: 'all', label: 'Todos' },
+                { id: 'today', label: 'Hoy' },
+                { id: 'yesterday', label: 'Ayer' },
+                { id: 'week', label: 'Esta Semana' },
+                { id: 'biweekly', label: 'Quincenal' },
+                { id: 'month', label: 'Este Mes' },
+                { id: 'custom', label: 'Personalizado' },
+              ].map((p) => {
+                const isActive = periodPreset === p.id;
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => applyPreset(p.id)}
+                    style={{
+                      padding: '6px 12px',
+                      borderRadius: '6px',
+                      fontSize: '12px',
+                      fontWeight: isActive ? '700' : '500',
+                      border: isActive ? '1px solid #2563eb' : '1px solid #cbd5e1',
+                      background: isActive ? '#eff6ff' : 'white',
+                      color: isActive ? '#1d4ed8' : '#475569',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s'
+                    }}
+                  >
+                    {p.label}
+                  </button>
+                );
+              })}
+            </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#475569' }}>
-            <span>Hasta:</span>
-            <input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              style={{ padding: '6px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px', background: 'white' }}
-            />
+            {periodPreset === 'custom' && (
+              <form onSubmit={(e) => { e.preventDefault(); loadBreakdown(); }} style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: '#475569' }}>
+                  <span>Desde:</span>
+                  <input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '12px', background: 'white' }}
+                  />
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: '#475569' }}>
+                  <span>Hasta:</span>
+                  <input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '12px', background: 'white' }}
+                  />
+                </div>
+                <PrimaryButton type="submit" size="sm">Filtrar</PrimaryButton>
+              </form>
+            )}
           </div>
-
-          <PrimaryButton type="submit" size="sm">Filtrar</PrimaryButton>
-        </form>
+        </div>
 
         {/* Content Body */}
         <div style={{ padding: '24px', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -135,125 +256,170 @@ export const UserBreakdownModal: React.FC<UserBreakdownModalProps> = ({
 
           {isLoading ? (
             <div style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>Cargando registros detallados...</div>
-          ) : breakdown ? (
+          ) : (
             <>
               {/* Summary KPIs */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '12px' }}>
                 <div style={{ background: '#f8fafc', padding: '12px 16px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
                   <span style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '4px' }}>Turnos Realizados</span>
-                  <span style={{ fontSize: '20px', fontWeight: '800', color: '#091426', fontFamily: 'monospace' }}>{breakdown.totals.totalShifts}</span>
+                  <span style={{ fontSize: '20px', fontWeight: '800', color: '#091426', fontFamily: 'monospace' }}>{totals.totalShifts || 0}</span>
                 </div>
                 <div style={{ background: '#f8fafc', padding: '12px 16px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
                   <span style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '4px' }}>Horas Brutas</span>
-                  <span style={{ fontSize: '20px', fontWeight: '800', color: '#334155', fontFamily: 'monospace' }}>{formatMinutes(breakdown.totals.totalWorkMinutes)}</span>
+                  <span style={{ fontSize: '20px', fontWeight: '800', color: '#334155', fontFamily: 'monospace' }}>{formatMinutes(totals.totalWorkMinutes)}</span>
                 </div>
                 <div style={{ background: '#f8fafc', padding: '12px 16px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
                   <span style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '4px' }}>Tiempo Comida</span>
-                  <span style={{ fontSize: '20px', fontWeight: '800', color: '#d97706', fontFamily: 'monospace' }}>{formatMinutes(breakdown.totals.totalBreakMinutes)}</span>
+                  <span style={{ fontSize: '20px', fontWeight: '800', color: '#d97706', fontFamily: 'monospace' }}>{formatMinutes(totals.totalBreakMinutes)}</span>
                 </div>
                 <div style={{ background: '#f8fafc', padding: '12px 16px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
                   <span style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '4px' }}>Horas Netas</span>
-                  <span style={{ fontSize: '20px', fontWeight: '800', color: '#16a34a', fontFamily: 'monospace' }}>{formatMinutes(breakdown.totals.netWorkMinutes)}</span>
+                  <span style={{ fontSize: '20px', fontWeight: '800', color: '#16a34a', fontFamily: 'monospace' }}>{formatMinutes(totals.netWorkMinutes)}</span>
                 </div>
               </div>
 
               {/* Records List */}
               <div>
                 <h4 style={{ fontSize: '15px', fontWeight: '700', color: '#0f172a', marginBottom: '12px' }}>
-                  Historial Diario de Asistencia ({breakdown.records.length} registros)
+                  Historial de Asistencia y Salidas ({recordsList.length} {recordsList.length === 1 ? 'registro' : 'registros'})
                 </h4>
 
-                {breakdown.records.length === 0 ? (
+                {recordsList.length === 0 ? (
                   <div style={{ padding: '32px', textAlign: 'center', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', color: '#64748b', fontSize: '14px' }}>
-                    No se encontraron registros para este periodo.
+                    No se encontraron registros para el periodo seleccionado.
                   </div>
                 ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    {breakdown.records.map((record) => (
-                      <div
-                        key={record._id || record.id}
-                        style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '16px' }}
-                      >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', paddingBottom: '12px', marginBottom: '12px', borderBottom: '1px solid #e2e8f0' }}>
-                          <div>
-                            <span style={{ fontSize: '14px', fontWeight: '700', color: '#855300', fontFamily: 'monospace' }}>{record.date}</span>
-                            <span style={{ fontSize: '12px', color: '#64748b', marginLeft: '8px' }}>
-                              {typeof record.branch === 'object' ? record.branch?.name : 'Sucursal'}
-                            </span>
-                          </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    {recordsList.map((record) => {
+                      const isRecordWorking = record.status === 'working';
+                      const isRecordOnBreak = record.status === 'on_break';
+                      const isRecordCompleted = record.status === 'completed' || !!record.clockOut;
 
-                          <div style={{ display: 'flex', gap: '12px', fontSize: '13px' }}>
-                            <span style={{ color: '#475569' }}>Bruto: <strong style={{ color: '#0f172a', fontFamily: 'monospace' }}>{formatMinutes(record.totalWorkMinutes)}</strong></span>
-                            <span style={{ color: '#475569' }}>Comida: <strong style={{ color: '#d97706', fontFamily: 'monospace' }}>{formatMinutes(record.totalBreakMinutes)}</strong></span>
-                            <span style={{ color: '#16a34a', fontWeight: '700', fontFamily: 'monospace' }}>Neto: {formatMinutes(record.netWorkMinutes)}</span>
-                          </div>
-                        </div>
+                      let recStatusBg = '#f1f5f9';
+                      let recStatusColor = '#475569';
+                      let recStatusLabel = '⚪ Sin Finalizar';
 
-                        {/* Clock In / Out times */}
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', marginBottom: '12px' }}>
-                          <div style={{ background: 'white', padding: '10px 12px', borderRadius: '6px', border: '1px solid #cbd5e1' }}>
-                            <span style={{ fontSize: '11px', color: '#64748b', display: 'block' }}>Hora de Entrada</span>
-                            <span style={{ fontSize: '14px', fontWeight: '700', color: '#0f172a', fontFamily: 'monospace' }}>
-                              {new Date(record.clockIn).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}
-                            </span>
-                            {record.clockInNote && (
-                              <span style={{ display: 'block', fontSize: '11px', color: '#64748b', fontStyle: 'italic', marginTop: '2px' }}>
-                                Nota: "{record.clockInNote}"
+                      if (isRecordWorking) {
+                        recStatusBg = '#dcfce7'; recStatusColor = '#15803d'; recStatusLabel = '🟢 En Turno';
+                      } else if (isRecordOnBreak) {
+                        recStatusBg = '#fef9c3'; recStatusColor = '#a16207'; recStatusLabel = '⏸️ En Descanso';
+                      } else if (isRecordCompleted) {
+                        recStatusBg = '#dbeafe'; recStatusColor = '#1d4ed8'; recStatusLabel = '🏁 Turno Concluido';
+                      }
+
+                      return (
+                        <div
+                          key={record._id || record.id || Math.random()}
+                          style={{ background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '10px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}
+                        >
+                          {/* Card Header Section */}
+                          <div style={{ padding: '12px 16px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <span style={{ fontSize: '14px', fontWeight: '700', color: '#855300' }}>
+                                📅 {formatFriendlyDate(record.date)}
                               </span>
-                            )}
-                          </div>
-
-                          <div style={{ background: 'white', padding: '10px 12px', borderRadius: '6px', border: '1px solid #cbd5e1' }}>
-                            <span style={{ fontSize: '11px', color: '#64748b', display: 'block' }}>Hora de Salida</span>
-                            <span style={{ fontSize: '14px', fontWeight: '700', color: '#0f172a', fontFamily: 'monospace' }}>
-                              {record.clockOut
-                                ? new Date(record.clockOut).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })
-                                : 'En Turno'}
-                            </span>
-                            {record.clockOutNote && (
-                              <span style={{ display: 'block', fontSize: '11px', color: '#64748b', fontStyle: 'italic', marginTop: '2px' }}>
-                                Nota: "{record.clockOutNote}"
+                              <span style={{ fontSize: '12px', background: '#e2e8f0', color: '#334155', padding: '2px 8px', borderRadius: '4px', fontWeight: '600' }}>
+                                {typeof record.branch === 'object' ? record.branch?.name : 'Sucursal'}
                               </span>
-                            )}
-                          </div>
-                        </div>
+                            </div>
 
-                        {/* Breaks detail */}
-                        {record.breaks && record.breaks.length > 0 && (
-                          <div style={{ background: 'white', padding: '12px', borderRadius: '6px', border: '1px solid #cbd5e1' }}>
-                            <span style={{ fontSize: '12px', fontWeight: '600', color: '#d97706', display: 'block', marginBottom: '8px' }}>
-                              Descansos / Comidas ({record.breaks.length})
+                            <span style={{ padding: '3px 10px', borderRadius: '12px', fontSize: '11px', fontWeight: '700', background: recStatusBg, color: recStatusColor }}>
+                              {recStatusLabel}
                             </span>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                              {record.breaks.map((b, idx) => (
-                                <div key={b._id || b.id || idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#475569', borderTop: '1px solid #f1f5f9', paddingTop: '4px' }}>
-                                  <span>
-                                    <strong style={{ color: '#0f172a', fontFamily: 'monospace' }}>
-                                      {new Date(b.startTime).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}
-                                    </strong>
-                                    {' -> '}
-                                    <strong style={{ color: '#0f172a', fontFamily: 'monospace' }}>
-                                      {b.endTime
-                                        ? new Date(b.endTime).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })
-                                        : 'En curso'}
-                                    </strong>
-                                    {b.note ? ` (${b.note})` : ''}
-                                  </span>
-                                  <span style={{ color: '#d97706', fontFamily: 'monospace', fontWeight: '600' }}>
-                                    {formatMinutes(b.durationMinutes || 0)}
-                                  </span>
-                                </div>
-                              ))}
+                          </div>
+
+                          {/* Times & Hours Metrics Grid */}
+                          <div style={{ padding: '16px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
+                            {/* Hora de Entrada */}
+                            <div style={{ background: '#f0fdf4', padding: '10px 14px', borderRadius: '8px', border: '1px solid #bbf7d0' }}>
+                              <span style={{ fontSize: '11px', fontWeight: '700', color: '#166534', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>
+                                🟢 Hora de Entrada
+                              </span>
+                              <span style={{ fontSize: '16px', fontWeight: '800', color: '#0f172a', fontFamily: 'monospace' }}>
+                                {safeFormatTime(record.clockIn)}
+                              </span>
+                              {record.clockInNote && (
+                                <span style={{ display: 'block', fontSize: '11px', color: '#475569', fontStyle: 'italic', marginTop: '4px' }}>
+                                  "{record.clockInNote}"
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Hora de Salida */}
+                            <div style={{ background: record.clockOut ? '#eff6ff' : '#fffbeb', padding: '10px 14px', borderRadius: '8px', border: record.clockOut ? '1px solid #bfdbfe' : '1px solid #fde68a' }}>
+                              <span style={{ fontSize: '11px', fontWeight: '700', color: record.clockOut ? '#1e40af' : '#b45309', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>
+                                🔴 Hora de Salida
+                              </span>
+                              <span style={{ fontSize: '16px', fontWeight: '800', color: record.clockOut ? '#0f172a' : '#d97706', fontFamily: 'monospace' }}>
+                                {record.clockOut
+                                  ? safeFormatTime(record.clockOut)
+                                  : 'En Turno'}
+                              </span>
+                              {record.clockOutNote && (
+                                <span style={{ display: 'block', fontSize: '11px', color: '#475569', fontStyle: 'italic', marginTop: '4px' }}>
+                                  "{record.clockOutNote}"
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Tiempo de Comida */}
+                            <div style={{ background: '#fffbeb', padding: '10px 14px', borderRadius: '8px', border: '1px solid #fde68a' }}>
+                              <span style={{ fontSize: '11px', fontWeight: '700', color: '#b45309', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>
+                                ⏸️ Tiempo Comida
+                              </span>
+                              <span style={{ fontSize: '16px', fontWeight: '800', color: '#d97706', fontFamily: 'monospace' }}>
+                                {formatMinutes(record.totalBreakMinutes)}
+                              </span>
+                              <span style={{ display: 'block', fontSize: '11px', color: '#78350f', marginTop: '2px' }}>
+                                ({record.breaks?.length || 0} descansos)
+                              </span>
+                            </div>
+
+                            {/* Horas Netas */}
+                            <div style={{ background: '#f8fafc', padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1' }}>
+                              <span style={{ fontSize: '11px', fontWeight: '700', color: '#334155', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>
+                                ⏱️ Horas Netas
+                              </span>
+                              <span style={{ fontSize: '16px', fontWeight: '800', color: '#16a34a', fontFamily: 'monospace' }}>
+                                {formatMinutes(record.netWorkMinutes)}
+                              </span>
+                              <span style={{ display: 'block', fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
+                                Bruto: {formatMinutes(record.totalWorkMinutes)}
+                              </span>
                             </div>
                           </div>
-                        )}
-                      </div>
-                    ))}
+
+                          {/* Breaks detailed sub-section */}
+                          {record.breaks && record.breaks.length > 0 && (
+                            <div style={{ padding: '12px 16px', background: '#f8fafc', borderTop: '1px solid #e2e8f0' }}>
+                              <span style={{ fontSize: '12px', fontWeight: '700', color: '#d97706', display: 'block', marginBottom: '8px' }}>
+                                ☕ Registro de Descansos / Comidas
+                              </span>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                {record.breaks.map((b, idx) => (
+                                  <div key={b._id || b.id || idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', color: '#334155', background: 'white', padding: '6px 10px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+                                    <span>
+                                      <strong>Inicio:</strong> <span style={{ fontFamily: 'monospace' }}>{safeFormatTime(b.startTime)}</span>
+                                      {' ➔ '}
+                                      <strong>Fin:</strong> <span style={{ fontFamily: 'monospace' }}>{b.endTime ? safeFormatTime(b.endTime) : 'En curso'}</span>
+                                      {b.note ? <span style={{ fontStyle: 'italic', color: '#64748b', marginLeft: '6px' }}>({b.note})</span> : ''}
+                                    </span>
+                                    <span style={{ color: '#d97706', fontFamily: 'monospace', fontWeight: '700' }}>
+                                      {formatMinutes(b.durationMinutes || 0)}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>
             </>
-          ) : null}
+          )}
         </div>
 
         {/* Footer */}

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import {
   Flex,
@@ -36,6 +36,22 @@ function App() {
   const navigate = useNavigate();
   const { isAuthenticated, clearAuth } = useAuthStore();
   const [isLoading, setIsLoading] = useState(false);
+
+  // Keep-alive ping to prevent Render server free tier from sleeping (pings every 4 minutes)
+  useEffect(() => {
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+
+    const keepAlivePing = () => {
+      fetch(`${apiUrl}/health`, { method: 'GET', mode: 'cors' })
+        .catch(() => fetch(apiUrl, { method: 'GET', mode: 'no-cors' }))
+        .catch(() => {});
+    };
+
+    keepAlivePing();
+    const interval = setInterval(keepAlivePing, 4 * 60 * 1000);
+
+    return () => clearInterval(interval);
+  }, []);
   const [inputValue, setInputValue] = useState('');
   const [submittedValue, setSubmittedValue] = useState<string | null>(null);
 

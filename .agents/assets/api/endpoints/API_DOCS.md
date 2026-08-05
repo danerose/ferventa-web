@@ -2021,7 +2021,7 @@ Opción B (por Correo Electrónico):
 **Campos clave**:
 | Campo | Tipo | Requerido | Descripción |
 |---|---|---|---|
-| `customerId` | string | ✅* | ID del cliente (*requerido si no hay `quoteId`) |
+| `customerId` | string | ❌ | ID del cliente (Opcional para público en general) |
 | `quoteId` | string | ❌ | ID de cotización origen (convierte la cotización) |
 | `items` | array | ✅ | Lista de ítems del carrito |
 | `items[].type` | string | ✅ | `"product"` o `"service"` |
@@ -2031,13 +2031,16 @@ Opción B (por Correo Electrónico):
 | `items[].unitPrice` | number | ❌ | Precio unitario **editado manualmente** en el carrito. Si se omite, se usa el precio de catálogo. |
 | `items[].discount` | number | ❌ | Descuento unitario |
 | `globalDiscount` | number | ❌ | Descuento global sobre el total |
-| `paymentMethod` | string | ✅ | `cash` \| `card` |
+| `paymentMethod` | string | ✅ | `cash` \| `card` \| `transfer` |
 | `paymentReference` | string | ❌ | Referencia de pago (ej. Mercado Pago ID) |
 
 > **Comportamiento de los servicios**:
-> - El backend expande cada ítem de tipo `service` en sus insumos y los descuenta del stock.
+> - El backend **NO** expande los servicios en sus insumos automáticamente. 
+> - El servicio funciona únicamente como cobro de mano de obra.
+> - Si se consumen insumos, el Frontend debe enviarlos como ítems adicionales de tipo `"product"` dentro del arreglo `items`.
 > - El nombre del servicio y su precio (`unitPrice` o `basePrice`) se guardan como línea separada en la venta.
-> - Los insumos del servicio quedan registrados en `items` con `origin: "service"` y la referencia al servicio.
+> 
+> ⚠️ **ATENCIÓN FRONTEND**: Cuando envíen los insumos al carrito, **asegúrense de extraer y enviar el campo `productId`** en el objeto. Un error muy común es enviar `{ "type": "product", "quantity": 1 }` omitiendo el `productId` porque el objeto original del insumo venía anidado y su ID estaba en `_id`. **Si falta el `productId` en ítems de tipo producto, el API rechazará la venta con error 400**.
 
 **Responses**:
 - `201`: Venta registrada exitosamente.
@@ -2546,7 +2549,11 @@ Opción B (por Correo Electrónico):
 ---
 
 ### [GET] /attendance/today
-**Summary**: Obtener el estado de asistencia actual del usuario para hoy (si está trabajando, en receso o fuera de turno)
+**Summary**: Obtener el estado de asistencia actual del usuario o sucursal para hoy (si está trabajando, en receso o fuera de turno)
+
+**Query Parameters**:
+- `userId`: (Opcional) ID de un usuario específico.
+- `branchId`: (Opcional) ID de una sucursal para obtener la asistencia de todos sus usuarios.
 
 **Responses**:
 - `200`: Estado de asistencia de hoy.
@@ -2568,6 +2575,60 @@ Opción B (por Correo Electrónico):
         "durationMinutes": 30,
         "note": "Hora de comida"
       }
+    }
+  }
+  ```
+
+---
+
+### [GET] /attendance/branch/today
+**Summary**: Obtener el estado de asistencia de todos los usuarios asignados a una sucursal para hoy
+
+**Headers**:
+- `x-branch-id`: ID de la sucursal activa (Opcional si se envía query param)
+
+**Query Parameters**:
+- `branchId`: (Opcional) ID de la sucursal a consultar (si no se envía header `x-branch-id`).
+
+**Responses**:
+- `200`: Estado de asistencia de la sucursal para el día de hoy.
+  ```json
+  {
+    "success": true,
+    "data": {
+      "branchId": "60d5ec49c6d48227b409748c",
+      "date": "2026-08-04",
+      "totalAssignedUsers": 3,
+      "summary": {
+        "working": 1,
+        "onBreak": 1,
+        "completed": 0,
+        "offShift": 1
+      },
+      "users": [
+        {
+          "user": {
+            "_id": "60d5ec49c6d48227b409748b",
+            "name": "Alexis Manuel",
+            "email": "alexis@ferventa.com",
+            "username": "alexis",
+            "role": {
+              "_id": "60d5ec49c6d48227b4097480",
+              "name": "admin"
+            }
+          },
+          "hasActiveShift": true,
+          "status": "working",
+          "attendance": { ... },
+          "currentWorkMinutes": 120,
+          "currentWorkHours": 2,
+          "totalBreakMinutes": 0,
+          "totalBreakHours": 0,
+          "netWorkMinutes": 120,
+          "netWorkHours": 2,
+          "activeBreak": null
+        }
+      ]
     }
   }
   ```

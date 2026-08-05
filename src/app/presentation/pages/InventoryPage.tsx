@@ -174,6 +174,7 @@ export const InventoryPage: React.FC = () => {
 
     setFormErrors({});
     setLoading(true);
+    let success = false;
     try {
       if (editingProductId) {
         await inventoryRepo.updateProduct(accessToken!, editingProductId, productForm);
@@ -182,15 +183,20 @@ export const InventoryPage: React.FC = () => {
       }
       const data = await inventoryRepo.getProducts(accessToken!, { search: searchValue });
       setProducts(data);
-      setActiveModal(null);
-      setEditingProductId(null);
-      setProductForm({
-        sku: '', name: '', description: '', brandId: '', categoryId: '', costPrice: 0, sellingPrice: 0, stock: 0, minStock: 0, unit: 'piece', photos: [], compatibility: []
-      });
-    } catch (error) {
+      success = true;
+    } catch (error: any) {
       console.error(error);
+      if (error.message === 'UNAUTHORIZED') handleUnauthorized();
     } finally {
       setLoading(false);
+      if (success) {
+        setActiveModal(null);
+        setEditingProductId(null);
+        setFormErrors({});
+        setProductForm({
+          sku: '', name: '', description: '', brandId: '', categoryId: '', costPrice: 0, sellingPrice: 0, stock: 0, minStock: 0, unit: 'piece', photos: [], compatibility: []
+        });
+      }
     }
   };
 
@@ -605,21 +611,29 @@ export const InventoryPage: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {providers.length > 0 ? providers.map(provider => (
-                    <tr key={provider.id} style={{ borderBottom: '1px solid #e2e8f0' }}>
-                      <td style={{ padding: '16px', fontSize: '14px', color: '#0f172a', fontWeight: '600' }}>{provider.name}</td>
-                      <td style={{ padding: '16px', fontSize: '14px', color: '#475569' }}>{provider.providerCode || 'N/A'}</td>
-                      <td style={{ padding: '16px', textAlign: 'center' }}>
-                        <button onClick={() => handleOpenEditProvider(provider)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}>
-                          <Icon name="Edit2" size="sm" />
-                        </button>
-                      </td>
-                    </tr>
-                  )) : (
-                    <tr>
-                      <td colSpan={4} style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>No hay proveedores registrados.</td>
-                    </tr>
-                  )}
+                  {(() => {
+                    const filteredProviders = providers.filter(p =>
+                      p.name.toLowerCase().includes(searchValue.toLowerCase()) ||
+                      (p.providerCode || '').toLowerCase().includes(searchValue.toLowerCase())
+                    );
+                    return filteredProviders.length > 0 ? filteredProviders.map(provider => (
+                      <tr key={provider.id} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                        <td style={{ padding: '16px', fontSize: '14px', color: '#0f172a', fontWeight: '600' }}>{provider.name}</td>
+                        <td style={{ padding: '16px', fontSize: '14px', color: '#475569' }}>{provider.providerCode || 'N/A'}</td>
+                        <td style={{ padding: '16px', textAlign: 'center' }}>
+                          <button onClick={() => handleOpenEditProvider(provider)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}>
+                            <Icon name="Edit2" size="sm" />
+                          </button>
+                        </td>
+                      </tr>
+                    )) : (
+                      <tr>
+                        <td colSpan={4} style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>
+                          {searchValue ? `No se encontraron proveedores que coincidan con "${searchValue}".` : 'No hay proveedores registrados.'}
+                        </td>
+                      </tr>
+                    );
+                  })()}
                 </tbody>
               </table>
             ) : (

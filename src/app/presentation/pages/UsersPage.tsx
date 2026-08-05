@@ -5,7 +5,7 @@ import { useAuthStore } from '../../../core/stores/useAuthStore';
 import { useUserStore } from '../../../core/stores/useUserStore';
 import { APIUserRepository } from '../../data/repositories/APIUserRepository';
 import { APIAdminRepository } from '../../data/repositories/APIAdminRepository';
-import type { CreateUserDto, CreateUserResponse } from '../../domain/entities/UserEntities';
+import type { CreateUserDto, CreateUserResponse, UpdateUserDto } from '../../domain/entities/UserEntities';
 
 const userRepo = new APIUserRepository();
 const adminRepo = new APIAdminRepository();
@@ -51,6 +51,7 @@ export const UsersPage: React.FC = () => {
     setActiveModal
   } = useUserStore();
 
+  // ── Add User Form State ────────────────────────────────────────────────
   const [formData, setFormData] = useState<CreateUserDto>({
     name: '',
     username: '',
@@ -79,6 +80,17 @@ export const UsersPage: React.FC = () => {
     roleId?: string;
     branches?: string;
   }>({});
+
+  // ── Edit User State ────────────────────────────────────────────────────
+  const [editingUserId, setEditingUserId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState<UpdateUserDto>({});
+  const [editFieldErrors, setEditFieldErrors] = useState<Record<string, string>>({});
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+
+  // ── Delete User State ──────────────────────────────────────────────────
+  const [deletingUser, setDeletingUser] = useState<{ id: string; name: string } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Success / WhatsApp Modal State
   const [successData, setSuccessData] = useState<CreateUserResponse | null>(null);
@@ -137,7 +149,6 @@ export const UsersPage: React.FC = () => {
     });
   };
 
-  // Real-time username check function
   const checkUsernameAvailability = (uname: string) => {
     if (!accessToken) return;
     const trimmed = uname.trim();
@@ -165,7 +176,6 @@ export const UsersPage: React.FC = () => {
     }, 350);
   };
 
-  // Name change handler: auto-generate username if not manually edited
   const handleNameChange = (val: string) => {
     setFormData(prev => ({ ...prev, name: val }));
     if (val.trim().length >= 3) {
@@ -296,6 +306,76 @@ export const UsersPage: React.FC = () => {
     }
   };
 
+  // ── Edit User ──────────────────────────────────────────────────────────
+
+  const handleOpenEditModal = (u: any) => {
+    setEditingUserId(u.id || u._id);
+    setEditForm({
+      name: u.name,
+      email: u.email || '',
+      phone: u.phone || '',
+      roleId: u.role?.id || u.role?._id || u.role || '',
+      isActive: u.isActive,
+      branches: (u.branches || []).map((b: any) => typeof b === 'object' ? b.id || b._id : b),
+    });
+    setEditFieldErrors({});
+    setEditError(null);
+    setActiveModal('editUser');
+  };
+
+  const handleEditBranchToggle = (branchId: string) => {
+    setEditForm(prev => {
+      const current = prev.branches || [];
+      const next = current.includes(branchId)
+        ? current.filter(id => id !== branchId)
+        : [...current, branchId];
+      return { ...prev, branches: next };
+    });
+  };
+
+  const handleSaveEdit = async () => {
+    if (!accessToken || !editingUserId) return;
+    const errors: Record<string, string> = {};
+    if (!editForm.name?.trim()) errors.name = 'El nombre es requerido';
+    if (editForm.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(editForm.email.trim())) {
+      errors.email = 'Correo inválido';
+    }
+    if (Object.keys(errors).length > 0) {
+      setEditFieldErrors(errors);
+      return;
+    }
+    setSavingEdit(true);
+    setEditError(null);
+    try {
+      await userRepo.updateUser(accessToken, editingUserId, editForm);
+      setActiveModal(null);
+      setEditingUserId(null);
+      fetchUsers();
+    } catch (err: any) {
+      if (err.message === 'UNAUTHORIZED') handleUnauthorized();
+      else setEditError(err.message || 'Error al actualizar el usuario');
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  // ── Delete User (Soft Delete) ──────────────────────────────────────────
+
+  const handleConfirmDelete = async () => {
+    if (!accessToken || !deletingUser) return;
+    setIsDeleting(true);
+    try {
+      await userRepo.deleteUser(accessToken, deletingUser.id);
+      setDeletingUser(null);
+      fetchUsers();
+    } catch (err: any) {
+      if (err.message === 'UNAUTHORIZED') handleUnauthorized();
+      else alert(err.message || 'Error al desactivar el usuario');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const handleCopyMessage = () => {
     if (successData?.message) {
       navigator.clipboard.writeText(successData.message);
@@ -369,14 +449,30 @@ export const UsersPage: React.FC = () => {
                         </span>
                       </td>
                       <td style={{ padding: '16px', textAlign: 'center' }}>
-                        <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}>
-                          <Icon name="Edit2" size="sm" />
-                        </button>
+                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                          <button
+                            onClick={() => handleOpenEditModal(u)}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#2563eb', padding: '4px' }}
+                            title="Editar usuario"
+                          >
+                            <Icon name="Edit2" size="sm" />
+                          </button>
+                          <button
+                            onClick={() => setDeletingUser({ id: u.id, name: u.name })}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: u.isActive ? '#ef4444' : '#94a3b8', padding: '4px' }}
+                            title={u.isActive ? 'Desactivar usuario' : 'Usuario ya inactivo'}
+                            disabled={!u.isActive}
+                          >
+                            <Icon name="UserX" size="sm" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   )) : (
                     <tr>
-                      <td colSpan={6} style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>No hay usuarios registrados.</td>
+                      <td colSpan={6} style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>
+                        {searchValue ? `No se encontraron usuarios con "${searchValue}".` : 'No hay usuarios registrados.'}
+                      </td>
                     </tr>
                   )}
                 </tbody>
@@ -386,7 +482,7 @@ export const UsersPage: React.FC = () => {
         </main>
       </div>
 
-      {/* Add User Modal */}
+      {/* ── Add User Modal ─────────────────────────────────────────────────── */}
       {activeModal === 'addUser' && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }}>
           <div style={{ background: 'white', padding: '32px', borderRadius: '16px', width: '540px', maxWidth: '90vw', maxHeight: '90vh', overflowY: 'auto' }}>
@@ -511,7 +607,149 @@ export const UsersPage: React.FC = () => {
         </div>
       )}
 
-      {/* Success & WhatsApp Modal */}
+      {/* ── Edit User Modal ────────────────────────────────────────────────── */}
+      {activeModal === 'editUser' && editingUserId && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }}>
+          <div style={{ background: 'white', padding: '32px', borderRadius: '16px', width: '540px', maxWidth: '90vw', maxHeight: '90vh', overflowY: 'auto' }}>
+            <h2 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '20px' }}>Editar Usuario</h2>
+
+            {editError && (
+              <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', color: '#991b1b', padding: '12px', borderRadius: '8px', marginBottom: '16px', fontSize: '14px' }}>
+                {editError}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px' }}>Nombre completo *</label>
+                <TextInput
+                  placeholder="Nombre completo"
+                  value={editForm.name || ''}
+                  onChange={e => setEditForm(p => ({ ...p, name: e.target.value }))}
+                  errorMessage={editFieldErrors.name}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '16px' }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px' }}>Correo</label>
+                  <TextInput
+                    placeholder="correo@ejemplo.com"
+                    type="email"
+                    value={editForm.email || ''}
+                    onChange={e => setEditForm(p => ({ ...p, email: e.target.value }))}
+                    errorMessage={editFieldErrors.email}
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px' }}>Teléfono</label>
+                  <TextInput
+                    placeholder="8112345678"
+                    value={editForm.phone || ''}
+                    onChange={e => setEditForm(p => ({ ...p, phone: e.target.value }))}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px' }}>Rol</label>
+                <select
+                  style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none' }}
+                  value={editForm.roleId || ''}
+                  onChange={e => setEditForm(p => ({ ...p, roleId: e.target.value }))}
+                >
+                  <option value="">Selecciona un rol</option>
+                  {roles.map(r => {
+                    const roleVal = r.id || (r as any)._id || r.name;
+                    return (
+                      <option key={roleVal} value={roleVal}>{translateRoleName(r.name)}</option>
+                    );
+                  })}
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px' }}>Sucursales Asignadas</label>
+                <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '120px', overflowY: 'auto' }}>
+                  {branches.map(b => (
+                    <label key={b.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', color: '#334155' }}>
+                      <input
+                        type="checkbox"
+                        checked={(editForm.branches || []).includes(b.id)}
+                        onChange={() => handleEditBranchToggle(b.id)}
+                      />
+                      {b.name}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '8px' }}>Estado del Usuario</label>
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  {[true, false].map(val => (
+                    <label key={String(val)} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', cursor: 'pointer' }}>
+                      <input
+                        type="radio"
+                        name="isActive"
+                        checked={editForm.isActive === val}
+                        onChange={() => setEditForm(p => ({ ...p, isActive: val }))}
+                      />
+                      <span style={{ color: val ? '#16a34a' : '#dc2626', fontWeight: '600' }}>
+                        {val ? '✓ Activo' : '✗ Inactivo'}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '28px' }}>
+              <SecondaryButton onClick={() => { setActiveModal(null); setEditingUserId(null); }} disabled={savingEdit}>
+                Cancelar
+              </SecondaryButton>
+              <PrimaryButton onClick={handleSaveEdit} loading={savingEdit}>
+                Guardar Cambios
+              </PrimaryButton>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Soft Delete Confirm Modal ─────────────────────────────────────── */}
+      {deletingUser && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }}>
+          <div style={{ background: 'white', padding: '32px', borderRadius: '16px', width: '420px', maxWidth: '90vw', textAlign: 'center' }}>
+            <div style={{ width: '52px', height: '52px', background: '#fef2f2', borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
+              <Icon name="UserX" size="md" style={{ color: '#dc2626' }} />
+            </div>
+            <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#0f172a', marginBottom: '8px' }}>Desactivar Usuario</h3>
+            <p style={{ fontSize: '14px', color: '#64748b', marginBottom: '8px' }}>
+              ¿Estás seguro de desactivar a <strong style={{ color: '#0f172a' }}>{deletingUser.name}</strong>?
+            </p>
+            <p style={{ fontSize: '13px', color: '#94a3b8', marginBottom: '24px', padding: '10px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+              El usuario no podrá iniciar sesión, pero su historial de ventas y datos permanecerán intactos.
+            </p>
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+              <SecondaryButton onClick={() => setDeletingUser(null)} disabled={isDeleting}>
+                Cancelar
+              </SecondaryButton>
+              <button
+                onClick={handleConfirmDelete}
+                disabled={isDeleting}
+                style={{
+                  padding: '10px 20px', background: '#dc2626', color: 'white', border: 'none', borderRadius: '8px',
+                  fontWeight: '700', fontSize: '14px', cursor: isDeleting ? 'not-allowed' : 'pointer', opacity: isDeleting ? 0.7 : 1
+                }}
+              >
+                {isDeleting ? 'Desactivando...' : 'Sí, Desactivar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Success & WhatsApp Modal ──────────────────────────────────────── */}
       {successData && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 60 }}>
           <div style={{ background: 'white', padding: '32px', borderRadius: '20px', width: '560px', maxWidth: '90vw', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)' }}>
@@ -526,7 +764,6 @@ export const UsersPage: React.FC = () => {
               </p>
             </div>
 
-            {/* Credential Details Card */}
             <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '16px', marginBottom: '20px' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', fontSize: '13px' }}>
                 <div>
@@ -550,7 +787,6 @@ export const UsersPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Formatted Message Preview */}
             {successData.message && (
               <div style={{ marginBottom: '24px' }}>
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#475569', marginBottom: '6px' }}>
@@ -562,25 +798,14 @@ export const UsersPage: React.FC = () => {
               </div>
             )}
 
-            {/* Actions */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               {successData.whatsappUrl && (
                 <button
                   onClick={() => window.open(successData.whatsappUrl, '_blank')}
                   style={{
-                    width: '100%',
-                    background: '#25D366',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '10px',
-                    padding: '12px',
-                    fontSize: '14px',
-                    fontWeight: '700',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '8px',
+                    width: '100%', background: '#25D366', color: 'white', border: 'none', borderRadius: '10px',
+                    padding: '12px', fontSize: '14px', fontWeight: '700', cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
                     boxShadow: '0 4px 12px rgba(37,211,102,0.3)'
                   }}
                 >
@@ -590,17 +815,11 @@ export const UsersPage: React.FC = () => {
               )}
 
               <div style={{ display: 'flex', gap: '10px' }}>
-                <SecondaryButton
-                  onClick={handleCopyMessage}
-                  className="flex-1 justify-center"
-                >
+                <SecondaryButton onClick={handleCopyMessage} className="flex-1 justify-center">
                   <Icon name="Copy" size="xs" className="mr-2" />
                   {copiedMessage ? '¡Copiado!' : 'Copiar mensaje'}
                 </SecondaryButton>
-                <SecondaryButton
-                  onClick={() => setSuccessData(null)}
-                  className="flex-1 justify-center"
-                >
+                <SecondaryButton onClick={() => setSuccessData(null)} className="flex-1 justify-center">
                   Cerrar
                 </SecondaryButton>
               </div>

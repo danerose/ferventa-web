@@ -42,6 +42,8 @@ export class APISalesRepository {
     if (filter.customerId) params.set('customerId', filter.customerId);
     if (filter.isCancelled !== undefined) params.set('isCancelled', String(filter.isCancelled));
     if (filter.saleType) params.set('saleType', filter.saleType);
+    // Always send timezone offset so the backend can align day boundaries to local time
+    params.set('utcOffsetMinutes', String(new Date().getTimezoneOffset()));
 
     const res = await this.fetchWithAuth(
       `${this.baseUrl}/sales?${params.toString()}`,
