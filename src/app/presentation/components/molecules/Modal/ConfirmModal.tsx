@@ -1,6 +1,6 @@
 import React from 'react';
 import { Modal } from './Modal';
-import { PrimaryButton, SecondaryButton } from '@/app/presentation/components';
+import { PrimaryButton, SecondaryButton, KbdBadge } from '@/app/presentation/components';
 
 export interface ConfirmModalProps {
   isOpen: boolean;
@@ -27,12 +27,19 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
+      onConfirm={() => {
+        onConfirm();
+        onClose();
+      }}
       title={title}
       maxWidth="400px"
       headerBackground={isDestructive ? '#ef4444' : '#091426'}
       footer={
         <>
-          <SecondaryButton onClick={onClose}>{cancelText}</SecondaryButton>
+          <SecondaryButton onClick={onClose}>
+            {cancelText}
+            <KbdBadge keys="Esc" style={{ marginLeft: '6px' }} />
+          </SecondaryButton>
           <PrimaryButton
             onClick={() => {
               onConfirm();
@@ -41,6 +48,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
             style={isDestructive ? { backgroundColor: '#ef4444', borderColor: '#ef4444' } : undefined}
           >
             {confirmText}
+            <KbdBadge keys="Enter ↵" style={{ marginLeft: '6px' }} />
           </PrimaryButton>
         </>
       }

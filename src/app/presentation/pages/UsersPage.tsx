@@ -486,7 +486,7 @@ export const UsersPage: React.FC = () => {
       {activeModal === 'addUser' && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }}>
           <div style={{ background: 'white', padding: '32px', borderRadius: '16px', width: '540px', maxWidth: '90vw', maxHeight: '90vh', overflowY: 'auto' }}>
-            <h2 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '20px' }}>Nuevo Usuario</h2>
+            <h2 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '20px', color: '#0f172a' }}>Nuevo Usuario</h2>
 
             {submitError && (
               <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', color: '#991b1b', padding: '12px', borderRadius: '8px', marginBottom: '16px', fontSize: '14px' }}>
@@ -496,7 +496,7 @@ export const UsersPage: React.FC = () => {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px' }}>Nombre completo *</label>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#0f172a', marginBottom: '6px' }}>Nombre completo *</label>
                 <TextInput
                   placeholder="Ej. Juan Pérez"
                   value={formData.name}
@@ -507,7 +507,7 @@ export const UsersPage: React.FC = () => {
 
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                  <label style={{ fontSize: '13px', fontWeight: '600' }}>Nombre de usuario (Opcional)</label>
+                  <label style={{ fontSize: '13px', fontWeight: '600', color: '#0f172a' }}>Nombre de usuario (Opcional)</label>
                   {isGeneratingUsername && <span style={{ fontSize: '11px', color: '#855300' }}>Generando sugerencia...</span>}
                   {usernameStatus.checking && <span style={{ fontSize: '11px', color: '#64748b' }}>Verificando...</span>}
                   {!usernameStatus.checking && usernameStatus.available === true && (
@@ -530,7 +530,7 @@ export const UsersPage: React.FC = () => {
 
               <div style={{ display: 'flex', gap: '16px' }}>
                 <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px' }}>Correo</label>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#0f172a', marginBottom: '6px' }}>Correo</label>
                   <TextInput
                     placeholder="juan@ferventa.com"
                     type="email"
@@ -540,7 +540,7 @@ export const UsersPage: React.FC = () => {
                   />
                 </div>
                 <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px' }}>Teléfono</label>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#0f172a', marginBottom: '6px' }}>Teléfono</label>
                   <TextInput
                     placeholder="8112345678"
                     value={formData.phone || ''}
@@ -551,9 +551,9 @@ export const UsersPage: React.FC = () => {
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px' }}>Rol *</label>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#0f172a', marginBottom: '6px' }}>Rol *</label>
                 <select
-                  style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: fieldErrors.roleId ? '1px solid #ba1a1a' : '1px solid #cbd5e1', outline: 'none' }}
+                  style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: fieldErrors.roleId ? '1px solid #ba1a1a' : '1px solid #cbd5e1', outline: 'none', color: '#0f172a', background: 'white' }}
                   value={formData.roleId}
                   onChange={(e) => {
                     setFormData({ ...formData, roleId: e.target.value });
@@ -576,7 +576,7 @@ export const UsersPage: React.FC = () => {
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px' }}>Sucursales Asignadas *</label>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#0f172a', marginBottom: '6px' }}>Sucursales Asignadas *</label>
                 <div style={{ border: fieldErrors.branches ? '1px solid #ba1a1a' : '1px solid #e2e8f0', borderRadius: '8px', padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '120px', overflowY: 'auto' }}>
                   {branches.map(b => (
                     <label key={b.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', color: '#334155' }}>
@@ -601,7 +601,7 @@ export const UsersPage: React.FC = () => {
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '28px' }}>
               <SecondaryButton onClick={() => setActiveModal(null)} disabled={savingUser}>Cancelar</SecondaryButton>
-              <PrimaryButton onClick={handleSaveUser} loading={savingUser}>Guardar Usuario</PrimaryButton>
+              <PrimaryButton onClick={handleSaveUser} loading={savingUser} disabled={savingUser}>Guardar Usuario</PrimaryButton>
             </div>
           </div>
         </div>
@@ -611,17 +611,17 @@ export const UsersPage: React.FC = () => {
       {activeModal === 'editUser' && editingUserId && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }}>
           <div style={{ background: 'white', padding: '32px', borderRadius: '16px', width: '540px', maxWidth: '90vw', maxHeight: '90vh', overflowY: 'auto' }}>
-            <h2 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '20px' }}>Editar Usuario</h2>
+            <h2 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '20px', color: '#0f172a' }}>Editar Usuario</h2>
 
-            {editError && (
+            {submitError && (
               <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', color: '#991b1b', padding: '12px', borderRadius: '8px', marginBottom: '16px', fontSize: '14px' }}>
-                {editError}
+                {submitError}
               </div>
             )}
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px' }}>Nombre completo *</label>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#0f172a', marginBottom: '6px' }}>Nombre completo *</label>
                 <TextInput
                   placeholder="Nombre completo"
                   value={editForm.name || ''}
@@ -632,7 +632,7 @@ export const UsersPage: React.FC = () => {
 
               <div style={{ display: 'flex', gap: '16px' }}>
                 <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px' }}>Correo</label>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#0f172a', marginBottom: '6px' }}>Correo</label>
                   <TextInput
                     placeholder="correo@ejemplo.com"
                     type="email"
@@ -642,7 +642,7 @@ export const UsersPage: React.FC = () => {
                   />
                 </div>
                 <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px' }}>Teléfono</label>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#0f172a', marginBottom: '6px' }}>Teléfono</label>
                   <TextInput
                     placeholder="8112345678"
                     value={editForm.phone || ''}
@@ -652,9 +652,9 @@ export const UsersPage: React.FC = () => {
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px' }}>Rol</label>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#0f172a', marginBottom: '6px' }}>Rol</label>
                 <select
-                  style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none' }}
+                  style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', color: '#0f172a', background: 'white' }}
                   value={editForm.roleId || ''}
                   onChange={e => setEditForm(p => ({ ...p, roleId: e.target.value }))}
                 >
@@ -669,7 +669,7 @@ export const UsersPage: React.FC = () => {
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px' }}>Sucursales Asignadas</label>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#0f172a', marginBottom: '6px' }}>Sucursales Asignadas</label>
                 <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '120px', overflowY: 'auto' }}>
                   {branches.map(b => (
                     <label key={b.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', color: '#334155' }}>
@@ -685,7 +685,7 @@ export const UsersPage: React.FC = () => {
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '8px' }}>Estado del Usuario</label>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#0f172a', marginBottom: '8px' }}>Estado del Usuario</label>
                 <div style={{ display: 'flex', gap: '12px' }}>
                   {[true, false].map(val => (
                     <label key={String(val)} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', cursor: 'pointer' }}>
@@ -708,7 +708,7 @@ export const UsersPage: React.FC = () => {
               <SecondaryButton onClick={() => { setActiveModal(null); setEditingUserId(null); }} disabled={savingEdit}>
                 Cancelar
               </SecondaryButton>
-              <PrimaryButton onClick={handleSaveEdit} loading={savingEdit}>
+              <PrimaryButton onClick={handleSaveEdit} loading={savingEdit} disabled={savingEdit}>
                 Guardar Cambios
               </PrimaryButton>
             </div>

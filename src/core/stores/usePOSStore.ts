@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { Product } from '../../app/domain/entities/InventoryEntities';
-import type {
+export type {
   CartItem,
   PredefinedService,
 } from '../../app/domain/entities/SalesEntities';
@@ -26,6 +26,11 @@ interface POSState {
   // Cart actions
   addProductToCart: (product: Product, quantity?: number) => void;
   addServiceToCart: (service: PredefinedService) => void;
+  addTemporaryServiceToCart: (
+    name: string,
+    unitPrice: number,
+    supplies: { product: Product; quantity: number; unitPrice: number }[]
+  ) => void;
   removeFromCart: (cartId: string) => void;
   updateQuantity: (cartId: string, quantity: number) => void;
   updateUnitPrice: (cartId: string, newPrice: number) => void;
@@ -162,6 +167,38 @@ export const usePOSStore = create<POSState>((set, get) => ({
       unitPrice: supply.product.sellingPrice,
       originalPrice: supply.product.sellingPrice,
       subtotal: supply.product.sellingPrice * supply.quantity,
+      isNoAplica: false,
+    }));
+
+    set({ cart: [...cart, serviceItem, ...supplyItems] });
+    get().calculateTotals();
+  },
+
+  addTemporaryServiceToCart: (name, unitPrice, supplies) => {
+    const { cart } = get();
+
+    const serviceItem: CartItem = {
+      cartId: makeCartId(),
+      type: 'service',
+      name: name.trim(),
+      quantity: 1,
+      unitPrice,
+      originalPrice: unitPrice,
+      subtotal: unitPrice,
+      isNoAplica: false,
+    };
+
+    const supplyItems: CartItem[] = supplies.map(s => ({
+      cartId: makeCartId(),
+      parentCartId: serviceItem.cartId,
+      type: 'product',
+      product: s.product,
+      name: s.product.name,
+      sku: s.product.sku,
+      quantity: s.quantity,
+      unitPrice: s.unitPrice,
+      originalPrice: s.product.sellingPrice,
+      subtotal: s.unitPrice * s.quantity,
       isNoAplica: false,
     }));
 

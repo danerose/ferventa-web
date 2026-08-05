@@ -62,6 +62,7 @@ export const ApproveAppointmentModal: React.FC<ApproveAppointmentModalProps> = (
               borderRadius: '8px',
               border: '1px solid #cbd5e1',
               fontSize: '13.5px',
+              color: '#0f172a',
               fontFamily: 'Inter, system-ui, sans-serif',
               outline: 'none',
               resize: 'vertical',

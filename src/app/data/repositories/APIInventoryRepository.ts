@@ -1,5 +1,13 @@
 import type { Brand, Category, Provider, Product, StockMovement, CreateProviderDto, CreateProductDto, CreateStockMovementDto } from '../../domain/entities/InventoryEntities';
 
+export interface PaginatedResult<T> {
+  items: T[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
 export class APIInventoryRepository {
   private baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
@@ -27,15 +35,49 @@ export class APIInventoryRepository {
     });
   }
 
+  private normalizePaginatedResponse<T>(data: any, mapFn: (item: any) => T): PaginatedResult<T> {
+    if (Array.isArray(data)) {
+      const items = data.map(mapFn);
+      return { items, total: items.length, page: 1, limit: items.length || 50, totalPages: 1 };
+    }
+    if (data && typeof data === 'object') {
+      const rawList = data.items || data.products || data.docs || data.results || data.data;
+      if (Array.isArray(rawList)) {
+        const items = rawList.map(mapFn);
+        return {
+          items,
+          total: data.total ?? data.totalItems ?? data.count ?? items.length,
+          page: data.page ?? data.currentPage ?? 1,
+          limit: data.limit ?? data.pageSize ?? 50,
+          totalPages: data.totalPages ?? data.pageCount ?? 1,
+        };
+      }
+    }
+    return { items: [], total: 0, page: 1, limit: 50, totalPages: 1 };
+  }
+
   // Brands & Categories
   async getBrands(token: string): Promise<Brand[]> {
-    const res = await this.fetchWithAuth(`${this.baseUrl}/inventory/brands`, {
+    const res = await this.getBrandsPaginated(token, { limit: 100 });
+    return res.items;
+  }
+
+  async getBrandsPaginated(token: string, filter: { search?: string; page?: number; limit?: number } = {}): Promise<PaginatedResult<Brand>> {
+    const params = new URLSearchParams();
+    if (filter.search) {
+      params.set('search', filter.search);
+      params.set('q', filter.search);
+    }
+    if (filter.page) params.set('page', String(filter.page));
+    if (filter.limit) params.set('limit', String(filter.limit));
+
+    const res = await this.fetchWithAuth(`${this.baseUrl}/inventory/brands?${params.toString()}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     const json = await res.json();
     if (res.status === 401) throw new Error('UNAUTHORIZED');
     if (!res.ok || !json.success) throw new Error(json.message || 'Error al obtener marcas');
-    return (json.data || []).map((b: any) => ({ ...b, id: b.id || b._id }));
+    return this.normalizePaginatedResponse(json.data, (b) => ({ ...b, id: b.id || b._id }));
   }
 
   async createBrand(token: string, name: string): Promise<Brand> {
@@ -62,13 +104,26 @@ export class APIInventoryRepository {
   }
 
   async getCategories(token: string): Promise<Category[]> {
-    const res = await this.fetchWithAuth(`${this.baseUrl}/inventory/categories`, {
+    const res = await this.getCategoriesPaginated(token, { limit: 100 });
+    return res.items;
+  }
+
+  async getCategoriesPaginated(token: string, filter: { search?: string; page?: number; limit?: number } = {}): Promise<PaginatedResult<Category>> {
+    const params = new URLSearchParams();
+    if (filter.search) {
+      params.set('search', filter.search);
+      params.set('q', filter.search);
+    }
+    if (filter.page) params.set('page', String(filter.page));
+    if (filter.limit) params.set('limit', String(filter.limit));
+
+    const res = await this.fetchWithAuth(`${this.baseUrl}/inventory/categories?${params.toString()}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     const json = await res.json();
     if (res.status === 401) throw new Error('UNAUTHORIZED');
     if (!res.ok || !json.success) throw new Error(json.message || 'Error al obtener categorias');
-    return (json.data || []).map((c: any) => ({ ...c, id: c.id || c._id }));
+    return this.normalizePaginatedResponse(json.data, (c) => ({ ...c, id: c.id || c._id }));
   }
 
   async createCategory(token: string, name: string): Promise<Category> {
@@ -96,14 +151,26 @@ export class APIInventoryRepository {
 
   // Providers
   async getProviders(token: string, search?: string): Promise<Provider[]> {
-    const url = search ? `${this.baseUrl}/inventory/providers?search=${search}` : `${this.baseUrl}/inventory/providers`;
-    const res = await this.fetchWithAuth(url, {
+    const res = await this.getProvidersPaginated(token, { search, limit: 100 });
+    return res.items;
+  }
+
+  async getProvidersPaginated(token: string, filter: { search?: string; page?: number; limit?: number } = {}): Promise<PaginatedResult<Provider>> {
+    const params = new URLSearchParams();
+    if (filter.search) {
+      params.set('search', filter.search);
+      params.set('q', filter.search);
+    }
+    if (filter.page) params.set('page', String(filter.page));
+    if (filter.limit) params.set('limit', String(filter.limit));
+
+    const res = await this.fetchWithAuth(`${this.baseUrl}/inventory/providers?${params.toString()}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     const json = await res.json();
     if (res.status === 401) throw new Error('UNAUTHORIZED');
     if (!res.ok || !json.success) throw new Error(json.message || 'Error al obtener proveedores');
-    return (json.data || []).map((p: any) => ({ ...p, id: p.id || p._id }));
+    return this.normalizePaginatedResponse(json.data, (p) => ({ ...p, id: p.id || p._id }));
   }
 
   async createProvider(token: string, data: CreateProviderDto): Promise<Provider> {
@@ -133,19 +200,53 @@ export class APIInventoryRepository {
   }
 
   // Products
-  async getProducts(token: string, filter: { search?: string; categoryId?: string; branchId?: string } = {}): Promise<Product[]> {
+  async getProducts(token: string, filter: { search?: string; categoryId?: string; branchId?: string; page?: number; limit?: number } = {}): Promise<Product[]> {
+    const res = await this.getProductsPaginated(token, filter);
+    return res.items;
+  }
+
+  async getProductsPaginated(token: string, filter: { search?: string; categoryId?: string; brandId?: string; page?: number; limit?: number } = {}): Promise<PaginatedResult<Product>> {
     const params = new URLSearchParams();
-    if (filter.search) params.set('search', filter.search);
-    if (filter.categoryId) params.set('category', filter.categoryId);
+    if (filter.search) {
+      params.set('q', filter.search);
+      params.set('search', filter.search);
+    }
+    if (filter.categoryId) {
+      params.set('categoryId', filter.categoryId);
+      params.set('category', filter.categoryId);
+    }
+    if (filter.brandId) {
+      params.set('brandId', filter.brandId);
+      params.set('brand', filter.brandId);
+    }
+    if (filter.page) params.set('page', String(filter.page));
+    if (filter.limit) params.set('limit', String(filter.limit));
     
-    // Explicit branchId filter if needed, though fetchWithAuth usually attaches x-branch-id
     const res = await this.fetchWithAuth(`${this.baseUrl}/inventory/products?${params.toString()}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     const json = await res.json();
     if (res.status === 401) throw new Error('UNAUTHORIZED');
     if (!res.ok || !json.success) throw new Error(json.message || 'Error al obtener productos');
-    return (json.data || []).map((p: any) => ({ ...p, id: p.id || p._id }));
+    return this.normalizePaginatedResponse(json.data, (p) => ({ ...p, id: p.id || p._id }));
+  }
+
+  async getProductBySku(token: string, sku: string): Promise<Product | null> {
+    let res = await this.fetchWithAuth(`${this.baseUrl}/inventory/products/sku/${encodeURIComponent(sku)}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    if (!res.ok) {
+      // Fallback search by sku string
+      const searchResult = await this.getProductsPaginated(token, { search: sku, limit: 1 });
+      return searchResult.items.length > 0 ? searchResult.items[0] : null;
+    }
+
+    const json = await res.json();
+    if (res.status === 401) throw new Error('UNAUTHORIZED');
+    if (!res.ok || !json.success || !json.data) return null;
+    const p = json.data;
+    return { ...p, id: p.id || p._id };
   }
 
   async createProduct(token: string, data: CreateProductDto): Promise<Product> {
@@ -222,3 +323,4 @@ export class APIInventoryRepository {
     return { ...m, id: m.id || m._id };
   }
 }
+

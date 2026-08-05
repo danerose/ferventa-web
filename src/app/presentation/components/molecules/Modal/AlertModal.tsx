@@ -1,6 +1,6 @@
 import React from 'react';
 import { Modal } from './Modal';
-import { PrimaryButton } from '@/app/presentation/components';
+import { PrimaryButton, KbdBadge } from '@/app/presentation/components';
 
 export interface AlertModalProps {
   isOpen: boolean;
@@ -23,6 +23,7 @@ export const AlertModal: React.FC<AlertModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
+      onConfirm={onClose}
       title={title}
       maxWidth="400px"
       headerBackground={isError ? '#ef4444' : '#091426'}
@@ -33,6 +34,7 @@ export const AlertModal: React.FC<AlertModalProps> = ({
             style={isError ? { backgroundColor: '#ef4444', borderColor: '#ef4444' } : undefined}
           >
             {buttonText}
+            <KbdBadge keys="Enter ↵" style={{ marginLeft: '6px' }} />
           </PrimaryButton>
         </>
       }

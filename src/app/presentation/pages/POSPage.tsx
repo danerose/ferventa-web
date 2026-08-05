@@ -1,14 +1,27 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Icon, Sidebar, PrimaryButton, SecondaryButton, TextInput, Modal, AlertModal } from '../components';
+import {
+  Icon,
+  Sidebar,
+  PrimaryButton,
+  SecondaryButton,
+  TextInput,
+  Modal,
+  AlertModal,
+  KbdBadge,
+  TemporaryServiceModal,
+  TicketReceipt,
+  QuotationReceipt,
+} from '../components';
 import { useAuthStore } from '../../../core/stores/useAuthStore';
 import { usePOSStore } from '../../../core/stores/usePOSStore';
+import { useBarcodeScanner } from '../../../core/hooks/useBarcodeScanner';
 import { APIAdminRepository } from '../../data/repositories/APIAdminRepository';
 import { APIClientPortalRepository } from '../../data/repositories/APIClientPortalRepository';
 import { APISalesRepository } from '../../data/repositories/APISalesRepository';
 import { APIInventoryRepository } from '../../data/repositories/APIInventoryRepository';
 import { APIServicesRepository } from '../../data/repositories/APIServicesRepository';
-import type { PredefinedService } from '../../domain/entities/SalesEntities';
+import type { PredefinedService, Sale } from '../../domain/entities/SalesEntities';
 import type { Branch } from '../../domain/entities/AdminEntities';
 import type { Product } from '@/app/domain/entities/InventoryEntities';
 
@@ -112,6 +125,11 @@ export const POSPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'products' | 'services'>('products');
   const [allServices, setAllServices] = useState<PredefinedService[]>([]);
   const [loadingServices, setLoadingServices] = useState(false);
+  const [initialProducts, setInitialProducts] = useState<Product[]>([]);
+  const [allProductsForSupplies, setAllProductsForSupplies] = useState<Product[]>([]);
+  const [isTempServiceModalOpen, setIsTempServiceModalOpen] = useState(false);
+  const [lastCompletedSale, setLastCompletedSale] = useState<Sale | null>(null);
+
 
   const {
     cart,
@@ -129,6 +147,7 @@ export const POSPage: React.FC = () => {
     setServiceResults,
     addProductToCart,
     addServiceToCart,
+    addTemporaryServiceToCart,
     removeFromCart,
     updateQuantity,
     updateUnitPrice,
@@ -142,6 +161,21 @@ export const POSPage: React.FC = () => {
   const [alertState, setAlertState] = useState<{ isOpen: boolean; title: string; message: string; isError: boolean }>({
     isOpen: false, title: '', message: '', isError: false,
   });
+
+  const [selectedIndex, setSelectedIndex] = useState<number>(0);
+  const highlightedCardRef = useRef<HTMLDivElement | null>(null);
+
+  // Reset selected index when activeTab or search queries change
+  useEffect(() => {
+    setSelectedIndex(0);
+  }, [activeTab, searchValue, serviceSearchValue]);
+
+  // Auto scroll highlighted item into view
+  useEffect(() => {
+    if (highlightedCardRef.current) {
+      highlightedCardRef.current.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+  }, [selectedIndex]);
 
   // ── Listen to store errors ─────────────────────────────────────────────────
   const storeError = usePOSStore(state => state.error);
@@ -168,6 +202,27 @@ export const POSPage: React.FC = () => {
     fetchBranches();
   }, [accessToken]);
 
+  // ── Load initial products (15-20 products) ─────────────────────────────────
+  useEffect(() => {
+    if (!accessToken) return;
+    const fetchInitialProducts = async () => {
+      try {
+        const res = await inventoryRepo.getProductsPaginated(accessToken, { limit: 20 });
+        setInitialProducts(res.items);
+        if (!searchValue.trim()) {
+          setSearchResults(res.items);
+        }
+        // Also fetch all products for the temporary service supply picker
+        const allRes = await inventoryRepo.getProducts(accessToken);
+        setAllProductsForSupplies(allRes);
+      } catch (err: any) {
+        if (err.message === 'UNAUTHORIZED') handleUnauthorized();
+      }
+    };
+    fetchInitialProducts();
+    // eslint-disable-next-line
+  }, [accessToken]);
+
   // ── Load services on mount ─────────────────────────────────────────────────
   useEffect(() => {
     if (!accessToken) return;
@@ -187,20 +242,35 @@ export const POSPage: React.FC = () => {
     // eslint-disable-next-line
   }, [accessToken]);
 
-  // ── Service search (client-side filter) ───────────────────────────────────
+  // ── Service search (server & client fallback) ──────────────────────────────
   useEffect(() => {
+    if (!accessToken) return;
     if (!serviceSearchValue.trim()) {
       setServiceResults(allServices);
-    } else {
-      const q = serviceSearchValue.toLowerCase();
-      setServiceResults(allServices.filter(s => s.name.toLowerCase().includes(q)));
+      return;
     }
-  }, [serviceSearchValue, allServices]);
+    const id = setTimeout(async () => {
+      try {
+        const results = await servicesRepo.getServices(accessToken, { isActive: true, search: serviceSearchValue });
+        setServiceResults(results);
+      } catch (err: any) {
+        if (err.message === 'UNAUTHORIZED') handleUnauthorized();
+        // Fallback to client side filtering if offline
+        const q = serviceSearchValue.toLowerCase();
+        setServiceResults(allServices.filter(s => s.name.toLowerCase().includes(q) || s.description?.toLowerCase().includes(q)));
+      }
+    }, 300);
+    return () => clearTimeout(id);
+    // eslint-disable-next-line
+  }, [serviceSearchValue, accessToken, allServices]);
 
   // ── Product search ─────────────────────────────────────────────────────────
   useEffect(() => {
     if (!accessToken) return;
-    if (!searchValue.trim()) return;
+    if (!searchValue.trim()) {
+      setSearchResults(initialProducts);
+      return;
+    }
     const id = setTimeout(async () => {
       try {
         const results = await inventoryRepo.getProducts(accessToken, { search: searchValue });
@@ -211,9 +281,133 @@ export const POSPage: React.FC = () => {
     }, 300);
     return () => clearTimeout(id);
     // eslint-disable-next-line
-  }, [searchValue, accessToken]);
+  }, [searchValue, accessToken, initialProducts]);
 
   const handleUnauthorized = () => { clearAuth(); navigate('/login'); };
+
+  // ── Barcode Scanner Handler ───────────────────────────────────────────────
+  const handleBarcodeScan = useCallback(async (barcode: string) => {
+    if (!accessToken) return;
+    try {
+      // 1. Check exact SKU match
+      const product = await inventoryRepo.getProductBySku(accessToken, barcode);
+      if (product) {
+        setSearchValue(product.sku);
+        addProductToCart(product, 1);
+        setAlertState({
+          isOpen: true,
+          title: 'Producto Escaneado',
+          message: `"${product.name}" agregado al carrito automáticamente.`,
+          isError: false,
+        });
+        return;
+      }
+      // 2. Search fallback
+      const results = await inventoryRepo.getProducts(accessToken, { search: barcode });
+      if (results && results.length > 0) {
+        setSearchValue(barcode);
+        addProductToCart(results[0], 1);
+        setAlertState({
+          isOpen: true,
+          title: 'Producto Escaneado',
+          message: `"${results[0].name}" agregado al carrito automáticamente.`,
+          isError: false,
+        });
+      } else {
+        setAlertState({
+          isOpen: true,
+          title: 'Código no encontrado',
+          message: `No se encontró ningún producto con SKU/código: ${barcode}`,
+          isError: true,
+        });
+      }
+    } catch (err: any) {
+      if (err.message === 'UNAUTHORIZED') handleUnauthorized();
+    }
+  }, [accessToken, setSearchValue, addProductToCart]);
+
+  useBarcodeScanner({ onScan: handleBarcodeScan, enabled: activeTab === 'products' });
+
+  // ── Keyboard Shortcuts Listener ───────────────────────────────────────────
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // If modal or temp service modal is open, skip catalog navigation
+      if (activeModal !== null || isTempServiceModalOpen) return;
+
+      // Alt+P or F2 -> Switch to Products
+      if ((e.altKey && (e.key === 'p' || e.key === 'P')) || e.key === 'F2') {
+        e.preventDefault();
+        setActiveTab('products');
+      }
+      // Alt+S or F3 -> Switch to Services
+      else if ((e.altKey && (e.key === 's' || e.key === 'S')) || e.key === 'F3') {
+        e.preventDefault();
+        setActiveTab('services');
+      }
+      // Alt+F or F4 -> Focus search bar
+      else if ((e.altKey && (e.key === 'f' || e.key === 'F')) || e.key === 'F4') {
+        e.preventDefault();
+        const inputEl = document.querySelector<HTMLInputElement>('#pos-search-input');
+        inputEl?.focus();
+      }
+      // Alt+T or F6 -> Open Temporary Service modal
+      else if ((e.altKey && (e.key === 't' || e.key === 'T')) || e.key === 'F6') {
+        e.preventDefault();
+        setIsTempServiceModalOpen(true);
+      }
+      // Alt+C or F8 -> Checkout / Cobrar
+      else if ((e.altKey && (e.key === 'c' || e.key === 'C')) || e.key === 'F8') {
+        e.preventDefault();
+        if (cart.length > 0) setActiveModal('checkout');
+      }
+      // Alt+V or F9 -> Vaciar carrito
+      else if ((e.altKey && (e.key === 'v' || e.key === 'V')) || e.key === 'F9') {
+        e.preventDefault();
+        if (cart.length > 0) clearCart();
+      }
+      // ── Arrow Keys Catalog Navigation ──
+      else if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+        const listLen = activeTab === 'products' ? searchResults.length : serviceResults.length;
+        if (listLen > 0) {
+          e.preventDefault();
+          setSelectedIndex(prev => Math.min(prev + 1, listLen - 1));
+        }
+      } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+        const listLen = activeTab === 'products' ? searchResults.length : serviceResults.length;
+        if (listLen > 0) {
+          e.preventDefault();
+          setSelectedIndex(prev => Math.max(prev - 1, 0));
+        }
+      } else if (e.key === 'Enter') {
+        if (activeTab === 'products') {
+          if (searchResults.length > 0 && selectedIndex >= 0 && selectedIndex < searchResults.length) {
+            e.preventDefault();
+            const prod = searchResults[selectedIndex];
+            if (prod) {
+              addProductToCart(prod, 1);
+              setSearchValue('');
+              setSelectedIndex(0);
+            }
+          }
+        } else if (activeTab === 'services') {
+          if (serviceResults.length > 0 && selectedIndex >= 0 && selectedIndex < serviceResults.length) {
+            e.preventDefault();
+            const serv = serviceResults[selectedIndex];
+            if (serv) {
+              addServiceToCart(serv);
+            }
+          }
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [
+    cart.length, clearCart, activeTab, searchResults, serviceResults,
+    selectedIndex, activeModal, isTempServiceModalOpen, addProductToCart,
+    addServiceToCart, setSearchValue,
+  ]);
 
   const activeBranch = branches.find(b => b.id === activeBranchId || (b as any)._id === activeBranchId);
   const activeBranchName = activeBranch?.name ?? (branches[0]?.name ?? 'Sucursal Principal');
@@ -230,30 +424,45 @@ export const POSPage: React.FC = () => {
     try {
       const items = cart
         .filter(item => !item.isNoAplica)
-        .map(item => ({
-          type: item.type,
-          ...(item.type === 'product' ? { productId: item.product?.id ?? (item.product as any)?._id } : { serviceId: item.service?.id ?? (item.service as any)?._id }),
-          quantity: item.quantity,
-          unitPrice: item.unitPrice,
-          discount: 0,
-        }));
+        .map(item => {
+          if (item.type === 'product') {
+            return {
+              type: 'product' as const,
+              productId: item.product?.id ?? (item.product as any)?._id,
+              quantity: item.quantity,
+              unitPrice: item.unitPrice,
+              discount: 0,
+            };
+          } else {
+            const sId = item.service?.id ?? (item.service as any)?._id;
+            return {
+              type: 'service' as const,
+              ...(sId ? { serviceId: sId } : { name: item.name }),
+              quantity: item.quantity,
+              unitPrice: item.unitPrice,
+              discount: 0,
+            };
+          }
+        });
 
-      // If full discount, send all items but with unitPrice 0
+      // If full discount, set unitPrice 0
       const finalItems = isFullDiscount
-        ? cart.map(item => ({
-          type: item.type,
-          ...(item.type === 'product' ? { productId: item.product?.id ?? (item.product as any)?._id } : { serviceId: item.service?.id ?? (item.service as any)?._id }),
-          quantity: item.quantity,
-          unitPrice: 0,
-        }))
+        ? items.map(item => ({ ...item, unitPrice: 0 }))
         : items;
 
-      await salesRepo.createSale(accessToken, {
+      const createdSale = await salesRepo.createSale(accessToken, {
         items: finalItems,
         paymentMethod,
       });
 
+      setLastCompletedSale(createdSale);
       setActiveModal('checkoutSuccess');
+      // Auto-print thermal receipt ticket automatically for USB thermal printers
+      document.body.classList.remove('print-doc-mode');
+      document.body.classList.add('print-ticket-mode');
+      setTimeout(() => {
+        window.print();
+      }, 200);
     } catch (err: any) {
       if (err.message === 'UNAUTHORIZED') handleUnauthorized();
       else setAlertState({ isOpen: true, title: 'Error al procesar venta', message: err.message, isError: true });
@@ -262,7 +471,62 @@ export const POSPage: React.FC = () => {
     }
   };
 
-  const handleCloseSuccess = () => { clearCart(); setActiveModal(null); };
+  const handleCloseSuccess = () => { clearCart(); setActiveModal(null); setLastCompletedSale(null); };
+
+  const handlePrintReceipt = () => {
+    document.body.classList.remove('print-doc-mode');
+    document.body.classList.add('print-ticket-mode');
+    setTimeout(() => {
+      window.print();
+    }, 100);
+  };
+
+  const handlePrintQuotation = () => {
+    document.body.classList.remove('print-ticket-mode');
+    document.body.classList.add('print-doc-mode');
+    setTimeout(() => {
+      window.print();
+    }, 100);
+  };
+
+  // ── Payment Modal Keyboard Shortcuts ──────────────────────────────────────
+  useEffect(() => {
+    if (activeModal !== 'checkout') return;
+
+    const handleCheckoutKeyDown = (e: KeyboardEvent) => {
+      const tag = document.activeElement?.tagName.toLowerCase();
+      if (tag === 'input' || tag === 'textarea') return;
+
+      if (e.key === '1' || e.key === 'e' || e.key === 'E') {
+        setPaymentMethod('cash');
+      } else if (e.key === '2' || e.key === 't' || e.key === 'T') {
+        setPaymentMethod('card');
+      } else if (e.key === '3' || e.key === 'r' || e.key === 'R') {
+        setPaymentMethod('transfer');
+      }
+    };
+
+    window.addEventListener('keydown', handleCheckoutKeyDown);
+    return () => window.removeEventListener('keydown', handleCheckoutKeyDown);
+  }, [activeModal]);
+
+  // ── Success Modal Keyboard Shortcuts ──────────────────────────────────────
+  useEffect(() => {
+    if (activeModal !== 'checkoutSuccess') return;
+
+    const handleSuccessKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Enter' || e.key === 'Escape') {
+        e.preventDefault();
+        handleCloseSuccess();
+      } else if (e.key === 'p' || e.key === 'P') {
+        e.preventDefault();
+        handlePrintReceipt();
+      }
+    };
+
+    window.addEventListener('keydown', handleSuccessKeyDown);
+    return () => window.removeEventListener('keydown', handleSuccessKeyDown);
+  }, [activeModal]);
 
   // ─────────────────────────────────────────────────────────────────────────────
 
@@ -304,11 +568,13 @@ export const POSPage: React.FC = () => {
                     <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <Icon name="Package" size="sm" />
                       Productos
+                      <KbdBadge keys="Alt+P" style={{ marginLeft: '4px' }} />
                     </span>
                   ) : (
                     <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <Icon name="Wrench" size="sm" />
                       Servicios
+                      <KbdBadge keys="Alt+S" style={{ marginLeft: '4px' }} />
                     </span>
                   )}
                 </button>
@@ -318,47 +584,73 @@ export const POSPage: React.FC = () => {
             {/* ── Products Tab ───────────────────────────────────────────── */}
             {activeTab === 'products' && (
               <>
-                <TextInput
-                  placeholder="Buscar producto por nombre o SKU..."
-                  value={searchValue}
-                  onChange={(e) => setSearchValue(e.target.value)}
-                />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div style={{ position: 'relative' }}>
+                    <TextInput
+                      id="pos-search-input"
+                      placeholder="Buscar producto por nombre o SKU... (o usa el lector de código de barras)"
+                      value={searchValue}
+                      onChange={(e) => setSearchValue(e.target.value)}
+                    />
+                    <div style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
+                      <KbdBadge keys="Alt+F" />
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11.5px', color: '#475569', background: '#f8fafc', padding: '6px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', width: 'fit-content' }}>
+                    <Icon name="Keyboard" size="xs" style={{ color: '#2563eb' }} />
+                    <span>Navega con <KbdBadge keys="↑ ↓ ← →" /> y presiona <KbdBadge keys="Enter ↵" /> para agregar al carrito</span>
+                  </div>
+                </div>
                 <div style={{ flex: 1, background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', padding: '20px', overflowY: 'auto' }}>
                   {searchResults.length > 0 ? (
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: '16px' }}>
-                      {searchResults.map((product: Product) => (
-                        <div
-                          key={product.id}
-                          style={{
-                            border: '1px solid #e2e8f0', borderRadius: '12px', padding: '16px',
-                            display: 'flex', flexDirection: 'column', gap: '10px',
-                            transition: 'box-shadow 0.15s', cursor: 'default',
-                          }}
-                        >
-                          <div>
-                            <div style={{ fontSize: '13px', fontWeight: '700', color: '#0f172a', lineHeight: 1.3 }}>{product.name}</div>
-                            <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '2px' }}>SKU: {product.sku}</div>
-                          </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      {searchResults.map((product: Product, idx: number) => {
+                        const isSelected = idx === selectedIndex;
+                        return (
+                          <div
+                            key={product.id}
+                            ref={isSelected ? highlightedCardRef : null}
+                            onClick={() => setSelectedIndex(idx)}
+                            style={{
+                              border: isSelected ? '2px solid #2563eb' : '1px solid #e2e8f0',
+                              borderRadius: '12px', padding: '16px',
+                              display: 'flex', flexDirection: 'column', gap: '10px',
+                              boxShadow: isSelected ? '0 0 0 3px rgba(37, 99, 235, 0.2), 0 4px 12px rgba(0,0,0,0.05)' : 'none',
+                              background: isSelected ? '#f0f7ff' : 'white',
+                              transition: 'all 0.15s ease-in-out', cursor: 'pointer',
+                              position: 'relative',
+                            }}
+                          >
+                            {isSelected && (
+                              <div style={{ position: 'absolute', top: '-10px', right: '10px', zIndex: 1 }}>
+                                <KbdBadge keys="Enter ↵" style={{ background: '#2563eb', color: 'white', border: 'none', boxShadow: '0 2px 4px rgba(0,0,0,0.15)' }} />
+                              </div>
+                            )}
                             <div>
-                              <div style={{ fontSize: '17px', fontWeight: '700', color: '#2563eb' }}>
-                                ${product.sellingPrice.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
-                              </div>
-                              <div style={{ fontSize: '11px', color: product.stock <= product.minStock ? '#ef4444' : '#94a3b8' }}>
-                                Stock: {product.stock}
-                              </div>
+                              <div style={{ fontSize: '13px', fontWeight: '700', color: '#0f172a', lineHeight: 1.3 }}>{product.name}</div>
+                              <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '2px' }}>SKU: {product.sku}</div>
                             </div>
-                            <PrimaryButton size="sm" onClick={() => { addProductToCart(product, 1); setSearchValue(''); }}>
-                              <Icon name="Plus" size="sm" />
-                            </PrimaryButton>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto' }}>
+                              <div>
+                                <div style={{ fontSize: '17px', fontWeight: '700', color: '#2563eb' }}>
+                                  ${product.sellingPrice.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                                </div>
+                                <div style={{ fontSize: '11px', color: product.stock <= product.minStock ? '#ef4444' : '#94a3b8' }}>
+                                  Stock: {product.stock}
+                                </div>
+                              </div>
+                              <PrimaryButton size="sm" onClick={(e) => { e.stopPropagation(); addProductToCart(product, 1); setSearchValue(''); }}>
+                                <Icon name="Plus" size="sm" />
+                              </PrimaryButton>
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   ) : (
                     <div style={{ height: '100%', minHeight: '200px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#94a3b8' }}>
                       <Icon name="Search" size="lg" className="mb-3" />
-                      <p style={{ fontSize: '14px' }}>Busca un producto por nombre o SKU</p>
+                      <p style={{ fontSize: '14px' }}>No se encontraron productos</p>
                     </div>
                   )}
                 </div>
@@ -368,11 +660,34 @@ export const POSPage: React.FC = () => {
             {/* ── Services Tab ───────────────────────────────────────────── */}
             {activeTab === 'services' && (
               <>
-                <TextInput
-                  placeholder="Buscar servicio por nombre..."
-                  value={serviceSearchValue}
-                  onChange={(e) => setServiceSearchValue(e.target.value)}
-                />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                    <div style={{ flex: 1, position: 'relative' }}>
+                      <TextInput
+                        id="pos-search-input"
+                        placeholder="Buscar servicio por nombre..."
+                        value={serviceSearchValue}
+                        onChange={(e) => setServiceSearchValue(e.target.value)}
+                      />
+                      <div style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
+                        <KbdBadge keys="Alt+F" />
+                      </div>
+                    </div>
+                    <PrimaryButton
+                      onClick={() => setIsTempServiceModalOpen(true)}
+                      style={{ background: '#f59e0b', borderColor: '#f59e0b', whiteSpace: 'nowrap' }}
+                    >
+                      <Icon name="Plus" size="sm" className="mr-1" />
+                      Servicio
+                      <KbdBadge keys="Alt+T" style={{ marginLeft: '6px' }} />
+                    </PrimaryButton>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11.5px', color: '#475569', background: '#f8fafc', padding: '6px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', width: 'fit-content' }}>
+                    <Icon name="Keyboard" size="xs" style={{ color: '#f59e0b' }} />
+                    <span>Navega con <KbdBadge keys="↑ ↓ ← →" /> y presiona <KbdBadge keys="Enter ↵" /> para agregar al carrito</span>
+                  </div>
+                </div>
+
                 <div style={{ flex: 1, background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', padding: '20px', overflowY: 'auto' }}>
                   {loadingServices ? (
                     <div style={{ display: 'flex', justifyContent: 'center', padding: '60px', color: '#94a3b8' }}>
@@ -380,66 +695,79 @@ export const POSPage: React.FC = () => {
                     </div>
                   ) : serviceResults.length > 0 ? (
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '16px' }}>
-                      {serviceResults.map((service) => (
-                        <div
-                          key={service.id}
-                          style={{
-                            border: '1.5px solid #e2e8f0', borderRadius: '12px', padding: '16px',
-                            display: 'flex', flexDirection: 'column', gap: '10px', height: '100%',
-                            background: 'white', transition: 'border-color 0.15s, box-shadow 0.15s',
-                          }}
-                        >
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                            <div style={{ flex: 1 }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
-                                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#f59e0b', flexShrink: 0 }} />
-                                <span style={{ fontSize: '13px', fontWeight: '700', color: '#0f172a' }}>{service.name}</span>
+                      {serviceResults.map((service, idx: number) => {
+                        const isSelected = idx === selectedIndex;
+                        return (
+                          <div
+                            key={service.id}
+                            ref={isSelected ? highlightedCardRef : null}
+                            onClick={() => setSelectedIndex(idx)}
+                            style={{
+                              border: isSelected ? '2px solid #f59e0b' : '1.5px solid #e2e8f0', borderRadius: '12px', padding: '16px',
+                              display: 'flex', flexDirection: 'column', gap: '10px', height: '100%',
+                              boxShadow: isSelected ? '0 0 0 3px rgba(245, 158, 11, 0.25), 0 4px 12px rgba(0,0,0,0.05)' : 'none',
+                              background: isSelected ? '#fffdf5' : 'white',
+                              transition: 'all 0.15s ease-in-out', cursor: 'pointer',
+                              position: 'relative',
+                            }}
+                          >
+                            {isSelected && (
+                              <div style={{ position: 'absolute', top: '-10px', right: '10px', zIndex: 1 }}>
+                                <KbdBadge keys="Enter ↵" style={{ background: '#f59e0b', color: 'white', border: 'none', boxShadow: '0 2px 4px rgba(0,0,0,0.15)' }} />
                               </div>
-                              {service.description && (
-                                <p style={{ fontSize: '11px', color: '#64748b', margin: '2px 0 0', lineHeight: 1.4 }}>{service.description}</p>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* Supplies list */}
-                          {service.supplies.length > 0 && (
-                            <div style={{ background: '#f8fafc', borderRadius: '8px', padding: '8px 10px' }}>
-                              <div style={{ fontSize: '10px', fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>
-                                Insumos incluidos
-                              </div>
-                              {service.supplies.map((s, idx) => (
-                                <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#475569', marginBottom: '2px' }}>
-                                  <span>• {s.product.name}</span>
-                                  <span style={{ fontWeight: '600', color: '#0f172a' }}>×{s.quantity}</span>
+                            )}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                              <div style={{ flex: 1 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
+                                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#f59e0b', flexShrink: 0 }} />
+                                  <span style={{ fontSize: '13px', fontWeight: '700', color: '#0f172a' }}>{service.name}</span>
                                 </div>
-                              ))}
-                            </div>
-                          )}
-
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto', paddingTop: '8px' }}>
-                            <div>
-                              <div style={{ fontSize: '18px', fontWeight: '700', color: '#f59e0b' }}>
-                                ${service.basePrice.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                                {service.description && (
+                                  <p style={{ fontSize: '11px', color: '#64748b', margin: '2px 0 0', lineHeight: 1.4 }}>{service.description}</p>
+                                )}
                               </div>
-                              <div style={{ fontSize: '10px', color: '#94a3b8' }}>Precio editable en carrito</div>
                             </div>
-                            <PrimaryButton
-                              size="sm"
-                              style={{ background: '#f59e0b', borderColor: '#f59e0b' }}
-                              onClick={() => { addServiceToCart(service); }}
-                            >
-                              <Icon name="Plus" size="sm" />
-                              Agregar
-                            </PrimaryButton>
+
+                            {/* Supplies list */}
+                            {service.supplies.length > 0 && (
+                              <div style={{ background: '#f8fafc', borderRadius: '8px', padding: '8px 10px' }}>
+                                <div style={{ fontSize: '10px', fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>
+                                  Insumos incluidos
+                                </div>
+                                {service.supplies.map((s: any, sIdx: number) => (
+                                  <div key={sIdx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#475569', marginBottom: '2px' }}>
+                                    <span>• {s.product.name}</span>
+                                    <span style={{ fontWeight: '600', color: '#0f172a' }}>×{s.quantity}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto', paddingTop: '8px' }}>
+                              <div>
+                                <div style={{ fontSize: '18px', fontWeight: '700', color: '#f59e0b' }}>
+                                  ${service.basePrice.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                                </div>
+                                <div style={{ fontSize: '10px', color: '#94a3b8' }}>Precio editable en carrito</div>
+                              </div>
+                              <PrimaryButton
+                                size="sm"
+                                style={{ background: '#f59e0b', borderColor: '#f59e0b' }}
+                                onClick={(e) => { e.stopPropagation(); addServiceToCart(service); }}
+                              >
+                                <Icon name="Plus" size="sm" />
+                                Agregar
+                              </PrimaryButton>
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   ) : (
                     <div style={{ minHeight: '200px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#94a3b8' }}>
                       <Icon name="Wrench" size="lg" className="mb-3" />
                       <p style={{ fontSize: '14px' }}>No hay servicios configurados</p>
-                      <p style={{ fontSize: '12px', marginTop: '4px' }}>El administrador puede crear servicios en Inventario → Servicios</p>
+                      <p style={{ fontSize: '12px', marginTop: '4px' }}>Usa el botón "Servicio Temporal" arriba para crear uno al vuelo</p>
                     </div>
                   )}
                 </div>
@@ -464,8 +792,9 @@ export const POSPage: React.FC = () => {
                 )}
               </div>
               {cart.length > 0 && (
-                <button onClick={() => { clearCart(); setSearchValue(''); }} style={{ fontSize: '12px', color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', fontWeight: '600' }}>
+                <button onClick={() => { clearCart(); setSearchValue(''); }} style={{ fontSize: '12px', color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '4px' }}>
                   Vaciar
+                  <KbdBadge keys="Alt+V" />
                 </button>
               )}
             </div>
@@ -482,7 +811,7 @@ export const POSPage: React.FC = () => {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                   {cart.filter(item => !item.parentCartId).map(item => {
                     const childItems = cart.filter(child => child.parentCartId === item.cartId);
-                    
+
                     const renderItemRow = (cartItem: typeof cart[0]) => (
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
                         <div style={{ flex: 1, minWidth: 0 }}>
@@ -610,7 +939,7 @@ export const POSPage: React.FC = () => {
                 <SecondaryButton
                   className="flex-1 justify-center"
                   disabled={cart.length === 0}
-                  onClick={() => window.print()}
+                  onClick={handlePrintQuotation}
                 >
                   <Icon name="Printer" size="sm" className="mr-2" />
                   Cotización
@@ -624,104 +953,38 @@ export const POSPage: React.FC = () => {
               >
                 <Icon name="CreditCard" size="sm" className="mr-2" />
                 Cobrar ${total.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                <KbdBadge keys="Alt+C" style={{ marginLeft: '8px' }} />
               </PrimaryButton>
             </div>
           </aside>
         </div>
       </div>
 
-      {/* ── Print Layout ─────────────────────────────────────────────────────── */}
-      <div className="hidden print:block p-8 bg-white text-black">
-        <div className="text-center mb-8 border-b pb-4">
-          <h1 className="text-2xl font-bold">Moto Servicio Nova FV</h1>
-          <p className="text-gray-600">Cotización</p>
-          <p className="text-sm text-gray-500 mt-2">
-            Fecha: {new Date().toLocaleDateString('es-MX')} {new Date().toLocaleTimeString('es-MX')}
-          </p>
-          <p className="text-sm text-gray-500 font-medium">Sucursal: {activeBranchName}</p>
-        </div>
+      {/* ── Printable Thermal Receipt Ticket ──────────────────────────────────── */}
+      <TicketReceipt sale={lastCompletedSale} branchName={activeBranchName} sellerName={user?.name} />
 
-        <table className="w-full text-left mb-8 border-collapse">
-          <thead>
-            <tr className="border-b-2 border-black">
-              <th className="py-2">Cant.</th>
-              <th className="py-2">Descripción</th>
-              <th className="py-2 text-right">P. Unitario</th>
-              <th className="py-2 text-right">Importe</th>
-            </tr>
-          </thead>
-          <tbody>
-            {cart.filter(item => !item.parentCartId).map((item) => {
-              const childItems = cart.filter(child => child.parentCartId === item.cartId);
+      {/* ── Printable Quotation Document ──────────────────────────────────────── */}
+      <QuotationReceipt
+        items={cart}
+        subtotal={subtotal}
+        tax={tax}
+        total={total}
+        applyTax={applyTax}
+        isFullDiscount={isFullDiscount}
+        branchName={activeBranchName}
+        sellerName={user?.name}
+      />
 
-              const renderPrintRow = (cartItem: typeof cart[0], isChild: boolean) => (
-                <tr key={cartItem.cartId} className={isChild ? "bg-slate-50 border-b border-gray-100" : "border-b border-gray-200"}>
-                  <td className={`py-2 ${isChild ? 'pl-6 text-slate-500 text-sm' : ''}`}>{cartItem.quantity}</td>
-                  <td className={`py-2 ${isChild ? 'pl-6' : ''}`}>
-                    <div className={isChild ? "text-slate-700 text-sm" : "font-medium"}>{cartItem.name}</div>
-                    {cartItem.sku && <div className="text-xs text-gray-500 mt-1">SKU: {cartItem.sku}</div>}
-                    {cartItem.type === 'service' && (
-                      <div className="mt-1">
-                        <span className="text-xs text-amber-600 font-semibold border border-amber-200 bg-amber-50 px-1 py-0.5 rounded">Servicio de taller</span>
-                      </div>
-                    )}
-                    {cartItem.parentCartId && (
-                      <div className="mt-1">
-                        <span className="text-[10px] text-blue-600 font-semibold border border-blue-200 bg-blue-50 px-1 py-0.5 rounded">Insumo</span>
-                      </div>
-                    )}
-                  </td>
-                  <td className={`py-2 text-right ${isChild ? 'text-slate-600 text-sm' : ''}`}>${cartItem.unitPrice.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</td>
-                  <td className={`py-2 text-right ${isChild ? 'text-slate-600 text-sm' : ''}`}>${cartItem.subtotal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</td>
-                </tr>
-              );
-
-              return (
-                <React.Fragment key={item.cartId}>
-                  {renderPrintRow(item, false)}
-                  {childItems.map(child => renderPrintRow(child, true))}
-                </React.Fragment>
-              );
-            })}
-          </tbody>
-        </table>
-
-        <div className="w-64 ml-auto">
-          <div className="flex justify-between py-1 text-gray-600">
-            <span>Subtotal:</span>
-            <span>${subtotal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
-          </div>
-          {isFullDiscount ? (
-            <>
-              <div className="flex justify-between py-1 text-green-600 font-medium">
-                <span>Descuento (100%):</span>
-                <span>-${subtotal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
-              </div>
-              <div className="flex justify-between py-1 text-gray-600 border-b border-black">
-                <span>IVA (0%):</span>
-                <span>$0.00</span>
-              </div>
-            </>
-          ) : (
-            <div className="flex justify-between py-1 text-gray-600 border-b border-black">
-              <span>IVA {applyTax ? '(16%):' : '(No aplicable):'}:</span>
-              <span>${tax.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
-            </div>
-          )}
-          <div className="flex justify-between py-2 text-xl font-bold">
-            <span>Total:</span>
-            <span>${total.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
-          </div>
-        </div>
-
-        <div className="mt-16 text-center text-gray-500 text-sm">
-          <p>Esta cotización tiene una vigencia de 15 días a partir de su fecha de expedición.</p>
-          <p>Gracias por su preferencia.</p>
-        </div>
-      </div>
+      {/* ── Temporary Service Modal ────────────────────────────────────────────── */}
+      <TemporaryServiceModal
+        isOpen={isTempServiceModalOpen}
+        onClose={() => setIsTempServiceModalOpen(false)}
+        availableProducts={allProductsForSupplies}
+        onAddService={(name, price, supplies) => addTemporaryServiceToCart(name, price, supplies)}
+      />
 
       {/* ── Payment Modal ─────────────────────────────────────────────────────── */}
-      <Modal isOpen={activeModal === 'checkout'} onClose={() => setActiveModal(null)} title="Confirmar Venta">
+      <Modal isOpen={activeModal === 'checkout'} onClose={() => setActiveModal(null)} onConfirm={handleCheckout} title="Confirmar Venta">
         <div style={{ marginBottom: '8px' }}>
           <p style={{ fontSize: '13px', color: '#64748b', marginBottom: '12px' }}>
             Total: <strong style={{ color: '#0f172a' }}>${total.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</strong>
@@ -729,29 +992,37 @@ export const POSPage: React.FC = () => {
           <p style={{ fontSize: '13px', fontWeight: '600', color: '#0f172a', marginBottom: '10px' }}>Método de pago</p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '28px' }}>
             {[
-              { value: 'cash', icon: 'DollarSign', label: 'Efectivo' },
-              { value: 'card', icon: 'CreditCard', label: 'Tarjeta (Terminal MP)' },
-              { value: 'transfer', icon: 'Smartphone', label: 'Transferencia' },
-            ].map(({ value, icon, label }) => (
+              { value: 'cash', icon: 'DollarSign', label: 'Efectivo', key: '1' },
+              { value: 'card', icon: 'CreditCard', label: 'Tarjeta (Terminal MP)', key: '2' },
+              { value: 'transfer', icon: 'Smartphone', label: 'Transferencia', key: '3' },
+            ].map(({ value, icon, label, key }) => (
               <button
                 key={value}
+                type="button"
                 onClick={() => setPaymentMethod(value as any)}
                 style={{
                   padding: '14px 16px', borderRadius: '10px',
                   border: paymentMethod === value ? '2px solid #2563eb' : '1.5px solid #e2e8f0',
                   background: paymentMethod === value ? '#eff6ff' : 'white',
-                  display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer',
                 }}
               >
-                <Icon name={icon as any} className={paymentMethod === value ? 'text-primary' : 'text-[#64748b]'} />
-                <span style={{ fontWeight: '600', fontSize: '15px', color: paymentMethod === value ? '#2563eb' : '#0f172a' }}>{label}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <Icon name={icon as any} className={paymentMethod === value ? 'text-primary' : 'text-[#64748b]'} />
+                  <span style={{ fontWeight: '600', fontSize: '15px', color: paymentMethod === value ? '#2563eb' : '#0f172a' }}>{label}</span>
+                </div>
+                <KbdBadge keys={key} />
               </button>
             ))}
           </div>
         </div>
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-          <SecondaryButton onClick={() => setActiveModal(null)} disabled={processing}>Cancelar</SecondaryButton>
-          <PrimaryButton onClick={handleCheckout} loading={processing}>Confirmar y Cobrar</PrimaryButton>
+          <SecondaryButton onClick={() => setActiveModal(null)} disabled={processing}>
+            Cancelar <KbdBadge keys="Esc" style={{ marginLeft: '6px' }} />
+          </SecondaryButton>
+          <PrimaryButton onClick={handleCheckout} loading={processing}>
+            Confirmar y Cobrar <KbdBadge keys="Enter ↵" style={{ marginLeft: '6px' }} />
+          </PrimaryButton>
         </div>
       </Modal>
 
@@ -766,18 +1037,24 @@ export const POSPage: React.FC = () => {
       {/* Success modal */}
       {activeModal === 'checkoutSuccess' && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }}>
-          <div style={{ background: 'white', padding: '40px', borderRadius: '16px', width: '400px', maxWidth: '90vw', textAlign: 'center' }}>
+          <div style={{ background: 'white', padding: '40px', borderRadius: '16px', width: '420px', maxWidth: '90vw', textAlign: 'center' }}>
             <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: '#dcfce7', color: '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
               <Icon name="Check" size="lg" />
             </div>
             <h2 style={{ fontSize: '22px', fontWeight: '700', marginBottom: '8px', color: '#0f172a' }}>¡Venta Registrada!</h2>
             <p style={{ fontSize: '14px', color: '#64748b', marginBottom: '8px' }}>El cobro se ha procesado correctamente.</p>
-            <p style={{ fontSize: '13px', color: '#94a3b8', marginBottom: '28px' }}>
+            <p style={{ fontSize: '13px', color: '#94a3b8', marginBottom: '24px' }}>
               Los insumos han sido descontados del inventario de <strong>{activeBranchName}</strong>.
             </p>
-            <PrimaryButton className="w-full justify-center" onClick={handleCloseSuccess}>
-              Nueva Venta
-            </PrimaryButton>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <SecondaryButton className="flex-1 justify-center" onClick={handlePrintReceipt}>
+                <Icon name="Printer" size="sm" className="mr-2" />
+                Imprimir Ticket <KbdBadge keys="P" style={{ marginLeft: '6px' }} />
+              </SecondaryButton>
+              <PrimaryButton className="flex-1 justify-center" onClick={handleCloseSuccess}>
+                Nueva Venta <KbdBadge keys="Enter ↵" style={{ marginLeft: '6px' }} />
+              </PrimaryButton>
+            </div>
           </div>
         </div>
       )}

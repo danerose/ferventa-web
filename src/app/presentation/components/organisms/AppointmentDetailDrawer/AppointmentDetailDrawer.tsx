@@ -576,9 +576,9 @@ export const AppointmentDetailDrawer: React.FC<AppointmentDetailDrawerProps> = (
       </aside>
 
       {/* Print Layout for Appointment Voucher */}
-      <div className="hidden print:block fixed inset-0 bg-white z-[9999] p-8 text-black font-sans min-h-screen">
+      <div className="printable-document hidden print:block fixed inset-0 bg-white z-[9999] p-8 text-black font-sans min-h-screen">
         <div className="text-center mb-8 border-b pb-4">
-          <h1 className="text-2xl font-bold">Moto servicio Nova FV</h1>
+          <h1 className="text-2xl font-bold">FERVENTA - AUTOPARTES Y TALLER</h1>
           <p className="text-gray-600">Comprobante de Cita</p>
           <p className="text-sm text-gray-500 mt-2">Folio: {appt.id.slice(-6).toUpperCase()}</p>
           {appt.branchName && <p className="text-sm text-gray-500 font-medium">Sucursal: {appt.branchName}</p>}

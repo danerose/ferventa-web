@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Icon, Sidebar, PrimaryButton, SecondaryButton, TextInput, SearchableSelect, Modal } from '../components';
+import { Icon, Sidebar, PrimaryButton, SecondaryButton, TextInput, SearchableSelect, Modal, KbdBadge } from '../components';
 import { useAuthStore } from '../../../core/stores/useAuthStore';
 import { useInventoryStore } from '../../../core/stores/useInventoryStore';
+import { useBarcodeScanner } from '../../../core/hooks/useBarcodeScanner';
 import { APIAdminRepository } from '../../data/repositories/APIAdminRepository';
 import { APIClientPortalRepository } from '../../data/repositories/APIClientPortalRepository';
 import type { CreateProductDto, CreateProviderDto, Product, Provider } from '../../domain/entities/InventoryEntities';
@@ -60,7 +61,13 @@ export const InventoryPage: React.FC = () => {
     setCategories,
     setLoading,
     activeModal,
-    setActiveModal
+    setActiveModal,
+    page,
+    limit,
+    total,
+    totalPages,
+    setPage,
+    setPagination,
   } = useInventoryStore();
 
   const [productForm, setProductForm] = useState<CreateProductDto>({
@@ -371,30 +378,48 @@ export const InventoryPage: React.FC = () => {
     setServiceForm(prev => ({ ...prev, supplies: prev.supplies.map(s => s.productId === productId ? { ...s, quantity: Math.max(1, qty) } : s) }));
   };
 
+  // ── Fetch paginated data from server per active tab ───────────────────────
   useEffect(() => {
     const fetchData = async () => {
       if (!accessToken) return;
       setLoading(true);
       try {
-        if (activeTab === 'inventory' || activeTab === 'categories' || activeTab === 'brands') {
-          const [productsData, brandsData, categoriesData, providersData] = await Promise.all([
-            inventoryRepo.getProducts(accessToken, { search: searchValue }),
-            inventoryRepo.getBrands(accessToken),
-            inventoryRepo.getCategories(accessToken),
-            inventoryRepo.getProviders(accessToken)
-          ]);
-          setProducts(productsData);
-          setBrands(brandsData);
-          setCategories(categoriesData);
-          setProviders(providersData);
+        if (activeTab === 'inventory') {
+          const res = await inventoryRepo.getProductsPaginated(accessToken, { search: searchValue, page, limit: 50 });
+          setProducts(res.items);
+          setPagination({ page: res.page, limit: res.limit, total: res.total, totalPages: res.totalPages });
+
+          // Also load ancillary options for dropdown forms if empty
+          if (brands.length === 0 || categories.length === 0) {
+            const [b, c] = await Promise.all([
+              inventoryRepo.getBrands(accessToken),
+              inventoryRepo.getCategories(accessToken),
+            ]);
+            setBrands(b);
+            setCategories(c);
+          }
+        } else if (activeTab === 'brands') {
+          const res = await inventoryRepo.getBrandsPaginated(accessToken, { search: searchValue, page, limit: 50 });
+          setBrands(res.items);
+          setPagination({ page: res.page, limit: res.limit, total: res.total, totalPages: res.totalPages });
+        } else if (activeTab === 'categories') {
+          const res = await inventoryRepo.getCategoriesPaginated(accessToken, { search: searchValue, page, limit: 50 });
+          setCategories(res.items);
+          setPagination({ page: res.page, limit: res.limit, total: res.total, totalPages: res.totalPages });
+        } else if (activeTab === 'providers') {
+          const res = await inventoryRepo.getProvidersPaginated(accessToken, { search: searchValue, page, limit: 50 });
+          setProviders(res.items);
+          setPagination({ page: res.page, limit: res.limit, total: res.total, totalPages: res.totalPages });
         } else if (activeTab === 'services') {
-          await loadServices();
-          // Also load products for the supply picker
-          const productsData = await inventoryRepo.getProducts(accessToken, {});
-          setProducts(productsData);
-        } else {
-          const data = await inventoryRepo.getProviders(accessToken, searchValue);
-          setProviders(data);
+          const res = await servicesRepo.getServicesPaginated(accessToken, { search: searchValue, page, limit: 50 });
+          setServices(res.items);
+          setPagination({ page: res.page, limit: res.limit, total: res.total, totalPages: res.totalPages });
+
+          // Load products for supply selector if empty
+          if (products.length === 0) {
+            const prods = await inventoryRepo.getProducts(accessToken, {});
+            setProducts(prods);
+          }
         }
       } catch (err: any) {
         if (err.message === 'UNAUTHORIZED') handleUnauthorized();
@@ -405,7 +430,78 @@ export const InventoryPage: React.FC = () => {
     };
     fetchData();
     // eslint-disable-next-line
-  }, [activeTab, searchValue, accessToken]);
+  }, [activeTab, searchValue, page, accessToken]);
+
+  // ── Barcode Scanner for Stock Adjustment / Ingreso de Mercancía ─────────────
+  useBarcodeScanner({
+    onScan: async (barcode) => {
+      if (!accessToken || activeModal !== 'addMovement') return;
+      try {
+        const prod = await inventoryRepo.getProductBySku(accessToken, barcode);
+        if (prod) {
+          setMovementForm(prev => ({ ...prev, productId: prod.id }));
+        } else {
+          alert(`No se encontró producto con SKU: ${barcode}`);
+        }
+      } catch (e) {}
+    },
+    enabled: activeModal === 'addMovement',
+  });
+
+  // ── Keyboard Shortcuts ──────────────────────────────────────────────────
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Alt+1 / F1 -> Inventario
+      if ((e.altKey && e.key === '1') || e.key === 'F1') {
+        e.preventDefault();
+        setActiveTab('inventory');
+      }
+      // Alt+2 / F2 -> Categorías
+      else if ((e.altKey && e.key === '2') || e.key === 'F2') {
+        e.preventDefault();
+        setActiveTab('categories');
+      }
+      // Alt+3 / F3 -> Marcas
+      else if ((e.altKey && e.key === '3') || e.key === 'F3') {
+        e.preventDefault();
+        setActiveTab('brands');
+      }
+      // Alt+4 / F4 -> Proveedores
+      else if ((e.altKey && e.key === '4') || e.key === 'F4') {
+        e.preventDefault();
+        setActiveTab('providers');
+      }
+      // Alt+5 / F5 -> Servicios
+      else if ((e.altKey && e.key === '5') || e.key === 'F5') {
+        e.preventDefault();
+        setActiveTab('services');
+      }
+      // Alt+F or F6 -> Focus Search Input
+      else if ((e.altKey && (e.key === 'f' || e.key === 'F')) || e.key === 'F6') {
+        e.preventDefault();
+        document.querySelector<HTMLInputElement>('#inventory-search-input')?.focus();
+      }
+      // Alt+N -> New Item modal
+      else if (e.altKey && (e.key === 'n' || e.key === 'N')) {
+        e.preventDefault();
+        if (activeTab === 'inventory') setActiveModal('addProduct');
+        else if (activeTab === 'providers') setActiveModal('addProvider');
+        else if (activeTab === 'services') {
+          setEditingServiceId(null);
+          setServiceForm({ name: '', description: '', basePrice: 0, isActive: true, supplies: [] });
+          setActiveModal('addService');
+        }
+      }
+      // Alt+M -> Ingreso de Mercancía modal
+      else if (e.altKey && (e.key === 'm' || e.key === 'M')) {
+        e.preventDefault();
+        setActiveModal('addMovement');
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [activeTab, setActiveTab, setActiveModal]);
 
   return (
     <div style={{ background: '#f8f9ff', minHeight: '100vh', fontFamily: 'Inter, system-ui, sans-serif' }}>
@@ -424,6 +520,7 @@ export const InventoryPage: React.FC = () => {
                 <PrimaryButton onClick={() => setActiveModal('addMovement')} style={{ background: '#16a34a', borderColor: '#16a34a' }}>
                   <Icon name="Plus" size="sm" className="mr-2" />
                   Ingreso de Mercancía
+                  <KbdBadge keys="Alt+M" style={{ marginLeft: '6px' }} />
                 </PrimaryButton>
                 <SecondaryButton onClick={() => setActiveModal('addProductBatch')}>
                   <Icon name="UploadCloud" size="sm" className="mr-2" />
@@ -432,12 +529,14 @@ export const InventoryPage: React.FC = () => {
                 <PrimaryButton onClick={() => setActiveModal('addProduct')}>
                   <Icon name="Plus" size="sm" className="mr-2" />
                   Nuevo Producto
+                  <KbdBadge keys="Alt+N" style={{ marginLeft: '6px' }} />
                 </PrimaryButton>
               </>
             ) : activeTab === 'providers' ? (
               <PrimaryButton onClick={() => setActiveModal('addProvider')}>
                 <Icon name="Plus" size="sm" className="mr-2" />
                 Nuevo Proveedor
+                <KbdBadge keys="Alt+N" style={{ marginLeft: '6px' }} />
               </PrimaryButton>
             ) : activeTab === 'services' ? (
               <PrimaryButton
@@ -446,6 +545,7 @@ export const InventoryPage: React.FC = () => {
               >
                 <Icon name="Plus" size="sm" className="mr-2" />
                 Nuevo Servicio
+                <KbdBadge keys="Alt+N" style={{ marginLeft: '6px' }} />
               </PrimaryButton>
             ) : null}
           </div>
@@ -456,27 +556,32 @@ export const InventoryPage: React.FC = () => {
           {/* Tabs & Search */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
             <div style={{ display: 'flex', gap: '8px', background: 'white', padding: '4px', borderRadius: '8px', border: '1px solid #e2e8f0', flexWrap: 'wrap' }}>
-              {['inventory', 'categories', 'brands', 'providers', 'services'].map(tab => (
+              {[
+                { id: 'inventory', label: 'Inventario', key: 'Alt+1' },
+                { id: 'categories', label: 'Categorías', key: 'Alt+2' },
+                { id: 'brands', label: 'Marcas', key: 'Alt+3' },
+                { id: 'providers', label: 'Proveedores', key: 'Alt+4' },
+                { id: 'services', label: 'Servicios', key: 'Alt+5' },
+              ].map(t => (
                 <button
-                  key={tab}
-                  onClick={() => setActiveTab(tab as any)}
+                  key={t.id}
+                  onClick={() => setActiveTab(t.id as any)}
                   style={{
-                    padding: '8px 16px', borderRadius: '6px', fontWeight: '600', fontSize: '14px', border: 'none', cursor: 'pointer', transition: 'all 0.2s',
-                    background: activeTab === tab ? (tab === 'services' ? '#f59e0b' : '#091426') : 'transparent',
-                    color: activeTab === tab ? 'white' : '#64748b'
+                    padding: '8px 14px', borderRadius: '6px', fontWeight: '600', fontSize: '14px', border: 'none', cursor: 'pointer', transition: 'all 0.2s',
+                    background: activeTab === t.id ? (t.id === 'services' ? '#f59e0b' : '#091426') : 'transparent',
+                    color: activeTab === t.id ? 'white' : '#64748b',
+                    display: 'flex', alignItems: 'center', gap: '6px',
                   }}
                 >
-                  {tab === 'inventory' ? 'Inventario'
-                    : tab === 'categories' ? 'Categorías'
-                      : tab === 'brands' ? 'Marcas'
-                        : tab === 'providers' ? 'Proveedores'
-                          : 'Servicios'}
+                  <span>{t.label}</span>
+                  <KbdBadge keys={t.key} />
                 </button>
               ))}
             </div>
 
-            <div style={{ width: '300px' }}>
+            <div style={{ width: '320px', position: 'relative' }}>
               <TextInput
+                id="inventory-search-input"
                 placeholder={`Buscar ${activeTab === 'inventory' ? 'productos'
                     : activeTab === 'categories' ? 'categorías'
                       : activeTab === 'brands' ? 'marcas'
@@ -486,6 +591,9 @@ export const InventoryPage: React.FC = () => {
                 value={searchValue}
                 onChange={(e) => setSearchValue(e.target.value)}
               />
+              <div style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
+                <KbdBadge keys="Alt+F" />
+              </div>
             </div>
           </div>
 
@@ -708,272 +816,313 @@ export const InventoryPage: React.FC = () => {
                 </table>
               )
             )}
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 20px', borderTop: '1px solid #e2e8f0', background: '#f8fafc' }}>
+                <div style={{ fontSize: '13px', color: '#64748b' }}>
+                  Página <strong>{page}</strong> de <strong>{totalPages}</strong> (Total: <strong>{total}</strong> ítems)
+                </div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <SecondaryButton size="sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>
+                    <Icon name="ChevronLeft" size="sm" className="mr-1" />
+                    Anterior
+                  </SecondaryButton>
+                  <SecondaryButton size="sm" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>
+                    Siguiente
+                    <Icon name="ChevronRight" size="sm" className="ml-1" />
+                  </SecondaryButton>
+                </div>
+              </div>
+            )}
           </div>
         </main>
       </div>
 
-      {/* Basic Modal for Add Product */}
-      {activeModal === 'addProduct' && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }}>
-          <div style={{ background: 'white', padding: '32px', borderRadius: '16px', width: '600px', maxWidth: '90vw', maxHeight: '90vh', overflowY: 'auto' }}>
-            <h2 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '24px' }}>
-              {editingProductId ? 'Editar Producto' : 'Agregar Producto'}
-            </h2>
+      {/* Modal for Add Product */}
+      <Modal
+        isOpen={activeModal === 'addProduct'}
+        onClose={() => setActiveModal(null)}
+        onConfirm={handleCreateProduct}
+        title={editingProductId ? 'Editar Producto' : 'Agregar Producto'}
+        maxWidth="600px"
+        footer={
+          <>
+            <SecondaryButton onClick={() => setActiveModal(null)}>
+              Cancelar <KbdBadge keys="Esc" style={{ marginLeft: '6px' }} />
+            </SecondaryButton>
+            <PrimaryButton onClick={handleCreateProduct}>
+              Guardar Producto <KbdBadge keys="Enter ↵" style={{ marginLeft: '6px' }} />
+            </PrimaryButton>
+          </>
+        }
+      >
+        <div style={{ background: '#e0f2fe', color: '#0369a1', padding: '12px', borderRadius: '8px', fontSize: '13px', fontWeight: '500', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Icon name="Info" size="sm" />
+          Registrando en sucursal: {activeBranchName}
+        </div>
 
-            <div style={{ background: '#e0f2fe', color: '#0369a1', padding: '12px', borderRadius: '8px', fontSize: '13px', fontWeight: '500', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Icon name="Info" size="sm" />
-              Registrando en sucursal: {activeBranchName}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div style={{ display: 'flex', gap: '16px' }}>
+            <div style={{ flex: 1 }}>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#0f172a', marginBottom: '8px' }}>SKU / Código</label>
+              <TextInput
+                placeholder="Ej. BAL-001"
+                value={productForm.sku}
+                onChange={e => {
+                  setProductForm({ ...productForm, sku: e.target.value });
+                  if (formErrors.sku) setFormErrors(prev => ({ ...prev, sku: '' }));
+                }}
+                errorMessage={formErrors.sku}
+              />
             </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div style={{ display: 'flex', gap: '16px' }}>
-                <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '8px' }}>SKU / Código</label>
-                  <TextInput
-                    placeholder="Ej. BAL-001"
-                    value={productForm.sku}
-                    onChange={e => {
-                      setProductForm({ ...productForm, sku: e.target.value });
-                      if (formErrors.sku) setFormErrors(prev => ({ ...prev, sku: '' }));
-                    }}
-                    errorMessage={formErrors.sku}
-                  />
-                </div>
-                <div style={{ flex: 2 }}>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '8px' }}>Nombre del producto</label>
-                  <TextInput
-                    placeholder="Ej. Balatas Delanteras de Cerámica"
-                    value={productForm.name}
-                    onChange={e => {
-                      setProductForm({ ...productForm, name: e.target.value });
-                      if (formErrors.name) setFormErrors(prev => ({ ...prev, name: '' }));
-                    }}
-                    errorMessage={formErrors.name}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '8px' }}>Descripción</label>
-                <TextInput
-                  placeholder="Descripción detallada"
-                  value={productForm.description}
-                  onChange={e => setProductForm({ ...productForm, description: e.target.value })}
-                />
-              </div>
-
-              <div style={{ display: 'flex', gap: '16px' }}>
-                <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '8px' }}>Marca</label>
-                  <SearchableSelect
-                    options={brands}
-                    value={productForm.brandId}
-                    onChange={id => setProductForm({ ...productForm, brandId: id })}
-                    onCreateNew={handleCreateBrand}
-                    placeholder="Buscar o crear marca..."
-                    error={!!formErrors.brandId}
-                  />
-                  {formErrors.brandId && <span style={{ color: '#ba1a1a', fontSize: '11px', marginTop: '4px', display: 'block' }}>{formErrors.brandId}</span>}
-                </div>
-                <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '8px' }}>Categoría</label>
-                  <SearchableSelect
-                    options={categories}
-                    value={productForm.categoryId}
-                    onChange={id => setProductForm({ ...productForm, categoryId: id })}
-                    onCreateNew={handleCreateCategory}
-                    placeholder="Buscar o crear categoría..."
-                    error={!!formErrors.categoryId}
-                  />
-                  {formErrors.categoryId && <span style={{ color: '#ba1a1a', fontSize: '11px', marginTop: '4px', display: 'block' }}>{formErrors.categoryId}</span>}
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', gap: '16px' }}>
-                <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '8px' }}>Costo</label>
-                  <TextInput
-                    placeholder="0.00" type="number"
-                    value={productForm.costPrice.toString()}
-                    onChange={e => setProductForm({ ...productForm, costPrice: parseFloat(e.target.value) || 0 })}
-                  />
-                </div>
-                <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '8px' }}>Precio Venta</label>
-                  <TextInput
-                    placeholder="0.00" type="number"
-                    value={productForm.sellingPrice.toString()}
-                    onChange={e => setProductForm({ ...productForm, sellingPrice: parseFloat(e.target.value) || 0 })}
-                  />
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', gap: '16px' }}>
-                <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '8px' }}>Stock</label>
-                  <TextInput
-                    placeholder="0" type="number"
-                    value={productForm.stock.toString()}
-                    onChange={e => setProductForm({ ...productForm, stock: parseInt(e.target.value) || 0 })}
-                  />
-                </div>
-                <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '8px' }}>Stock Mínimo</label>
-                  <TextInput
-                    placeholder="0" type="number"
-                    value={productForm.minStock.toString()}
-                    onChange={e => setProductForm({ ...productForm, minStock: parseInt(e.target.value) || 0 })}
-                  />
-                </div>
-                <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '8px' }}>Unidad</label>
-                  <select
-                    style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none' }}
-                    value={productForm.unit}
-                    onChange={e => setProductForm({ ...productForm, unit: e.target.value })}
-                  >
-                    <option value="piece">Pieza</option>
-                    <option value="kit">Kit</option>
-                    <option value="box">Caja</option>
-                  </select>
-                </div>
-              </div>
-
+            <div style={{ flex: 2 }}>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#0f172a', marginBottom: '8px' }}>Nombre del producto</label>
+              <TextInput
+                placeholder="Ej. Balatas Delanteras de Cerámica"
+                value={productForm.name}
+                onChange={e => {
+                  setProductForm({ ...productForm, name: e.target.value });
+                  if (formErrors.name) setFormErrors(prev => ({ ...prev, name: '' }));
+                }}
+                errorMessage={formErrors.name}
+              />
             </div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '32px' }}>
-              <SecondaryButton onClick={() => setActiveModal(null)}>Cancelar</SecondaryButton>
-              <PrimaryButton onClick={handleCreateProduct}>Guardar Producto</PrimaryButton>
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#0f172a', marginBottom: '8px' }}>Descripción</label>
+            <TextInput
+              placeholder="Descripción detallada"
+              value={productForm.description}
+              onChange={e => setProductForm({ ...productForm, description: e.target.value })}
+            />
+          </div>
+
+          <div style={{ display: 'flex', gap: '16px' }}>
+            <div style={{ flex: 1 }}>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#0f172a', marginBottom: '8px' }}>Marca</label>
+              <SearchableSelect
+                options={brands}
+                value={productForm.brandId}
+                onChange={id => setProductForm({ ...productForm, brandId: id })}
+                onCreateNew={handleCreateBrand}
+                placeholder="Buscar o crear marca..."
+                error={!!formErrors.brandId}
+              />
+              {formErrors.brandId && <span style={{ color: '#ba1a1a', fontSize: '11px', marginTop: '4px', display: 'block' }}>{formErrors.brandId}</span>}
+            </div>
+            <div style={{ flex: 1 }}>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#0f172a', marginBottom: '8px' }}>Categoría</label>
+              <SearchableSelect
+                options={categories}
+                value={productForm.categoryId}
+                onChange={id => setProductForm({ ...productForm, categoryId: id })}
+                onCreateNew={handleCreateCategory}
+                placeholder="Buscar o crear categoría..."
+                error={!!formErrors.categoryId}
+              />
+              {formErrors.categoryId && <span style={{ color: '#ba1a1a', fontSize: '11px', marginTop: '4px', display: 'block' }}>{formErrors.categoryId}</span>}
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: '16px' }}>
+            <div style={{ flex: 1 }}>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#0f172a', marginBottom: '8px' }}>Costo</label>
+              <TextInput
+                placeholder="0.00" type="number"
+                value={productForm.costPrice.toString()}
+                onChange={e => setProductForm({ ...productForm, costPrice: parseFloat(e.target.value) || 0 })}
+              />
+            </div>
+            <div style={{ flex: 1 }}>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#0f172a', marginBottom: '8px' }}>Precio Venta</label>
+              <TextInput
+                placeholder="0.00" type="number"
+                value={productForm.sellingPrice.toString()}
+                onChange={e => setProductForm({ ...productForm, sellingPrice: parseFloat(e.target.value) || 0 })}
+              />
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: '16px' }}>
+            <div style={{ flex: 1 }}>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#0f172a', marginBottom: '8px' }}>Stock</label>
+              <TextInput
+                placeholder="0" type="number"
+                value={productForm.stock.toString()}
+                onChange={e => setProductForm({ ...productForm, stock: parseInt(e.target.value) || 0 })}
+              />
+            </div>
+            <div style={{ flex: 1 }}>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#0f172a', marginBottom: '8px' }}>Stock Mínimo</label>
+              <TextInput
+                placeholder="0" type="number"
+                value={productForm.minStock.toString()}
+                onChange={e => setProductForm({ ...productForm, minStock: parseInt(e.target.value) || 0 })}
+              />
+            </div>
+            <div style={{ flex: 1 }}>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#0f172a', marginBottom: '8px' }}>Unidad</label>
+              <select
+                style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', color: '#0f172a', background: 'white' }}
+                value={productForm.unit}
+                onChange={e => setProductForm({ ...productForm, unit: e.target.value })}
+              >
+                <option value="piece">Pieza</option>
+                <option value="kit">Kit</option>
+                <option value="box">Caja</option>
+              </select>
             </div>
           </div>
         </div>
-      )}
+      </Modal>
 
-      {/* Basic Modal for Add Provider */}
-      {activeModal === 'addProvider' && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }}>
-          <div style={{ background: 'white', padding: '32px', borderRadius: '16px', width: '500px', maxWidth: '90vw' }}>
-            <h2 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '24px' }}>
-              {editingProviderId ? 'Editar Proveedor' : 'Agregar Proveedor'}
-            </h2>
+      {/* Modal for Add Provider */}
+      <Modal
+        isOpen={activeModal === 'addProvider'}
+        onClose={() => setActiveModal(null)}
+        onConfirm={handleCreateProvider}
+        title={editingProviderId ? 'Editar Proveedor' : 'Agregar Proveedor'}
+        maxWidth="500px"
+        footer={
+          <>
+            <SecondaryButton onClick={() => setActiveModal(null)}>
+              Cancelar <KbdBadge keys="Esc" style={{ marginLeft: '6px' }} />
+            </SecondaryButton>
+            <PrimaryButton onClick={handleCreateProvider}>
+              Guardar Proveedor <KbdBadge keys="Enter ↵" style={{ marginLeft: '6px' }} />
+            </PrimaryButton>
+          </>
+        }
+      >
+        <div style={{ background: '#e0f2fe', color: '#0369a1', padding: '12px', borderRadius: '8px', fontSize: '13px', fontWeight: '500', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Icon name="Info" size="sm" />
+          Registrando en sucursal: {activeBranchName}
+        </div>
 
-            <div style={{ background: '#e0f2fe', color: '#0369a1', padding: '12px', borderRadius: '8px', fontSize: '13px', fontWeight: '500', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Icon name="Info" size="sm" />
-              Registrando en sucursal: {activeBranchName}
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '8px' }}>Nombre</label>
-                <TextInput
-                  placeholder="Autopartes S.A."
-                  value={providerForm.name}
-                  onChange={e => {
-                    setProviderForm({ ...providerForm, name: e.target.value });
-                    if (formErrors.name) setFormErrors(prev => ({ ...prev, name: '' }));
-                  }}
-                  errorMessage={formErrors.name}
-                />
-              </div>
-              <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '8px' }}>Código de Proveedor</label>
-                <TextInput
-                  placeholder="Ej. PROV-001"
-                  value={providerForm.providerCode}
-                  onChange={e => {
-                    setProviderForm({ ...providerForm, providerCode: e.target.value });
-                    if (formErrors.providerCode) setFormErrors(prev => ({ ...prev, providerCode: '' }));
-                  }}
-                  errorMessage={formErrors.providerCode}
-                />
-              </div>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '32px' }}>
-              <SecondaryButton onClick={() => setActiveModal(null)}>Cancelar</SecondaryButton>
-              <PrimaryButton onClick={handleCreateProvider}>Guardar Proveedor</PrimaryButton>
-            </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div>
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#0f172a', marginBottom: '8px' }}>Nombre</label>
+            <TextInput
+              placeholder="Autopartes S.A."
+              value={providerForm.name}
+              onChange={e => {
+                setProviderForm({ ...providerForm, name: e.target.value });
+                if (formErrors.name) setFormErrors(prev => ({ ...prev, name: '' }));
+              }}
+              errorMessage={formErrors.name}
+            />
+          </div>
+          <div>
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#0f172a', marginBottom: '8px' }}>Código de Proveedor</label>
+            <TextInput
+              placeholder="Ej. PROV-001"
+              value={providerForm.providerCode}
+              onChange={e => {
+                setProviderForm({ ...providerForm, providerCode: e.target.value });
+                if (formErrors.providerCode) setFormErrors(prev => ({ ...prev, providerCode: '' }));
+              }}
+              errorMessage={formErrors.providerCode}
+            />
           </div>
         </div>
-      )}
+      </Modal>
 
-      {/* Basic Modal for Movement */}
-      {activeModal === 'addMovement' && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }}>
-          <div style={{ background: 'white', padding: '32px', borderRadius: '16px', width: '500px', maxWidth: '90vw' }}>
-            <h2 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '24px' }}>Ingreso de Mercancía</h2>
+      {/* Modal for Movement */}
+      <Modal
+        isOpen={activeModal === 'addMovement'}
+        onClose={() => setActiveModal(null)}
+        onConfirm={handleCreateMovement}
+        title="Ingreso de Mercancía"
+        maxWidth="500px"
+        footer={
+          <>
+            <SecondaryButton onClick={() => setActiveModal(null)}>
+              Cancelar <KbdBadge keys="Esc" style={{ marginLeft: '6px' }} />
+            </SecondaryButton>
+            <PrimaryButton onClick={handleCreateMovement}>
+              Registrar Ingreso <KbdBadge keys="Enter ↵" style={{ marginLeft: '6px' }} />
+            </PrimaryButton>
+          </>
+        }
+      >
+        <div style={{ background: '#e0f2fe', color: '#0369a1', padding: '12px', borderRadius: '8px', fontSize: '13px', fontWeight: '500', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Icon name="Info" size="sm" />
+          El stock se añadirá a la sucursal: {activeBranchName}
+        </div>
 
-            <div style={{ background: '#e0f2fe', color: '#0369a1', padding: '12px', borderRadius: '8px', fontSize: '13px', fontWeight: '500', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Icon name="Info" size="sm" />
-              El stock se añadirá a la sucursal: {activeBranchName}
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '8px' }}>Proveedor (Opcional)</label>
-                <SearchableSelect
-                  options={providers}
-                  value={movementForm.providerId}
-                  onChange={id => setMovementForm({ ...movementForm, providerId: id })}
-                  placeholder="Buscar proveedor..."
-                />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div>
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#0f172a', marginBottom: '8px' }}>Proveedor (Opcional)</label>
+            <SearchableSelect
+              options={providers}
+              value={movementForm.providerId}
+              onChange={id => setMovementForm({ ...movementForm, providerId: id })}
+              placeholder="Buscar proveedor..."
+            />
+          </div>
+          <div>
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#0f172a', marginBottom: '8px' }}>Producto</label>
+            <SearchableSelect
+              options={products}
+              value={movementForm.productId}
+              onChange={id => setMovementForm({ ...movementForm, productId: id })}
+              placeholder="Buscar producto por SKU o nombre..."
+              error={!!formErrors.productId}
+            />
+            {formErrors.productId && <span style={{ color: '#ba1a1a', fontSize: '11px', marginTop: '4px', display: 'block' }}>{formErrors.productId}</span>}
+            {movementForm.productId && (
+              <div style={{ marginTop: '8px', fontSize: '12px', color: '#64748b', background: '#f8fafc', padding: '8px', borderRadius: '4px' }}>
+                Stock actual: <span style={{ fontWeight: '700', color: '#0f172a' }}>{products.find(p => p.id === movementForm.productId)?.stock || 0}</span> {products.find(p => p.id === movementForm.productId)?.unit}
               </div>
-              <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '8px' }}>Producto</label>
-                <SearchableSelect
-                  options={products}
-                  value={movementForm.productId}
-                  onChange={id => setMovementForm({ ...movementForm, productId: id })}
-                  placeholder="Buscar producto por SKU o nombre..."
-                  error={!!formErrors.productId}
-                />
-                {formErrors.productId && <span style={{ color: '#ba1a1a', fontSize: '11px', marginTop: '4px', display: 'block' }}>{formErrors.productId}</span>}
-                {movementForm.productId && (
-                  <div style={{ marginTop: '8px', fontSize: '12px', color: '#64748b', background: '#f8fafc', padding: '8px', borderRadius: '4px' }}>
-                    Stock actual: <span style={{ fontWeight: '700', color: '#0f172a' }}>{products.find(p => p.id === movementForm.productId)?.stock || 0}</span> {products.find(p => p.id === movementForm.productId)?.unit}
-                  </div>
-                )}
-              </div>
-              <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '8px' }}>Cantidad a ingresar</label>
-                <TextInput
-                  placeholder="0" type="number"
-                  value={movementForm.quantity.toString()}
-                  onChange={e => setMovementForm({ ...movementForm, quantity: parseInt(e.target.value) || 0 })}
-                  error={!!formErrors.quantity}
-                />
-                {formErrors.quantity && <span style={{ color: '#ba1a1a', fontSize: '11px', marginTop: '4px', display: 'block' }}>{formErrors.quantity}</span>}
-              </div>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '32px' }}>
-              <SecondaryButton onClick={() => setActiveModal(null)}>Cancelar</SecondaryButton>
-              <PrimaryButton onClick={handleCreateMovement}>Registrar Ingreso</PrimaryButton>
-            </div>
+            )}
+          </div>
+          <div>
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#0f172a', marginBottom: '8px' }}>Cantidad a ingresar</label>
+            <TextInput
+              placeholder="0" type="number"
+              value={movementForm.quantity.toString()}
+              onChange={e => setMovementForm({ ...movementForm, quantity: parseInt(e.target.value) || 0 })}
+              error={!!formErrors.quantity}
+            />
+            {formErrors.quantity && <span style={{ color: '#ba1a1a', fontSize: '11px', marginTop: '4px', display: 'block' }}>{formErrors.quantity}</span>}
           </div>
         </div>
-      )}
+      </Modal>
 
-      {/* Basic Modal for Batch Upload */}
-      {activeModal === 'addProductBatch' && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }}>
-          <div style={{ background: 'white', padding: '32px', borderRadius: '16px', width: '600px', maxWidth: '90vw' }}>
-            <h2 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '16px' }}>Registro por Lotes</h2>
-            <p style={{ fontSize: '14px', color: '#64748b', marginBottom: '24px' }}>
-              Sube un archivo CSV con tus productos. Asegúrate de que las columnas coincidan con el formato requerido.
-            </p>
-            <div style={{ border: '2px dashed #cbd5e1', padding: '48px', textAlign: 'center', borderRadius: '12px', background: '#f8fafc', marginBottom: '24px' }}>
-              <Icon name="UploadCloud" size="lg" className="text-[#94a3b8] mx-auto mb-4" />
-              <p style={{ fontSize: '14px', fontWeight: '600', color: '#475569' }}>Haz clic para seleccionar o arrastra el archivo CSV aquí</p>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-              <SecondaryButton onClick={() => setActiveModal(null)}>Cancelar</SecondaryButton>
-              <PrimaryButton onClick={() => setActiveModal(null)}>Subir Archivo</PrimaryButton>
-            </div>
-          </div>
+      {/* Modal for Batch Upload */}
+      <Modal
+        isOpen={activeModal === 'addProductBatch'}
+        onClose={() => setActiveModal(null)}
+        onConfirm={() => setActiveModal(null)}
+        title="Registro por Lotes"
+        maxWidth="600px"
+        footer={
+          <>
+            <SecondaryButton onClick={() => setActiveModal(null)}>
+              Cancelar <KbdBadge keys="Esc" style={{ marginLeft: '6px' }} />
+            </SecondaryButton>
+            <PrimaryButton onClick={() => setActiveModal(null)}>
+              Subir Archivo <KbdBadge keys="Enter ↵" style={{ marginLeft: '6px' }} />
+            </PrimaryButton>
+          </>
+        }
+      >
+        <p style={{ fontSize: '14px', color: '#64748b', marginBottom: '24px' }}>
+          Sube un archivo CSV con tus productos. Asegúrate de que las columnas coincidan con el formato requerido.
+        </p>
+        <div style={{ border: '2px dashed #cbd5e1', padding: '48px', textAlign: 'center', borderRadius: '12px', background: '#f8fafc', marginBottom: '24px' }}>
+          <Icon name="UploadCloud" size="lg" className="text-[#94a3b8] mx-auto mb-4" />
+          <p style={{ fontSize: '14px', fontWeight: '600', color: '#475569' }}>Haz clic para seleccionar o arrastra el archivo CSV aquí</p>
         </div>
-      )}
+      </Modal>
+
       {/* Delete Confirmation Modal */}
       <Modal
         isOpen={Boolean(itemToDelete)}
         onClose={() => setItemToDelete(null)}
+        onConfirm={handleConfirmDelete}
         title={`Eliminar ${itemToDelete?.type === 'category' ? 'Categoría' : 'Marca'}`}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -983,125 +1132,127 @@ export const InventoryPage: React.FC = () => {
           </p>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '16px' }}>
             <SecondaryButton onClick={() => setItemToDelete(null)} disabled={deletingItem}>
-              Cancelar
+              Cancelar <KbdBadge keys="Esc" style={{ marginLeft: '6px' }} />
             </SecondaryButton>
             <PrimaryButton
               onClick={handleConfirmDelete}
               loading={deletingItem}
+              disabled={deletingItem}
               style={{ background: '#ef4444', borderColor: '#ef4444' }}
             >
-              Eliminar
+              Eliminar <KbdBadge keys="Enter ↵" style={{ marginLeft: '6px' }} />
             </PrimaryButton>
           </div>
         </div>
       </Modal>
 
       {/* Add / Edit Service Modal */}
-      {activeModal === 'addService' && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }}>
-          <div style={{ background: 'white', padding: '32px', borderRadius: '16px', width: '620px', maxWidth: '95vw', maxHeight: '90vh', overflowY: 'auto' }}>
-            <h2 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Icon name="Wrench" size="sm" />
-              {editingServiceId ? 'Editar Servicio' : 'Nuevo Servicio del Taller'}
-            </h2>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {/* Name */}
-              <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '8px' }}>Nombre del servicio *</label>
-                <TextInput
-                  placeholder="Ej. 1er Mantenimiento"
-                  value={serviceForm.name}
-                  onChange={e => { setServiceForm(p => ({ ...p, name: e.target.value })); if (serviceFormErrors.name) setServiceFormErrors(p => ({ ...p, name: '' })); }}
-                  errorMessage={serviceFormErrors.name}
-                />
-              </div>
-
-              {/* Description */}
-              <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '8px' }}>Descripción</label>
-                <TextInput
-                  placeholder="Mantenimiento preventivo básico..."
-                  value={serviceForm.description}
-                  onChange={e => setServiceForm(p => ({ ...p, description: e.target.value }))}
-                />
-              </div>
-
-              {/* Base Price */}
-              <div style={{ maxWidth: '200px' }}>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '8px' }}>Precio base de mano de obra ($) *</label>
-                <TextInput
-                  type="number" min="0" step="0.01"
-                  placeholder="450.00"
-                  value={serviceForm.basePrice.toString()}
-                  onChange={e => setServiceForm(p => ({ ...p, basePrice: parseFloat(e.target.value) || 0 }))}
-                  errorMessage={serviceFormErrors.basePrice}
-                />
-                <p style={{ fontSize: '11px', color: '#94a3b8', marginTop: '4px' }}>Este precio puede editarse manualmente en el POS al momento de la venta.</p>
-              </div>
-
-              {/* Supplies */}
-              <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '8px' }}>Insumos del inventario</label>
-                <p style={{ fontSize: '12px', color: '#64748b', marginBottom: '10px' }}>Selecciona los productos que se descuentan del stock al vender este servicio.</p>
-
-                {/* Existing supplies list */}
-                {serviceForm.supplies.length > 0 && (
-                  <div style={{ border: '1px solid #fde68a', borderRadius: '8px', marginBottom: '12px', overflow: 'hidden' }}>
-                    {serviceForm.supplies.map((supply, idx) => {
-                      const prod = products.find(p => p.id === supply.productId);
-                      return (
-                        <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 14px', borderBottom: idx < serviceForm.supplies.length - 1 ? '1px solid #fde68a' : 'none', background: '#fffbeb' }}>
-                          <span style={{ flex: 1, fontSize: '13px', fontWeight: '600', color: '#0f172a' }}>{prod?.name ?? supply.productId}</span>
-                          <span style={{ fontSize: '11px', color: '#94a3b8' }}>SKU: {prod?.sku ?? '-'}</span>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <button onClick={() => updateSupplyQty(supply.productId, supply.quantity - 1)} style={{ width: '24px', height: '24px', borderRadius: '4px', border: '1px solid #fde68a', background: 'white', cursor: 'pointer', fontWeight: '700' }}>−</button>
-                            <span style={{ fontWeight: '700', fontSize: '13px', minWidth: '20px', textAlign: 'center' }}>{supply.quantity}</span>
-                            <button onClick={() => updateSupplyQty(supply.productId, supply.quantity + 1)} style={{ width: '24px', height: '24px', borderRadius: '4px', border: '1px solid #fde68a', background: 'white', cursor: 'pointer', fontWeight: '700' }}>+</button>
-                          </div>
-                          <button onClick={() => removeSupply(supply.productId)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444' }}>
-                            <Icon name="X" size="sm" />
-                          </button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-
-                {/* Add supply picker */}
-                <SearchableSelect
-                  options={products.filter(p => !serviceForm.supplies.find(s => s.productId === p.id))}
-                  value=""
-                  onChange={(id) => { if (id) addSupply(id); }}
-                  placeholder="Agregar insumo del inventario..."
-                />
-              </div>
-
-              {/* Active toggle */}
-              <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', userSelect: 'none' }}>
-                <input
-                  type="checkbox"
-                  checked={serviceForm.isActive}
-                  onChange={e => setServiceForm(p => ({ ...p, isActive: e.target.checked }))}
-                  style={{ width: '16px', height: '16px', accentColor: '#f59e0b' }}
-                />
-                <span style={{ fontSize: '13px', fontWeight: '600', color: '#0f172a' }}>Disponible en el POS</span>
-              </label>
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '28px' }}>
-              <SecondaryButton onClick={() => setActiveModal(null)}>Cancelar</SecondaryButton>
-              <PrimaryButton
-                onClick={handleSaveService}
-                loading={serviceLoading}
-                style={{ background: '#f59e0b', borderColor: '#f59e0b' }}
-              >
-                {editingServiceId ? 'Guardar Cambios' : 'Crear Servicio'}
-              </PrimaryButton>
-            </div>
+      <Modal
+        isOpen={activeModal === 'addService'}
+        onClose={() => setActiveModal(null)}
+        onConfirm={handleSaveService}
+        title={editingServiceId ? 'Editar Servicio' : 'Nuevo Servicio del Taller'}
+        maxWidth="620px"
+        footer={
+          <>
+            <SecondaryButton onClick={() => setActiveModal(null)}>
+              Cancelar <KbdBadge keys="Esc" style={{ marginLeft: '6px' }} />
+            </SecondaryButton>
+            <PrimaryButton
+              onClick={handleSaveService}
+              loading={serviceLoading}
+              disabled={serviceLoading}
+              style={{ background: '#f59e0b', borderColor: '#f59e0b' }}
+            >
+              {editingServiceId ? 'Guardar Cambios' : 'Crear Servicio'} <KbdBadge keys="Enter ↵" style={{ marginLeft: '6px' }} />
+            </PrimaryButton>
+          </>
+        }
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {/* Name */}
+          <div>
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#0f172a', marginBottom: '8px' }}>Nombre del servicio *</label>
+            <TextInput
+              placeholder="Ej. 1er Mantenimiento"
+              value={serviceForm.name}
+              onChange={e => { setServiceForm(p => ({ ...p, name: e.target.value })); if (serviceFormErrors.name) setServiceFormErrors(p => ({ ...p, name: '' })); }}
+              errorMessage={serviceFormErrors.name}
+            />
           </div>
+
+          {/* Description */}
+          <div>
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#0f172a', marginBottom: '8px' }}>Descripción</label>
+            <TextInput
+              placeholder="Mantenimiento preventivo básico..."
+              value={serviceForm.description}
+              onChange={e => setServiceForm(p => ({ ...p, description: e.target.value }))}
+            />
+          </div>
+
+          {/* Base Price */}
+          <div style={{ maxWidth: '200px' }}>
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#0f172a', marginBottom: '8px' }}>Precio base de mano de obra ($) *</label>
+            <TextInput
+              type="number" min="0" step="0.01"
+              placeholder="450.00"
+              value={serviceForm.basePrice.toString()}
+              onChange={e => setServiceForm(p => ({ ...p, basePrice: parseFloat(e.target.value) || 0 }))}
+              errorMessage={serviceFormErrors.basePrice}
+            />
+            <p style={{ fontSize: '11px', color: '#94a3b8', marginTop: '4px' }}>Este precio puede editarse manualmente en el POS al momento de la venta.</p>
+          </div>
+
+          {/* Supplies */}
+          <div>
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#0f172a', marginBottom: '8px' }}>Insumos del inventario</label>
+            <p style={{ fontSize: '12px', color: '#64748b', marginBottom: '10px' }}>Selecciona los productos que se descuentan del stock al vender este servicio.</p>
+
+            {/* Existing supplies list */}
+            {serviceForm.supplies.length > 0 && (
+              <div style={{ border: '1px solid #fde68a', borderRadius: '8px', marginBottom: '12px', overflow: 'hidden' }}>
+                {serviceForm.supplies.map((supply, idx) => {
+                  const prod = products.find(p => p.id === supply.productId);
+                  return (
+                    <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 14px', borderBottom: idx < serviceForm.supplies.length - 1 ? '1px solid #fde68a' : 'none', background: '#fffbeb' }}>
+                      <span style={{ flex: 1, fontSize: '13px', fontWeight: '600', color: '#0f172a' }}>{prod?.name ?? supply.productId}</span>
+                      <span style={{ fontSize: '11px', color: '#94a3b8' }}>SKU: {prod?.sku ?? '-'}</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <button onClick={() => updateSupplyQty(supply.productId, supply.quantity - 1)} style={{ width: '24px', height: '24px', borderRadius: '4px', border: '1px solid #fde68a', background: 'white', cursor: 'pointer', fontWeight: '700' }}>−</button>
+                        <span style={{ fontWeight: '700', fontSize: '13px', minWidth: '20px', textAlign: 'center' }}>{supply.quantity}</span>
+                        <button onClick={() => updateSupplyQty(supply.productId, supply.quantity + 1)} style={{ width: '24px', height: '24px', borderRadius: '4px', border: '1px solid #fde68a', background: 'white', cursor: 'pointer', fontWeight: '700' }}>+</button>
+                      </div>
+                      <button onClick={() => removeSupply(supply.productId)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444' }}>
+                        <Icon name="X" size="sm" />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Add supply picker */}
+            <SearchableSelect
+              options={products.filter(p => !serviceForm.supplies.find(s => s.productId === p.id))}
+              value=""
+              onChange={(id) => { if (id) addSupply(id); }}
+              placeholder="Agregar insumo del inventario..."
+            />
+          </div>
+
+          {/* Active toggle */}
+          <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', userSelect: 'none' }}>
+            <input
+              type="checkbox"
+              checked={serviceForm.isActive}
+              onChange={e => setServiceForm(p => ({ ...p, isActive: e.target.checked }))}
+              style={{ width: '16px', height: '16px', accentColor: '#f59e0b' }}
+            />
+            <span style={{ fontSize: '13px', fontWeight: '600', color: '#0f172a' }}>Disponible en el POS</span>
+          </label>
         </div>
-      )}
+      </Modal>
 
       {/* Delete Service Confirmation */}
       <Modal

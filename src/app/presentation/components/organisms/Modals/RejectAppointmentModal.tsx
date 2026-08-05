@@ -81,6 +81,7 @@ export const RejectAppointmentModal: React.FC<RejectAppointmentModalProps> = ({
               borderRadius: '8px',
               border: '1px solid #cbd5e1',
               fontSize: '13.5px',
+              color: '#0f172a',
               fontFamily: 'Inter, system-ui, sans-serif',
               outline: 'none',
               resize: 'vertical',

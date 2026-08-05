@@ -16,6 +16,12 @@ interface InventoryState {
   selectedProduct: Product | null;
   selectedProvider: Provider | null;
 
+  // Pagination state
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+
   setBrands: (brands: Brand[]) => void;
   setCategories: (categories: Category[]) => void;
   setProviders: (providers: Provider[]) => void;
@@ -29,6 +35,9 @@ interface InventoryState {
   setActiveModal: (modal: 'addProduct' | 'addProvider' | 'addProductBatch' | 'stockAdjustment' | 'addMovement' | 'addService' | null) => void;
   setSelectedProduct: (product: Product | null) => void;
   setSelectedProvider: (provider: Provider | null) => void;
+
+  setPage: (page: number) => void;
+  setPagination: (data: { page: number; limit: number; total: number; totalPages: number }) => void;
 }
 
 export const useInventoryStore = create<InventoryState>((set) => ({
@@ -46,6 +55,11 @@ export const useInventoryStore = create<InventoryState>((set) => ({
   selectedProduct: null,
   selectedProvider: null,
 
+  page: 1,
+  limit: 50,
+  total: 0,
+  totalPages: 1,
+
   setBrands: (brands) => set({ brands }),
   setCategories: (categories) => set({ categories }),
   setProviders: (providers) => set({ providers }),
@@ -53,10 +67,18 @@ export const useInventoryStore = create<InventoryState>((set) => ({
   setMovements: (movements) => set({ movements }),
   setLoading: (loading) => set({ loading }),
   setError: (error) => set({ error }),
-  setActiveTab: (activeTab) => set({ activeTab }),
-  setSearchValue: (searchValue) => set({ searchValue }),
+  setActiveTab: (activeTab) => set({ activeTab, page: 1, searchValue: '' }),
+  setSearchValue: (searchValue) => set({ searchValue, page: 1 }),
   setCategoryFilter: (categoryFilter) => set({ categoryFilter }),
   setActiveModal: (activeModal) => set({ activeModal }),
   setSelectedProduct: (selectedProduct) => set({ selectedProduct }),
   setSelectedProvider: (selectedProvider) => set({ selectedProvider }),
+
+  setPage: (page) => set({ page }),
+  setPagination: (data) => set({
+    page: data.page,
+    limit: data.limit,
+    total: data.total,
+    totalPages: data.totalPages,
+  }),
 }));

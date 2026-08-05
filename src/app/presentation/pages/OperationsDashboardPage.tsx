@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Icon, Sidebar } from '../components';
+import { Icon, Sidebar, SaleDetailDrawer, TicketReceipt } from '../components';
 import { useAuthStore } from '../../../core/stores/useAuthStore';
 import { APISalesRepository } from '../../data/repositories/APISalesRepository';
 import { APIAdminRepository } from '../../data/repositories/APIAdminRepository';
@@ -333,6 +333,11 @@ export const OperationsDashboardPage: React.FC = () => {
   const { user, accessToken, activeBranchId, clearAuth } = useAuthStore();
   const isAdmin = isAdminUser(user);
 
+  const handleUnauthorized = useCallback(() => {
+    clearAuth();
+    navigate('/login');
+  }, [clearAuth, navigate]);
+
   const [pageTab, setPageTab] = useState<PageTab>('dashboard');
 
   // ── Dashboard KPI state ──────────────────────────────────────────────────
@@ -354,9 +359,34 @@ export const OperationsDashboardPage: React.FC = () => {
   const [salesLoading, setSalesLoading] = useState(false);
   const [salesError, setSalesError] = useState<string | null>(null);
 
-  const handleUnauthorized = () => {
-    clearAuth();
-    navigate('/login');
+  // ── Sidepanel Drawer & Ticket state ──────────────────────────────────────
+  const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [printSale, setPrintSale] = useState<Sale | null>(null);
+
+  const handleSelectSale = useCallback(async (sale: Sale) => {
+    setSelectedSale(sale);
+    setIsDrawerOpen(true);
+
+    const saleId = sale.id || (sale as any)._id;
+    if (!accessToken || !saleId) return;
+
+    try {
+      const fullSale = await salesRepo.getSale(accessToken, saleId);
+      if (fullSale) {
+        setSelectedSale(fullSale);
+      }
+    } catch (err: any) {
+      if (err.message === 'UNAUTHORIZED') handleUnauthorized();
+    }
+  }, [accessToken, handleUnauthorized]);
+
+  const handleCancelSale = async (saleId: string, reason: string) => {
+    if (!accessToken) return;
+    await salesRepo.cancelSale(accessToken, saleId, reason);
+    // Refresh sales lists
+    setSalesData(prev => prev.map(s => (s.id === saleId || (s as any)._id === saleId) ? { ...s, isCancelled: true, cancelReason: reason } : s));
+    setTodaySales(prev => prev.map(s => (s.id === saleId || (s as any)._id === saleId) ? { ...s, isCancelled: true, cancelReason: reason } : s));
   };
 
   // ── Load sales, maintenances & inventory for Dashboard KPIs ──────────────────────
@@ -371,8 +401,8 @@ export const OperationsDashboardPage: React.FC = () => {
         const yesterday = toDateString(yd);
 
         const [todayData, ydData, maintenancesData, productsData] = await Promise.all([
-          salesRepo.getSales(accessToken, { startDate: today, endDate: today, isCancelled: false }).catch(() => []),
-          salesRepo.getSales(accessToken, { startDate: yesterday, endDate: yesterday, isCancelled: false }).catch(() => []),
+          salesRepo.getSales(accessToken, { startDate: today, endDate: today }).catch(() => []),
+          salesRepo.getSales(accessToken, { startDate: yesterday, endDate: yesterday }).catch(() => []),
           adminRepo.getMaintenances(accessToken).catch(() => []),
           inventoryRepo.getProducts(accessToken).catch(() => []),
         ]);
@@ -491,7 +521,7 @@ export const OperationsDashboardPage: React.FC = () => {
     } finally {
       setSalesLoading(false);
     }
-  }, [accessToken, salesPeriod, salesBranchFilter, activeBranchId, isAdmin, getDateRange]);
+  }, [accessToken, salesPeriod, salesBranchFilter, activeBranchId, isAdmin, getDateRange, handleUnauthorized]);
 
   useEffect(() => {
     if (pageTab === 'ventas') {
@@ -501,8 +531,10 @@ export const OperationsDashboardPage: React.FC = () => {
   }, [pageTab, salesPeriod, salesBranchFilter]);
 
   // ── KPI calculations ─────────────────────────────────────────────────────
-  const todayTotal = todaySales.reduce((acc, s) => acc + (s.total || 0), 0);
-  const yesterdayTotal = yesterdaySales.reduce((acc, s) => acc + (s.total || 0), 0);
+  const activeTodaySales = todaySales.filter(s => !s.isCancelled);
+  const activeYesterdaySales = yesterdaySales.filter(s => !s.isCancelled);
+  const todayTotal = activeTodaySales.reduce((acc, s) => acc + (s.total || 0), 0);
+  const yesterdayTotal = activeYesterdaySales.reduce((acc, s) => acc + (s.total || 0), 0);
   const salesGrowth = yesterdayTotal > 0
     ? (((todayTotal - yesterdayTotal) / yesterdayTotal) * 100).toFixed(1)
     : null;
@@ -762,12 +794,18 @@ export const OperationsDashboardPage: React.FC = () => {
                         <th style={{ padding: '10px 16px', textAlign: 'left', fontSize: '11px', fontWeight: '600', color: '#64748b', textTransform: 'uppercase' }}>Folio</th>
                         <th style={{ padding: '10px 16px', textAlign: 'left', fontSize: '11px', fontWeight: '600', color: '#64748b', textTransform: 'uppercase' }}>Cliente</th>
                         <th style={{ padding: '10px 16px', textAlign: 'left', fontSize: '11px', fontWeight: '600', color: '#64748b', textTransform: 'uppercase' }}>Método</th>
+                        <th style={{ padding: '10px 16px', textAlign: 'center', fontSize: '11px', fontWeight: '600', color: '#64748b', textTransform: 'uppercase' }}>Estado</th>
                         <th style={{ padding: '10px 16px', textAlign: 'right', fontSize: '11px', fontWeight: '600', color: '#64748b', textTransform: 'uppercase' }}>Total</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {todaySales.slice(0, 8).map(s => (
-                        <tr key={s.id || (s as any)._id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                      {todaySales.slice(0, 10).map(s => (
+                        <tr
+                          key={s.id || (s as any)._id}
+                          onClick={() => handleSelectSale(s)}
+                          style={{ borderBottom: '1px solid #f1f5f9', cursor: 'pointer', transition: 'background 0.15s' }}
+                          className="hover:bg-slate-50"
+                        >
                           <td style={{ padding: '12px 16px', fontSize: '13px', color: '#855300', fontWeight: '600', fontFamily: 'monospace' }}>
                             {s.folio || s.id?.slice(-6) || '-'}
                           </td>
@@ -783,7 +821,18 @@ export const OperationsDashboardPage: React.FC = () => {
                               {s.paymentMethod === 'cash' ? 'Efectivo' : s.paymentMethod === 'card' ? 'Tarjeta' : 'Transferencia'}
                             </span>
                           </td>
-                          <td style={{ padding: '12px 16px', fontSize: '14px', fontWeight: '700', color: '#0f172a', textAlign: 'right' }}>
+                          <td style={{ padding: '12px 16px', fontSize: '12px', textAlign: 'center' }}>
+                            <span style={{
+                              padding: '3px 10px', borderRadius: '12px', fontSize: '11px', fontWeight: '700',
+                              background: s.isCancelled ? '#fef2f2' : '#f0fdf4',
+                              color: s.isCancelled ? '#dc2626' : '#16a34a',
+                              border: `1px solid ${s.isCancelled ? '#fecaca' : '#bbf7d0'}`,
+                              display: 'inline-block',
+                            }}>
+                              {s.isCancelled ? 'Cancelada' : 'Completada'}
+                            </span>
+                          </td>
+                          <td style={{ padding: '12px 16px', fontSize: '14px', fontWeight: '700', color: s.isCancelled ? '#94a3b8' : '#0f172a', textAlign: 'right', textDecoration: s.isCancelled ? 'line-through' : 'none' }}>
                             ${s.total.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
                           </td>
                         </tr>
@@ -1059,14 +1108,20 @@ export const OperationsDashboardPage: React.FC = () => {
                         <th style={{ padding: '10px 16px', textAlign: 'left', fontSize: '11px', fontWeight: '600', color: '#64748b', textTransform: 'uppercase' }}>Fecha</th>
                         <th style={{ padding: '10px 16px', textAlign: 'left', fontSize: '11px', fontWeight: '600', color: '#64748b', textTransform: 'uppercase' }}>Cliente</th>
                         <th style={{ padding: '10px 16px', textAlign: 'left', fontSize: '11px', fontWeight: '600', color: '#64748b', textTransform: 'uppercase' }}>Método</th>
+                        <th style={{ padding: '10px 16px', textAlign: 'center', fontSize: '11px', fontWeight: '600', color: '#64748b', textTransform: 'uppercase' }}>Estatus</th>
                         <th style={{ padding: '10px 16px', textAlign: 'right', fontSize: '11px', fontWeight: '600', color: '#64748b', textTransform: 'uppercase' }}>Total</th>
                       </tr>
                     </thead>
                     <tbody>
                       {displayedSalesTable.slice(0, 50).map(s => (
-                        <tr key={s.id || (s as any)._id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                        <tr
+                          key={s.id || (s as any)._id}
+                          onClick={() => handleSelectSale(s)}
+                          style={{ borderBottom: '1px solid #f1f5f9', cursor: 'pointer', transition: 'background 0.15s' }}
+                          className="hover:bg-slate-50"
+                        >
                           <td style={{ padding: '12px 16px', fontSize: '13px', color: '#855300', fontWeight: '600', fontFamily: 'monospace' }}>
-                            {s.folio || (s as any)._id?.slice(-6) || '-'}
+                            {s.folio || (s as any)._id?.slice(-8) || '-'}
                           </td>
                           <td style={{ padding: '12px 16px', fontSize: '13px', color: '#64748b' }}>
                             {new Date(s.createdAt).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })}
@@ -1083,6 +1138,16 @@ export const OperationsDashboardPage: React.FC = () => {
                               {s.paymentMethod === 'cash' ? 'Efectivo' : s.paymentMethod === 'card' ? 'Tarjeta' : 'Transferencia'}
                             </span>
                           </td>
+                          <td style={{ padding: '12px 16px', fontSize: '12px', textAlign: 'center' }}>
+                            <span style={{
+                              padding: '2px 10px', borderRadius: '12px', fontSize: '11px', fontWeight: '700',
+                              background: s.isCancelled ? '#fef2f2' : '#f0fdf4',
+                              color: s.isCancelled ? '#dc2626' : '#16a34a',
+                              border: `1px solid ${s.isCancelled ? '#fecaca' : '#bbf7d0'}`,
+                            }}>
+                              {s.isCancelled ? 'Cancelada' : 'Completada'}
+                            </span>
+                          </td>
                           <td style={{ padding: '12px 16px', fontSize: '14px', fontWeight: '700', color: '#0f172a', textAlign: 'right' }}>
                             ${s.total.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </td>
@@ -1097,6 +1162,23 @@ export const OperationsDashboardPage: React.FC = () => {
 
         </main>
       </div>
+
+      {/* Sale Detail Drawer Sidepanel */}
+      <SaleDetailDrawer
+        isOpen={isDrawerOpen}
+        onClose={() => { setIsDrawerOpen(false); setSelectedSale(null); }}
+        sale={selectedSale}
+        onCancelSale={handleCancelSale}
+        onPrintTicket={(s) => {
+          setPrintSale(s);
+          document.body.classList.remove('print-doc-mode');
+          document.body.classList.add('print-ticket-mode');
+          setTimeout(() => window.print(), 150);
+        }}
+      />
+
+      {/* Printable Ticket Receipt */}
+      <TicketReceipt sale={printSale || selectedSale} />
     </div>
   );
 };

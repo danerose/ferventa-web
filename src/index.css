@@ -118,8 +118,79 @@
 @media print {
   @page {
     margin: 0;
+    size: auto;
   }
-  body {
-    margin: 1.6cm;
+
+  @page ticketPage {
+    margin: 0;
+    size: 80mm auto;
+  }
+
+  html, body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+  }
+
+  body * {
+    visibility: hidden !important;
+  }
+
+  /* Thermal Receipt Ticket Mode (Default for POS sales and thermal ticket printers) */
+  body:not(.print-doc-mode) #ticket-receipt,
+  body:not(.print-doc-mode) #ticket-receipt * {
+    visibility: visible !important;
+  }
+
+  body:not(.print-doc-mode) #ticket-receipt {
+    page: ticketPage;
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 80mm !important;
+    margin: 0 !important;
+    padding: 6px 8px !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    box-sizing: border-box !important;
+    display: block !important;
+  }
+
+  body:not(.print-doc-mode) .printable-document {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  /* Full Page Printable Documents (Quotes, Appointment Vouchers, Full-page PDFs) */
+  body.print-doc-mode .printable-document,
+  body.print-doc-mode .printable-document * {
+    visibility: visible !important;
+  }
+
+  body.print-doc-mode #ticket-receipt {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  body.print-doc-mode .printable-document {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 20px !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    box-sizing: border-box !important;
+    display: block !important;
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
   }
 }
