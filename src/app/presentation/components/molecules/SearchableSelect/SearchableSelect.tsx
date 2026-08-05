@@ -85,6 +85,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
             <input
               type="text"
               className="w-full p-2 text-sm border border-slate-200 rounded outline-none focus:border-blue-500"
+              style={{ color: '#0f172a', background: '#ffffff' }}
               placeholder="Buscar..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
