@@ -177,7 +177,8 @@ export const InventoryPage: React.FC = () => {
     let success = false;
     try {
       if (editingProductId) {
-        await inventoryRepo.updateProduct(accessToken!, editingProductId, productForm);
+        const { sku, ...productDataWithoutSku } = productForm;
+        await inventoryRepo.updateProduct(accessToken!, editingProductId, productDataWithoutSku);
       } else {
         await inventoryRepo.createProduct(accessToken!, productForm);
       }
@@ -732,6 +733,7 @@ export const InventoryPage: React.FC = () => {
                   <TextInput
                     placeholder="Ej. BAL-001"
                     value={productForm.sku}
+                    disabled={!!editingProductId}
                     onChange={e => {
                       setProductForm({ ...productForm, sku: e.target.value });
                       if (formErrors.sku) setFormErrors(prev => ({ ...prev, sku: '' }));
