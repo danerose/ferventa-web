@@ -531,11 +531,11 @@ export const POSPage: React.FC = () => {
   // ─────────────────────────────────────────────────────────────────────────────
 
   return (
-    <div className="print:bg-white" style={{ background: '#f1f5f9', minHeight: '100vh', fontFamily: 'Inter, system-ui, sans-serif' }}>
-      <div className="print:hidden">
+    <div className="print:bg-white" style={{ background: '#f1f5f9', height: '100vh', overflow: 'hidden', fontFamily: 'Inter, system-ui, sans-serif' }}>
+      <div className="print:hidden" style={{ height: '100%' }}>
         <Sidebar onLogout={handleUnauthorized} userName={user?.name || 'Admin'} />
 
-        <div style={{ marginLeft: '240px', minHeight: '100vh', display: 'flex' }}>
+        <div style={{ marginLeft: '240px', height: '100vh', display: 'flex', overflow: 'hidden' }}>
 
           {/* ── Main POS Area ─────────────────────────────────────────── */}
           <main style={{ flex: 1, padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px', overflow: 'hidden' }}>
@@ -601,7 +601,7 @@ export const POSPage: React.FC = () => {
                     <span>Navega con <KbdBadge keys="↑ ↓ ← →" /> y presiona <KbdBadge keys="Enter ↵" /> para agregar al carrito</span>
                   </div>
                 </div>
-                <div style={{ flex: 1, background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', padding: '20px', overflowY: 'auto' }}>
+                <div style={{ flex: 1, background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', padding: '20px', overflowY: 'auto', minHeight: 0 }}>
                   {searchResults.length > 0 ? (
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: '16px' }}>
                       {searchResults.map((product: Product, idx: number) => {
@@ -688,7 +688,7 @@ export const POSPage: React.FC = () => {
                   </div>
                 </div>
 
-                <div style={{ flex: 1, background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', padding: '20px', overflowY: 'auto' }}>
+                <div style={{ flex: 1, background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', padding: '20px', overflowY: 'auto', minHeight: 0 }}>
                   {loadingServices ? (
                     <div style={{ display: 'flex', justifyContent: 'center', padding: '60px', color: '#94a3b8' }}>
                       <Icon name="Loader2" size="lg" className="animate-spin" />
@@ -776,7 +776,7 @@ export const POSPage: React.FC = () => {
           </main>
 
           {/* ── Cart Sidebar ───────────────────────────────────────────────── */}
-          <aside style={{ width: '420px', background: 'white', borderLeft: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+          <aside style={{ width: '420px', background: 'white', borderLeft: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', height: '100vh', flexShrink: 0 }}>
 
             {/* Cart header */}
             <div style={{ padding: '20px 24px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
