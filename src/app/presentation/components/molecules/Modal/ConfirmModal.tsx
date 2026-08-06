@@ -11,6 +11,7 @@ export interface ConfirmModalProps {
   confirmText?: string;
   cancelText?: string;
   isDestructive?: boolean;
+  loading?: boolean;
 }
 
 export const ConfirmModal: React.FC<ConfirmModalProps> = ({
@@ -22,29 +23,35 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
   confirmText = 'Confirmar',
   cancelText = 'Cancelar',
   isDestructive = false,
+  loading = false,
 }) => {
+  const handleConfirm = async () => {
+    try {
+      await onConfirm();
+      onClose();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      onConfirm={() => {
-        onConfirm();
-        onClose();
-      }}
+      onConfirm={handleConfirm}
       title={title}
       maxWidth="400px"
       headerBackground={isDestructive ? '#ef4444' : '#091426'}
       footer={
         <>
-          <SecondaryButton onClick={onClose}>
+          <SecondaryButton onClick={onClose} disabled={loading}>
             {cancelText}
             <KbdBadge keys="Esc" style={{ marginLeft: '6px' }} />
           </SecondaryButton>
           <PrimaryButton
-            onClick={() => {
-              onConfirm();
-              onClose();
-            }}
+            onClick={handleConfirm}
+            loading={loading}
+            disabled={loading}
             style={isDestructive ? { backgroundColor: '#ef4444', borderColor: '#ef4444' } : undefined}
           >
             {confirmText}

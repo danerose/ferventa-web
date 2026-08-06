@@ -148,9 +148,9 @@ export const EditAttendanceModal: React.FC<EditAttendanceModalProps> = ({
           </div>
 
           <div style={{ paddingTop: '16px', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-            <SecondaryButton type="button" onClick={onClose}>Cancelar</SecondaryButton>
-            <PrimaryButton type="submit" disabled={isLoading}>
-              {isLoading ? 'Guardando...' : 'Guardar Cambios'}
+            <SecondaryButton type="button" onClick={onClose} disabled={isLoading}>Cancelar</SecondaryButton>
+            <PrimaryButton type="submit" loading={isLoading} disabled={isLoading}>
+              Guardar Cambios
             </PrimaryButton>
           </div>
         </form>

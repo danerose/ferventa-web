@@ -734,16 +734,14 @@ export const UsersPage: React.FC = () => {
               <SecondaryButton onClick={() => setDeletingUser(null)} disabled={isDeleting}>
                 Cancelar
               </SecondaryButton>
-              <button
+              <PrimaryButton
                 onClick={handleConfirmDelete}
+                loading={isDeleting}
                 disabled={isDeleting}
-                style={{
-                  padding: '10px 20px', background: '#dc2626', color: 'white', border: 'none', borderRadius: '8px',
-                  fontWeight: '700', fontSize: '14px', cursor: isDeleting ? 'not-allowed' : 'pointer', opacity: isDeleting ? 0.7 : 1
-                }}
+                style={{ background: '#dc2626', borderColor: '#dc2626' }}
               >
-                {isDeleting ? 'Desactivando...' : 'Sí, Desactivar'}
-              </button>
+                Sí, Desactivar
+              </PrimaryButton>
             </div>
           </div>
         </div>

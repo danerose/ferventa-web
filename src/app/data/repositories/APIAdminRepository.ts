@@ -92,10 +92,16 @@ export class APIAdminRepository {
   }
 
   async updateSchedule(schedules: Schedule[]): Promise<void> {
+    const cleanedSchedules = schedules.map(({ dayOfWeek, isWorking, startTime, endTime }) => ({
+      dayOfWeek,
+      isWorking,
+      startTime,
+      endTime,
+    }));
     const res = await this.fetchWithAuth(`${this.baseUrl}/appointments/schedule`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ schedules }),
+      body: JSON.stringify({ schedules: cleanedSchedules }),
     });
     const json = await res.json();
     if (res.status === 401) throw new Error('UNAUTHORIZED');

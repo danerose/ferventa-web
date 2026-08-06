@@ -68,17 +68,25 @@ export const ScheduleSettingsPage: React.FC = () => {
     // eslint-disable-next-line
   }, [accessToken]);
 
+  const [savingSchedule, setSavingSchedule] = useState(false);
+  const [savingHoliday, setSavingHoliday] = useState(false);
+  const [deletingHoliday, setDeletingHoliday] = useState(false);
+
   const handleSaveSchedule = async () => {
+    setSavingSchedule(true);
     try {
       await adminRepo.updateSchedule(schedules);
       setAlertState({ isOpen: true, title: 'Éxito', message: 'Horario guardado correctamente.', isError: false });
     } catch (e) {
       setAlertState({ isOpen: true, title: 'Error', message: 'Error al guardar horario.', isError: true });
+    } finally {
+      setSavingSchedule(false);
     }
   };
 
   const handleSaveHoliday = async () => {
     if (!holidayDate || !holidayDesc) return;
+    setSavingHoliday(true);
     try {
       if (editingHolidayId) {
         await adminRepo.deleteHoliday(editingHolidayId);
@@ -88,6 +96,8 @@ export const ScheduleSettingsPage: React.FC = () => {
       fetchData(); // reload
     } catch (e) {
       setAlertState({ isOpen: true, title: 'Error', message: 'Error al guardar festivo.', isError: true });
+    } finally {
+      setSavingHoliday(false);
     }
   };
 
@@ -107,6 +117,7 @@ export const ScheduleSettingsPage: React.FC = () => {
 
   const executeDeleteHoliday = async () => {
     if (!confirmDeleteId) return;
+    setDeletingHoliday(true);
     try {
       await adminRepo.deleteHoliday(confirmDeleteId);
       fetchData(); // reload
@@ -114,6 +125,7 @@ export const ScheduleSettingsPage: React.FC = () => {
       setAlertState({ isOpen: true, title: 'Error', message: 'Error al eliminar festivo.', isError: true });
     } finally {
       setConfirmDeleteId(null);
+      setDeletingHoliday(false);
     }
   };
 
@@ -135,7 +147,7 @@ export const ScheduleSettingsPage: React.FC = () => {
             <h1 style={{ fontSize: '20px', fontWeight: '700', color: '#091426' }}>Horarios y Calendario</h1>
           </div>
           {activeTab === 'schedule' ? (
-            <PrimaryButton onClick={handleSaveSchedule}>Guardar Horarios</PrimaryButton>
+            <PrimaryButton onClick={handleSaveSchedule} loading={savingSchedule} disabled={savingSchedule}>Guardar Horarios</PrimaryButton>
           ) : (
             <PrimaryButton onClick={() => setShowAddHoliday(true)}>
               <Icon name="Plus" size="sm" className="mr-2" /> Agregar Día Festivo
@@ -236,8 +248,8 @@ export const ScheduleSettingsPage: React.FC = () => {
         maxWidth="400px"
         footer={
           <>
-            <SecondaryButton onClick={closeHolidayModal}>Cancelar</SecondaryButton>
-            <PrimaryButton onClick={handleSaveHoliday}>Guardar</PrimaryButton>
+            <SecondaryButton onClick={closeHolidayModal} disabled={savingHoliday}>Cancelar</SecondaryButton>
+            <PrimaryButton onClick={handleSaveHoliday} loading={savingHoliday} disabled={savingHoliday}>Guardar</PrimaryButton>
           </>
         }
       >
@@ -266,6 +278,7 @@ export const ScheduleSettingsPage: React.FC = () => {
         isOpen={!!confirmDeleteId}
         onClose={() => setConfirmDeleteId(null)}
         onConfirm={executeDeleteHoliday}
+        loading={deletingHoliday}
         title="Eliminar Festivo"
         message="¿Estás seguro de que deseas eliminar este día festivo?"
         confirmText="Sí, Eliminar"

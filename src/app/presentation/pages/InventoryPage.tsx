@@ -148,21 +148,28 @@ export const InventoryPage: React.FC = () => {
 
     setFormErrors({});
     setLoading(true);
+    let success = false;
     try {
       if (editingProviderId) {
         await inventoryRepo.updateProvider(accessToken!, editingProviderId, providerForm);
       } else {
         await inventoryRepo.createProvider(accessToken!, providerForm);
       }
-      const data = await inventoryRepo.getProviders(accessToken!);
-      setProviders(data);
-      setActiveModal(null);
-      setEditingProviderId(null);
-      setProviderForm({ name: '', providerCode: '' });
-    } catch (error) {
+      const res = await inventoryRepo.getProvidersPaginated(accessToken!, { search: searchValue, page, limit: 50 });
+      setProviders(res.items);
+      setPagination({ page: res.page, limit: res.limit, total: res.total, totalPages: res.totalPages });
+      success = true;
+    } catch (error: any) {
       console.error(error);
+      if (error.message === 'UNAUTHORIZED') handleUnauthorized();
+      else alert(error.message || 'Error al guardar proveedor');
     } finally {
       setLoading(false);
+      if (success) {
+        setActiveModal(null);
+        setEditingProviderId(null);
+        setProviderForm({ name: '', providerCode: '' });
+      }
     }
   };
 
@@ -187,12 +194,14 @@ export const InventoryPage: React.FC = () => {
       } else {
         await inventoryRepo.createProduct(accessToken!, productForm);
       }
-      const data = await inventoryRepo.getProducts(accessToken!, { search: searchValue });
-      setProducts(data);
+      const res = await inventoryRepo.getProductsPaginated(accessToken!, { search: searchValue, page, limit: 50 });
+      setProducts(res.items);
+      setPagination({ page: res.page, limit: res.limit, total: res.total, totalPages: res.totalPages });
       success = true;
     } catch (error: any) {
       console.error(error);
       if (error.message === 'UNAUTHORIZED') handleUnauthorized();
+      else alert(error.message || 'Error al guardar producto');
     } finally {
       setLoading(false);
       if (success) {
@@ -268,6 +277,7 @@ export const InventoryPage: React.FC = () => {
 
     setFormErrors({});
     setLoading(true);
+    let success = false;
     try {
       await inventoryRepo.createMovement(accessToken!, {
         productId: movementForm.productId,
@@ -276,14 +286,25 @@ export const InventoryPage: React.FC = () => {
         quantity: movementForm.quantity,
         reason: 'Ingreso de mercancía'
       });
-      const data = await inventoryRepo.getProducts(accessToken!, { search: searchValue });
-      setProducts(data);
-      setActiveModal(null);
-      setMovementForm({ productId: '', providerId: '', quantity: 0 });
-    } catch (error) {
+      if (activeTab === 'inventory') {
+        const res = await inventoryRepo.getProductsPaginated(accessToken!, { search: searchValue, page, limit: 50 });
+        setProducts(res.items);
+        setPagination({ page: res.page, limit: res.limit, total: res.total, totalPages: res.totalPages });
+      } else {
+        const prods = await inventoryRepo.getProducts(accessToken!);
+        setProducts(prods);
+      }
+      success = true;
+    } catch (error: any) {
       console.error(error);
+      if (error.message === 'UNAUTHORIZED') handleUnauthorized();
+      else alert(error.message || 'Error al registrar ingreso de mercancía');
     } finally {
       setLoading(false);
+      if (success) {
+        setActiveModal(null);
+        setMovementForm({ productId: '', providerId: '', quantity: 0 });
+      }
     }
   };
 
@@ -389,13 +410,15 @@ export const InventoryPage: React.FC = () => {
           setPagination({ page: res.page, limit: res.limit, total: res.total, totalPages: res.totalPages });
 
           // Also load ancillary options for dropdown forms if empty
-          if (brands.length === 0 || categories.length === 0) {
-            const [b, c] = await Promise.all([
-              inventoryRepo.getBrands(accessToken),
-              inventoryRepo.getCategories(accessToken),
+          if (brands.length === 0 || categories.length === 0 || providers.length === 0) {
+            const [b, c, p] = await Promise.all([
+              brands.length === 0 ? inventoryRepo.getBrands(accessToken) : Promise.resolve(brands),
+              categories.length === 0 ? inventoryRepo.getCategories(accessToken) : Promise.resolve(categories),
+              providers.length === 0 ? inventoryRepo.getProviders(accessToken) : Promise.resolve(providers),
             ]);
             setBrands(b);
             setCategories(c);
+            setProviders(p);
           }
         } else if (activeTab === 'brands') {
           const res = await inventoryRepo.getBrandsPaginated(accessToken, { search: searchValue, page, limit: 50 });
@@ -430,6 +453,14 @@ export const InventoryPage: React.FC = () => {
     fetchData();
     // eslint-disable-next-line
   }, [activeTab, searchValue, page, accessToken]);
+
+  // Load providers on demand if modal is opened and providers list is empty
+  useEffect(() => {
+    if (!accessToken) return;
+    if ((activeModal === 'addMovement' || activeModal === 'addProduct') && providers.length === 0) {
+      inventoryRepo.getProviders(accessToken).then(setProviders).catch(console.error);
+    }
+  }, [activeModal, accessToken]);
 
   // ── Barcode Scanner for Stock Adjustment / Ingreso de Mercancía ─────────────
   useBarcodeScanner({
@@ -847,10 +878,10 @@ export const InventoryPage: React.FC = () => {
         maxWidth="600px"
         footer={
           <>
-            <SecondaryButton onClick={() => setActiveModal(null)}>
+            <SecondaryButton onClick={() => setActiveModal(null)} disabled={loading}>
               Cancelar <KbdBadge keys="Esc" style={{ marginLeft: '6px' }} />
             </SecondaryButton>
-            <PrimaryButton onClick={handleCreateProduct}>
+            <PrimaryButton onClick={handleCreateProduct} loading={loading} disabled={loading}>
               Guardar Producto <KbdBadge keys="Enter ↵" style={{ marginLeft: '6px' }} />
             </PrimaryButton>
           </>
@@ -986,10 +1017,10 @@ export const InventoryPage: React.FC = () => {
         maxWidth="500px"
         footer={
           <>
-            <SecondaryButton onClick={() => setActiveModal(null)}>
+            <SecondaryButton onClick={() => setActiveModal(null)} disabled={loading}>
               Cancelar <KbdBadge keys="Esc" style={{ marginLeft: '6px' }} />
             </SecondaryButton>
-            <PrimaryButton onClick={handleCreateProvider}>
+            <PrimaryButton onClick={handleCreateProvider} loading={loading} disabled={loading}>
               Guardar Proveedor <KbdBadge keys="Enter ↵" style={{ marginLeft: '6px' }} />
             </PrimaryButton>
           </>
@@ -1037,10 +1068,10 @@ export const InventoryPage: React.FC = () => {
         maxWidth="500px"
         footer={
           <>
-            <SecondaryButton onClick={() => setActiveModal(null)}>
+            <SecondaryButton onClick={() => setActiveModal(null)} disabled={loading}>
               Cancelar <KbdBadge keys="Esc" style={{ marginLeft: '6px' }} />
             </SecondaryButton>
-            <PrimaryButton onClick={handleCreateMovement}>
+            <PrimaryButton onClick={handleCreateMovement} loading={loading} disabled={loading}>
               Registrar Ingreso <KbdBadge keys="Enter ↵" style={{ marginLeft: '6px' }} />
             </PrimaryButton>
           </>
