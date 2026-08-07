@@ -37,6 +37,8 @@ export interface StockMovement {
   quantity: number;
   reason: string;
   date: string;
+  provider?: Provider;
+  providerId?: string;
 }
 
 export interface CreateProviderDto {

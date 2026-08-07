@@ -9,10 +9,10 @@ interface InventoryState {
   movements: StockMovement[];
   loading: boolean;
   error: string | null;
-  activeTab: 'inventory' | 'providers' | 'categories' | 'brands' | 'services';
+  activeTab: 'inventory' | 'providers' | 'categories' | 'brands' | 'services' | 'movements';
   searchValue: string;
   categoryFilter: string;
-  activeModal: 'addProduct' | 'addProvider' | 'addProductBatch' | 'stockAdjustment' | 'addMovement' | 'addService' | null;
+  activeModal: 'addProduct' | 'addProvider' | 'addProductBatch' | 'stockAdjustment' | 'addMovement' | 'addService' | 'productHistory' | null;
   selectedProduct: Product | null;
   selectedProvider: Provider | null;
 
@@ -29,14 +29,15 @@ interface InventoryState {
   setMovements: (movements: StockMovement[]) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
-  setActiveTab: (tab: 'inventory' | 'providers' | 'categories' | 'brands' | 'services') => void;
+  setActiveTab: (tab: 'inventory' | 'providers' | 'categories' | 'brands' | 'services' | 'movements') => void;
   setSearchValue: (val: string) => void;
   setCategoryFilter: (val: string) => void;
-  setActiveModal: (modal: 'addProduct' | 'addProvider' | 'addProductBatch' | 'stockAdjustment' | 'addMovement' | 'addService' | null) => void;
+  setActiveModal: (modal: 'addProduct' | 'addProvider' | 'addProductBatch' | 'stockAdjustment' | 'addMovement' | 'addService' | 'productHistory' | null) => void;
   setSelectedProduct: (product: Product | null) => void;
   setSelectedProvider: (provider: Provider | null) => void;
 
   setPage: (page: number) => void;
+  setLimit: (limit: number) => void;
   setPagination: (data: { page: number; limit: number; total: number; totalPages: number }) => void;
 }
 
@@ -75,6 +76,7 @@ export const useInventoryStore = create<InventoryState>((set) => ({
   setSelectedProvider: (selectedProvider) => set({ selectedProvider }),
 
   setPage: (page) => set({ page }),
+  setLimit: (limit) => set({ limit, page: 1 }),
   setPagination: (data) => set({
     page: data.page,
     limit: data.limit,

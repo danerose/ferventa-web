@@ -299,15 +299,34 @@ export class APIInventoryRepository {
 
   // Movements
   async getMovements(token: string, productId?: string): Promise<StockMovement[]> {
+    const res = await this.getMovementsPaginated(token, { productId, limit: 100 });
+    return res.items;
+  }
+
+  async getMovementsPaginated(
+    token: string,
+    filter: { search?: string; productId?: string; type?: string; page?: number; limit?: number } = {}
+  ): Promise<PaginatedResult<StockMovement>> {
     const params = new URLSearchParams();
-    if (productId) params.set('product', productId);
+    if (filter.search) {
+      params.set('search', filter.search);
+      params.set('q', filter.search);
+    }
+    if (filter.productId) {
+      params.set('product', filter.productId);
+      params.set('productId', filter.productId);
+    }
+    if (filter.type && filter.type !== 'all') params.set('type', filter.type);
+    if (filter.page) params.set('page', String(filter.page));
+    if (filter.limit) params.set('limit', String(filter.limit));
+
     const res = await this.fetchWithAuth(`${this.baseUrl}/inventory/movements?${params.toString()}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     const json = await res.json();
     if (res.status === 401) throw new Error('UNAUTHORIZED');
     if (!res.ok || !json.success) throw new Error(json.message || 'Error al obtener movimientos');
-    return (json.data || []).map((m: any) => ({ ...m, id: m.id || m._id }));
+    return this.normalizePaginatedResponse(json.data, (m) => ({ ...m, id: m.id || m._id }));
   }
 
   async createMovement(token: string, data: CreateStockMovementDto): Promise<StockMovement> {

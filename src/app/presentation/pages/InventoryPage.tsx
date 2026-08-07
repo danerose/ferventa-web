@@ -6,7 +6,7 @@ import { useInventoryStore } from '../../../core/stores/useInventoryStore';
 import { useBarcodeScanner } from '../../../core/hooks/useBarcodeScanner';
 import { APIAdminRepository } from '../../data/repositories/APIAdminRepository';
 import { APIClientPortalRepository } from '../../data/repositories/APIClientPortalRepository';
-import type { CreateProductDto, CreateProviderDto, Product, Provider } from '../../domain/entities/InventoryEntities';
+import type { CreateProductDto, CreateProviderDto, Product, Provider, StockMovement } from '../../domain/entities/InventoryEntities';
 import type { Branch } from '../../domain/entities/AdminEntities';
 import { APIInventoryRepository } from '@/app/data/repositories/APIInventoryRepository';
 import { APIServicesRepository } from '../../data/repositories/APIServicesRepository';
@@ -52,6 +52,7 @@ export const InventoryPage: React.FC = () => {
     providers,
     brands,
     categories,
+    movements,
     loading,
     searchValue,
     setSearchValue,
@@ -59,14 +60,19 @@ export const InventoryPage: React.FC = () => {
     setProviders,
     setBrands,
     setCategories,
+    setMovements,
     setLoading,
     activeModal,
     setActiveModal,
     page,
+    limit,
     total,
     totalPages,
     setPage,
+    setLimit,
     setPagination,
+    selectedProduct,
+    setSelectedProduct,
   } = useInventoryStore();
 
   const [productForm, setProductForm] = useState<CreateProductDto>({
@@ -100,6 +106,11 @@ export const InventoryPage: React.FC = () => {
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [itemToDelete, setItemToDelete] = useState<{ type: 'category' | 'brand'; id: string; name: string } | null>(null);
   const [deletingItem, setDeletingItem] = useState(false);
+
+  // ── Stock Movements & History State ──────────────────────────────────────
+  const [productMovements, setProductMovements] = useState<StockMovement[]>([]);
+  const [productMovementsLoading, setProductMovementsLoading] = useState(false);
+  const [movementTypeFilter, setMovementTypeFilter] = useState<'all' | 'in' | 'out'>('all');
 
   // ── Services state ────────────────────────────────────────────────────────
   const [services, setServices] = useState<PredefinedService[]>([]);
@@ -233,6 +244,46 @@ export const InventoryPage: React.FC = () => {
     });
     setFormErrors({});
     setActiveModal('addProduct');
+  };
+
+  const handleOpenProductHistory = async (product: Product) => {
+    setSelectedProduct(product);
+    setActiveModal('productHistory');
+    setProductMovementsLoading(true);
+    try {
+      const movs = await inventoryRepo.getMovements(accessToken!, product.id);
+      setProductMovements(movs);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setProductMovementsLoading(false);
+    }
+  };
+
+  const handleExportMovementsCSV = () => {
+    if (!movements || movements.length === 0) {
+      alert('No hay movimientos para exportar.');
+      return;
+    }
+    const headers = ['ID', 'Fecha', 'Producto', 'SKU', 'Tipo', 'Cantidad', 'Motivo', 'Proveedor'];
+    const rows = movements.map(m => [
+      m.id,
+      new Date(m.date || (m as any).createdAt || Date.now()).toLocaleString('es-MX'),
+      `"${(typeof m.product === 'object' ? m.product?.name : m.product || '').replace(/"/g, '""')}"`,
+      `"${(typeof m.product === 'object' ? m.product?.sku : '').replace(/"/g, '""')}"`,
+      m.type === 'in' ? 'Ingreso' : 'Salida',
+      m.quantity,
+      `"${(m.reason || '').replace(/"/g, '""')}"`,
+      `"${(m.provider?.name || '').replace(/"/g, '""')}"`
+    ]);
+    const csvContent = 'data:text/csv;charset=utf-8,\uFEFF' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `reporte_movimientos_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const handleOpenEditProvider = (provider: Provider) => {
@@ -405,7 +456,7 @@ export const InventoryPage: React.FC = () => {
       setLoading(true);
       try {
         if (activeTab === 'inventory') {
-          const res = await inventoryRepo.getProductsPaginated(accessToken, { search: searchValue, page, limit: 50 });
+          const res = await inventoryRepo.getProductsPaginated(accessToken, { search: searchValue, page, limit });
           setProducts(res.items);
           setPagination({ page: res.page, limit: res.limit, total: res.total, totalPages: res.totalPages });
 
@@ -421,19 +472,19 @@ export const InventoryPage: React.FC = () => {
             setProviders(p);
           }
         } else if (activeTab === 'brands') {
-          const res = await inventoryRepo.getBrandsPaginated(accessToken, { search: searchValue, page, limit: 50 });
+          const res = await inventoryRepo.getBrandsPaginated(accessToken, { search: searchValue, page, limit });
           setBrands(res.items);
           setPagination({ page: res.page, limit: res.limit, total: res.total, totalPages: res.totalPages });
         } else if (activeTab === 'categories') {
-          const res = await inventoryRepo.getCategoriesPaginated(accessToken, { search: searchValue, page, limit: 50 });
+          const res = await inventoryRepo.getCategoriesPaginated(accessToken, { search: searchValue, page, limit });
           setCategories(res.items);
           setPagination({ page: res.page, limit: res.limit, total: res.total, totalPages: res.totalPages });
         } else if (activeTab === 'providers') {
-          const res = await inventoryRepo.getProvidersPaginated(accessToken, { search: searchValue, page, limit: 50 });
+          const res = await inventoryRepo.getProvidersPaginated(accessToken, { search: searchValue, page, limit });
           setProviders(res.items);
           setPagination({ page: res.page, limit: res.limit, total: res.total, totalPages: res.totalPages });
         } else if (activeTab === 'services') {
-          const res = await servicesRepo.getServicesPaginated(accessToken, { search: searchValue, page, limit: 50 });
+          const res = await servicesRepo.getServicesPaginated(accessToken, { search: searchValue, page, limit });
           setServices(res.items);
           setPagination({ page: res.page, limit: res.limit, total: res.total, totalPages: res.totalPages });
 
@@ -442,6 +493,15 @@ export const InventoryPage: React.FC = () => {
             const prods = await inventoryRepo.getProducts(accessToken, {});
             setProducts(prods);
           }
+        } else if (activeTab === 'movements') {
+          const res = await inventoryRepo.getMovementsPaginated(accessToken, {
+            search: searchValue,
+            type: movementTypeFilter,
+            page,
+            limit,
+          });
+          setMovements(res.items);
+          setPagination({ page: res.page, limit: res.limit, total: res.total, totalPages: res.totalPages });
         }
       } catch (err: any) {
         if (err.message === 'UNAUTHORIZED') handleUnauthorized();
@@ -452,7 +512,7 @@ export const InventoryPage: React.FC = () => {
     };
     fetchData();
     // eslint-disable-next-line
-  }, [activeTab, searchValue, page, accessToken]);
+  }, [activeTab, searchValue, movementTypeFilter, page, limit, accessToken]);
 
   // Load providers on demand if modal is opened and providers list is empty
   useEffect(() => {
@@ -473,7 +533,7 @@ export const InventoryPage: React.FC = () => {
         } else {
           alert(`No se encontró producto con SKU: ${barcode}`);
         }
-      } catch (e) {}
+      } catch (e) { }
     },
     enabled: activeModal === 'addMovement',
   });
@@ -506,6 +566,11 @@ export const InventoryPage: React.FC = () => {
         e.preventDefault();
         setActiveTab('services');
       }
+      // Alt+6 / F7 -> Movimientos
+      else if ((e.altKey && e.key === '6') || e.key === 'F7') {
+        e.preventDefault();
+        setActiveTab('movements');
+      }
       // Alt+F or F6 -> Focus Search Input
       else if ((e.altKey && (e.key === 'f' || e.key === 'F')) || e.key === 'F6') {
         e.preventDefault();
@@ -532,6 +597,137 @@ export const InventoryPage: React.FC = () => {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [activeTab, setActiveTab, setActiveModal]);
+
+  const renderPaginationFooter = () => {
+    const startItem = total > 0 ? (page - 1) * limit + 1 : 0;
+    const endItem = Math.min(page * limit, total);
+
+    const pageNumbers: (number | string)[] = [];
+    const maxButtons = 5;
+    if (totalPages <= maxButtons) {
+      for (let i = 1; i <= totalPages; i++) pageNumbers.push(i);
+    } else {
+      pageNumbers.push(1);
+      if (page > 3) pageNumbers.push('...');
+      const start = Math.max(2, page - 1);
+      const end = Math.min(totalPages - 1, page + 1);
+      for (let i = start; i <= end; i++) pageNumbers.push(i);
+      if (page < totalPages - 2) pageNumbers.push('...');
+      pageNumbers.push(totalPages);
+    }
+
+    return (
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: '14px 20px',
+        borderTop: '1px solid #e2e8f0',
+        background: '#f8fafc',
+        flexWrap: 'wrap',
+        gap: '12px'
+      }}>
+        <div style={{ fontSize: '13px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <span>
+            Mostrando <strong style={{ color: '#0f172a' }}>{startItem}</strong> - <strong style={{ color: '#0f172a' }}>{endItem}</strong> de <strong style={{ color: '#0f172a' }}>{total}</strong> registros
+          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{ fontSize: '12px', color: '#94a3b8' }}>Mostrar:</span>
+            <select
+              value={limit}
+              onChange={(e) => setLimit(Number(e.target.value))}
+              style={{
+                padding: '4px 8px',
+                borderRadius: '6px',
+                border: '1px solid #cbd5e1',
+                fontSize: '12px',
+                background: 'white',
+                cursor: 'pointer',
+                color: '#0f172a',
+                fontWeight: '500'
+              }}
+            >
+              <option value={10}>10 por pág.</option>
+              <option value={25}>25 por pág.</option>
+              <option value={50}>50 por pág.</option>
+              <option value={100}>100 por pág.</option>
+            </select>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <button
+            onClick={() => setPage(Math.max(1, page - 1))}
+            disabled={page <= 1}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              padding: '6px 12px',
+              borderRadius: '6px',
+              border: '1px solid #cbd5e1',
+              background: page <= 1 ? '#f1f5f9' : 'white',
+              color: page <= 1 ? '#94a3b8' : '#334155',
+              fontSize: '13px',
+              fontWeight: '500',
+              cursor: page <= 1 ? 'not-allowed' : 'pointer',
+              transition: 'all 0.15s'
+            }}
+          >
+            <Icon name="ChevronLeft" size="sm" />
+            Anterior
+          </button>
+
+          <div style={{ display: 'flex', gap: '4px' }}>
+            {pageNumbers.map((p, idx) => typeof p === 'number' ? (
+              <button
+                key={idx}
+                onClick={() => setPage(p)}
+                style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '6px',
+                  border: p === page ? '1px solid #091426' : '1px solid #cbd5e1',
+                  background: p === page ? '#091426' : 'white',
+                  color: p === page ? 'white' : '#334155',
+                  fontSize: '13px',
+                  fontWeight: p === page ? '700' : '500',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s'
+                }}
+              >
+                {p}
+              </button>
+            ) : (
+              <span key={idx} style={{ padding: '4px 6px', color: '#94a3b8', fontSize: '13px' }}>...</span>
+            ))}
+          </div>
+
+          <button
+            onClick={() => setPage(Math.min(totalPages, page + 1))}
+            disabled={page >= totalPages || totalPages === 0}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              padding: '6px 12px',
+              borderRadius: '6px',
+              border: '1px solid #cbd5e1',
+              background: (page >= totalPages || totalPages === 0) ? '#f1f5f9' : 'white',
+              color: (page >= totalPages || totalPages === 0) ? '#94a3b8' : '#334155',
+              fontSize: '13px',
+              fontWeight: '500',
+              cursor: (page >= totalPages || totalPages === 0) ? 'not-allowed' : 'pointer',
+              transition: 'all 0.15s'
+            }}
+          >
+            Siguiente
+            <Icon name="ChevronRight" size="sm" />
+          </button>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div style={{ background: '#f8f9ff', minHeight: '100vh', fontFamily: 'Inter, system-ui, sans-serif' }}>
@@ -562,6 +758,18 @@ export const InventoryPage: React.FC = () => {
                   <KbdBadge keys="Alt+N" style={{ marginLeft: '6px' }} />
                 </PrimaryButton>
               </>
+            ) : activeTab === 'movements' ? (
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <SecondaryButton onClick={handleExportMovementsCSV}>
+                  <Icon name="Download" size="sm" className="mr-2" />
+                  Exportar CSV
+                </SecondaryButton>
+                <PrimaryButton onClick={() => setActiveModal('addMovement')} style={{ background: '#16a34a', borderColor: '#16a34a' }}>
+                  <Icon name="Plus" size="sm" className="mr-2" />
+                  Nuevo Ingreso
+                  <KbdBadge keys="Alt+M" style={{ marginLeft: '6px' }} />
+                </PrimaryButton>
+              </div>
             ) : activeTab === 'providers' ? (
               <PrimaryButton onClick={() => setActiveModal('addProvider')}>
                 <Icon name="Plus" size="sm" className="mr-2" />
@@ -592,6 +800,7 @@ export const InventoryPage: React.FC = () => {
                 { id: 'brands', label: 'Marcas', key: 'Alt+3' },
                 { id: 'providers', label: 'Proveedores', key: 'Alt+4' },
                 { id: 'services', label: 'Servicios', key: 'Alt+5' },
+                { id: 'movements', label: 'Movimientos', key: 'Alt+6' },
               ].map(t => (
                 <button
                   key={t.id}
@@ -609,23 +818,83 @@ export const InventoryPage: React.FC = () => {
               ))}
             </div>
 
-            <div style={{ width: '320px', position: 'relative' }}>
-              <TextInput
-                id="inventory-search-input"
-                placeholder={`Buscar ${activeTab === 'inventory' ? 'productos'
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+              {activeTab === 'movements' && (
+                <select
+                  value={movementTypeFilter}
+                  onChange={(e) => setMovementTypeFilter(e.target.value as any)}
+                  style={{
+                    padding: '8px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid #cbd5e1',
+                    fontSize: '13px',
+                    background: 'white',
+                    color: '#0f172a',
+                    fontWeight: '500',
+                  }}
+                >
+                  <option value="all">Todos los tipos</option>
+                  <option value="in">Entradas (Ingresos)</option>
+                  <option value="out">Salidas (Bajas)</option>
+                </select>
+              )}
+
+              <div style={{ width: '320px', position: 'relative' }}>
+                <TextInput
+                  id="inventory-search-input"
+                  placeholder={`Buscar ${activeTab === 'inventory' ? 'productos'
                     : activeTab === 'categories' ? 'categorías'
                       : activeTab === 'brands' ? 'marcas'
                         : activeTab === 'services' ? 'servicios'
-                          : 'proveedores'
-                  }...`}
-                value={searchValue}
-                onChange={(e) => setSearchValue(e.target.value)}
-              />
-              <div style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
-                <KbdBadge keys="Alt+F" />
+                          : activeTab === 'movements' ? 'movimientos (producto, motivo)'
+                            : 'proveedores'
+                    }...`}
+                  value={searchValue}
+                  onChange={(e) => setSearchValue(e.target.value)}
+                />
+                <div style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
+                  <KbdBadge keys="Alt+F" />
+                </div>
               </div>
             </div>
           </div>
+
+          {/* Movements Summary Cards (only in movements tab) */}
+          {activeTab === 'movements' && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '20px' }}>
+              <div style={{ background: 'white', padding: '16px 20px', borderRadius: '12px', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '14px' }}>
+                <div style={{ padding: '10px', borderRadius: '10px', background: '#eff6ff', color: '#2563eb' }}>
+                  <Icon name="ArrowUpDown" size="md" />
+                </div>
+                <div>
+                  <div style={{ fontSize: '12px', color: '#64748b', fontWeight: '500' }}>Total Movimientos</div>
+                  <div style={{ fontSize: '20px', fontWeight: '800', color: '#0f172a' }}>{total}</div>
+                </div>
+              </div>
+              <div style={{ background: 'white', padding: '16px 20px', borderRadius: '12px', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '14px' }}>
+                <div style={{ padding: '10px', borderRadius: '10px', background: '#f0fdf4', color: '#16a34a' }}>
+                  <Icon name="TrendingUp" size="md" />
+                </div>
+                <div>
+                  <div style={{ fontSize: '12px', color: '#64748b', fontWeight: '500' }}>Stock Ingresado (Pág)</div>
+                  <div style={{ fontSize: '20px', fontWeight: '800', color: '#16a34a' }}>
+                    +{movements.filter(m => m.type === 'in').reduce((acc, m) => acc + m.quantity, 0)} un.
+                  </div>
+                </div>
+              </div>
+              <div style={{ background: 'white', padding: '16px 20px', borderRadius: '12px', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '14px' }}>
+                <div style={{ padding: '10px', borderRadius: '10px', background: '#fef2f2', color: '#dc2626' }}>
+                  <Icon name="TrendingDown" size="md" />
+                </div>
+                <div>
+                  <div style={{ fontSize: '12px', color: '#64748b', fontWeight: '500' }}>Stock Retirado (Pág)</div>
+                  <div style={{ fontSize: '20px', fontWeight: '800', color: '#dc2626' }}>
+                    -{movements.filter(m => m.type === 'out').reduce((acc, m) => acc + m.quantity, 0)} un.
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Table Area */}
           <div style={{ background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
@@ -648,7 +917,15 @@ export const InventoryPage: React.FC = () => {
                     <tr key={product.id} style={{ borderBottom: '1px solid #e2e8f0' }}>
                       <td style={{ padding: '16px', fontSize: '14px', color: '#0f172a', fontWeight: '500' }}>{product.sku}</td>
                       <td style={{ padding: '16px' }}>
-                        <div style={{ fontSize: '14px', color: '#0f172a', fontWeight: '600' }}>{product.name}</div>
+                        <button
+                          onClick={() => handleOpenProductHistory(product)}
+                          style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left' }}
+                          title="Ver historial de movimientos de este producto"
+                        >
+                          <div style={{ fontSize: '14px', color: '#2563eb', fontWeight: '600', textDecoration: 'underline' }}>
+                            {product.name}
+                          </div>
+                        </button>
                         <div style={{ fontSize: '12px', color: '#64748b' }}>{product.brand?.name}</div>
                       </td>
                       <td style={{ padding: '16px', fontSize: '14px', color: '#475569' }}>{product.category?.name}</td>
@@ -665,9 +942,14 @@ export const InventoryPage: React.FC = () => {
                         </span>
                       </td>
                       <td style={{ padding: '16px', textAlign: 'center' }}>
-                        <button onClick={() => handleOpenEditProduct(product)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}>
-                          <Icon name="Edit2" size="sm" />
-                        </button>
+                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                          <button onClick={() => handleOpenProductHistory(product)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#2563eb' }} title="Ver Historial de Movimientos">
+                            <Icon name="History" size="sm" />
+                          </button>
+                          <button onClick={() => handleOpenEditProduct(product)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }} title="Editar Producto">
+                            <Icon name="Edit2" size="sm" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   )) : (
@@ -686,8 +968,8 @@ export const InventoryPage: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {categories.filter(c => c.name.toLowerCase().includes(searchValue.toLowerCase())).length > 0 ? (
-                    categories.filter(c => c.name.toLowerCase().includes(searchValue.toLowerCase())).map(category => (
+                  {categories.length > 0 ? (
+                    categories.map(category => (
                       <tr key={category.id} style={{ borderBottom: '1px solid #e2e8f0' }}>
                         <td style={{ padding: '16px', fontSize: '14px', color: '#0f172a', fontWeight: '600' }}>{category.name}</td>
                         <td style={{ padding: '16px', textAlign: 'center' }}>
@@ -717,8 +999,8 @@ export const InventoryPage: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {brands.filter(b => b.name.toLowerCase().includes(searchValue.toLowerCase())).length > 0 ? (
-                    brands.filter(b => b.name.toLowerCase().includes(searchValue.toLowerCase())).map(brand => (
+                  {brands.length > 0 ? (
+                    brands.map(brand => (
                       <tr key={brand.id} style={{ borderBottom: '1px solid #e2e8f0' }}>
                         <td style={{ padding: '16px', fontSize: '14px', color: '#0f172a', fontWeight: '600' }}>{brand.name}</td>
                         <td style={{ padding: '16px', textAlign: 'center' }}>
@@ -749,29 +1031,77 @@ export const InventoryPage: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {(() => {
-                    const filteredProviders = providers.filter(p =>
-                      p.name.toLowerCase().includes(searchValue.toLowerCase()) ||
-                      (p.providerCode || '').toLowerCase().includes(searchValue.toLowerCase())
-                    );
-                    return filteredProviders.length > 0 ? filteredProviders.map(provider => (
-                      <tr key={provider.id} style={{ borderBottom: '1px solid #e2e8f0' }}>
-                        <td style={{ padding: '16px', fontSize: '14px', color: '#0f172a', fontWeight: '600' }}>{provider.name}</td>
-                        <td style={{ padding: '16px', fontSize: '14px', color: '#475569' }}>{provider.providerCode || 'N/A'}</td>
-                        <td style={{ padding: '16px', textAlign: 'center' }}>
-                          <button onClick={() => handleOpenEditProvider(provider)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}>
-                            <Icon name="Edit2" size="sm" />
-                          </button>
-                        </td>
-                      </tr>
-                    )) : (
-                      <tr>
-                        <td colSpan={4} style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>
-                          {searchValue ? `No se encontraron proveedores que coincidan con "${searchValue}".` : 'No hay proveedores registrados.'}
-                        </td>
-                      </tr>
-                    );
-                  })()}
+                  {providers.length > 0 ? providers.map(provider => (
+                    <tr key={provider.id} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                      <td style={{ padding: '16px', fontSize: '14px', color: '#0f172a', fontWeight: '600' }}>{provider.name}</td>
+                      <td style={{ padding: '16px', fontSize: '14px', color: '#475569' }}>{provider.providerCode || 'N/A'}</td>
+                      <td style={{ padding: '16px', textAlign: 'center' }}>
+                        <button onClick={() => handleOpenEditProvider(provider)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}>
+                          <Icon name="Edit2" size="sm" />
+                        </button>
+                      </td>
+                    </tr>
+                  )) : (
+                    <tr>
+                      <td colSpan={3} style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>
+                        {searchValue ? `No se encontraron proveedores que coincidan con "${searchValue}".` : 'No hay proveedores registrados.'}
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            ) : activeTab === 'movements' ? (
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                  <tr>
+                    <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '12px', fontWeight: '600', color: '#64748b', textTransform: 'uppercase' }}>Fecha</th>
+                    <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '12px', fontWeight: '600', color: '#64748b', textTransform: 'uppercase' }}>Producto / SKU</th>
+                    <th style={{ padding: '12px 16px', textAlign: 'center', fontSize: '12px', fontWeight: '600', color: '#64748b', textTransform: 'uppercase' }}>Tipo</th>
+                    <th style={{ padding: '12px 16px', textAlign: 'right', fontSize: '12px', fontWeight: '600', color: '#64748b', textTransform: 'uppercase' }}>Cantidad</th>
+                    <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '12px', fontWeight: '600', color: '#64748b', textTransform: 'uppercase' }}>Proveedor</th>
+                    <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '12px', fontWeight: '600', color: '#64748b', textTransform: 'uppercase' }}>Motivo</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {movements.length > 0 ? movements.map(m => (
+                    <tr key={m.id} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                      <td style={{ padding: '16px', fontSize: '13px', color: '#334155', whiteSpace: 'nowrap' }}>
+                        {new Date(m.date || (m as any).createdAt || Date.now()).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' })}
+                      </td>
+                      <td style={{ padding: '16px' }}>
+                        <div style={{ fontSize: '14px', color: '#0f172a', fontWeight: '600' }}>
+                          {typeof m.product === 'object' ? m.product?.name : m.product || 'Producto'}
+                        </div>
+                        <div style={{ fontSize: '12px', color: '#64748b' }}>
+                          SKU: {typeof m.product === 'object' ? m.product?.sku : 'N/A'}
+                        </div>
+                      </td>
+                      <td style={{ padding: '16px', textAlign: 'center' }}>
+                        <span style={{
+                          padding: '4px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: '700',
+                          background: m.type === 'in' ? '#dcfce7' : '#fee2e2',
+                          color: m.type === 'in' ? '#15803d' : '#b91c1c',
+                        }}>
+                          {m.type === 'in' ? 'ENTRADA' : 'SALIDA'}
+                        </span>
+                      </td>
+                      <td style={{ padding: '16px', textAlign: 'right', fontSize: '15px', fontWeight: '700', color: m.type === 'in' ? '#15803d' : '#b91c1c' }}>
+                        {m.type === 'in' ? `+${m.quantity}` : `-${m.quantity}`}
+                      </td>
+                      <td style={{ padding: '16px', fontSize: '13px', color: '#475569' }}>
+                        {m.provider?.name || 'N/A'}
+                      </td>
+                      <td style={{ padding: '16px', fontSize: '13px', color: '#64748b' }}>
+                        {m.reason || 'Sin especificar'}
+                      </td>
+                    </tr>
+                  )) : (
+                    <tr>
+                      <td colSpan={6} style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>
+                        No hay movimientos de stock registrados.
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             ) : (
@@ -847,24 +1177,8 @@ export const InventoryPage: React.FC = () => {
               )
             )}
 
-            {/* Pagination Controls */}
-            {totalPages > 1 && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 20px', borderTop: '1px solid #e2e8f0', background: '#f8fafc' }}>
-                <div style={{ fontSize: '13px', color: '#64748b' }}>
-                  Página <strong>{page}</strong> de <strong>{totalPages}</strong> (Total: <strong>{total}</strong> ítems)
-                </div>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <SecondaryButton size="sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>
-                    <Icon name="ChevronLeft" size="sm" className="mr-1" />
-                    Anterior
-                  </SecondaryButton>
-                  <SecondaryButton size="sm" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>
-                    Siguiente
-                    <Icon name="ChevronRight" size="sm" className="ml-1" />
-                  </SecondaryButton>
-                </div>
-              </div>
-            )}
+            {/* Pagination Controls Footer */}
+            {renderPaginationFooter()}
           </div>
         </main>
       </div>
@@ -1304,6 +1618,99 @@ export const InventoryPage: React.FC = () => {
             >
               Eliminar
             </PrimaryButton>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Product Stock Movements History Modal */}
+      <Modal
+        isOpen={activeModal === 'productHistory'}
+        onClose={() => setActiveModal(null)}
+        title={`Historial de Movimientos: ${selectedProduct?.name || ''}`}
+        maxWidth="680px"
+        footer={
+          <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+            <PrimaryButton
+              size="sm"
+              onClick={() => {
+                setMovementForm({ productId: selectedProduct?.id || '', providerId: '', quantity: 1 });
+                setActiveModal('addMovement');
+              }}
+              style={{ background: '#16a34a', borderColor: '#16a34a' }}
+            >
+              <Icon name="Plus" size="sm" className="mr-1" />
+              Ingresar Stock a este Producto
+            </PrimaryButton>
+            <SecondaryButton onClick={() => setActiveModal(null)}>
+              Cerrar <KbdBadge keys="Esc" style={{ marginLeft: '6px' }} />
+            </SecondaryButton>
+          </div>
+        }
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {/* Summary Banner */}
+          <div style={{ background: '#f8fafc', padding: '14px 18px', borderRadius: '10px', border: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <div style={{ fontSize: '12px', color: '#64748b' }}>SKU: <strong>{selectedProduct?.sku}</strong></div>
+              <div style={{ fontSize: '16px', fontWeight: '700', color: '#0f172a' }}>{selectedProduct?.name}</div>
+              <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>
+                Categoría: {selectedProduct?.category?.name || 'N/A'} | Marca: {selectedProduct?.brand?.name || 'N/A'}
+              </div>
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontSize: '11px', color: '#64748b' }}>Stock Actual</div>
+              <div style={{ fontSize: '20px', fontWeight: '800', color: (selectedProduct?.stock || 0) <= (selectedProduct?.minStock || 0) ? '#dc2626' : '#16a34a' }}>
+                {selectedProduct?.stock} {selectedProduct?.unit}
+              </div>
+            </div>
+          </div>
+
+          {/* Movements table */}
+          <div style={{ maxHeight: '350px', overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: '8px' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead style={{ background: '#f1f5f9', position: 'sticky', top: 0 }}>
+                <tr>
+                  <th style={{ padding: '10px 12px', textAlign: 'left', fontSize: '12px', color: '#475569' }}>Fecha</th>
+                  <th style={{ padding: '10px 12px', textAlign: 'center', fontSize: '12px', color: '#475569' }}>Tipo</th>
+                  <th style={{ padding: '10px 12px', textAlign: 'right', fontSize: '12px', color: '#475569' }}>Cantidad</th>
+                  <th style={{ padding: '10px 12px', textAlign: 'left', fontSize: '12px', color: '#475569' }}>Proveedor</th>
+                  <th style={{ padding: '10px 12px', textAlign: 'left', fontSize: '12px', color: '#475569' }}>Motivo</th>
+                </tr>
+              </thead>
+              <tbody>
+                {productMovementsLoading ? (
+                  <tr><td colSpan={5} style={{ padding: '24px', textAlign: 'center', color: '#64748b' }}>Cargando movimientos...</td></tr>
+                ) : productMovements.length > 0 ? (
+                  productMovements.map(m => (
+                    <tr key={m.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                      <td style={{ padding: '10px 12px', fontSize: '13px', color: '#334155', whiteSpace: 'nowrap' }}>
+                        {new Date(m.date || (m as any).createdAt || Date.now()).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' })}
+                      </td>
+                      <td style={{ padding: '10px 12px', textAlign: 'center' }}>
+                        <span style={{
+                          padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: '700',
+                          background: m.type === 'in' ? '#dcfce7' : '#fee2e2',
+                          color: m.type === 'in' ? '#15803d' : '#b91c1c'
+                        }}>
+                          {m.type === 'in' ? 'ENTRADA' : 'SALIDA'}
+                        </span>
+                      </td>
+                      <td style={{ padding: '10px 12px', textAlign: 'right', fontSize: '14px', fontWeight: '700', color: m.type === 'in' ? '#15803d' : '#b91c1c' }}>
+                        {m.type === 'in' ? `+${m.quantity}` : `-${m.quantity}`}
+                      </td>
+                      <td style={{ padding: '10px 12px', fontSize: '13px', color: '#475569' }}>
+                        {m.provider?.name || 'N/A'}
+                      </td>
+                      <td style={{ padding: '10px 12px', fontSize: '13px', color: '#64748b' }}>
+                        {m.reason || 'Sin motivo'}
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr><td colSpan={5} style={{ padding: '24px', textAlign: 'center', color: '#64748b' }}>No hay movimientos registrados para este producto.</td></tr>
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
       </Modal>
