@@ -260,27 +260,78 @@ export const InventoryPage: React.FC = () => {
     }
   };
 
+  const computeKardexMovements = (movs: StockMovement[], currentStock?: number) => {
+    if (!movs || movs.length === 0) return [];
+
+    const byProduct: { [key: string]: StockMovement[] } = {};
+    movs.forEach(m => {
+      const key = typeof m.product === 'object' ? (m.product?.id || m.product?.sku || 'single') : String(m.product || 'single');
+      if (!byProduct[key]) byProduct[key] = [];
+      byProduct[key].push(m);
+    });
+
+    const balanceMap: { [id: string]: number } = {};
+
+    Object.values(byProduct).forEach(group => {
+      const sorted = [...group].sort((a, b) => {
+        const da = new Date(a.date || (a as any).createdAt || 0).getTime();
+        const db = new Date(b.date || (b as any).createdAt || 0).getTime();
+        return da - db;
+      });
+
+      let running = 0;
+      if (currentStock !== undefined && group.length > 0) {
+        let netChange = 0;
+        sorted.forEach(m => {
+          netChange += (m.type === 'in' ? m.quantity : -m.quantity);
+        });
+        running = currentStock - netChange;
+      } else {
+        const pObj = typeof group[0]?.product === 'object' ? group[0].product : null;
+        if (pObj && typeof pObj.stock === 'number') {
+          let netChange = 0;
+          sorted.forEach(m => {
+            netChange += (m.type === 'in' ? m.quantity : -m.quantity);
+          });
+          running = pObj.stock - netChange;
+        }
+      }
+
+      sorted.forEach(m => {
+        running += (m.type === 'in' ? m.quantity : -m.quantity);
+        balanceMap[m.id] = m.balanceAfter ?? running;
+      });
+    });
+
+    return movs.map(m => ({
+      ...m,
+      calculatedBalance: balanceMap[m.id] ?? (m.balanceAfter ?? 0)
+    }));
+  };
+
   const handleExportMovementsCSV = () => {
     if (!movements || movements.length === 0) {
       alert('No hay movimientos para exportar.');
       return;
     }
-    const headers = ['ID', 'Fecha', 'Producto', 'SKU', 'Tipo', 'Cantidad', 'Motivo', 'Proveedor'];
-    const rows = movements.map(m => [
+    const kardexMovs = computeKardexMovements(movements);
+    const headers = ['ID', 'Fecha / Hora', 'SKU', 'Producto', 'Concepto / Motivo', 'Proveedor', 'Entrada (+)', 'Salida (-)', 'Saldo Resultante'];
+    const rows = kardexMovs.map(m => [
       m.id,
       new Date(m.date || (m as any).createdAt || Date.now()).toLocaleString('es-MX'),
-      `"${(typeof m.product === 'object' ? m.product?.name : m.product || '').replace(/"/g, '""')}"`,
       `"${(typeof m.product === 'object' ? m.product?.sku : '').replace(/"/g, '""')}"`,
-      m.type === 'in' ? 'Ingreso' : 'Salida',
-      m.quantity,
+      `"${(typeof m.product === 'object' ? m.product?.name : m.product || '').replace(/"/g, '""')}"`,
       `"${(m.reason || '').replace(/"/g, '""')}"`,
-      `"${(m.provider?.name || '').replace(/"/g, '""')}"`
+      `"${(m.provider?.name || '').replace(/"/g, '""')}"`,
+      m.type === 'in' ? m.quantity : 0,
+      m.type === 'out' ? m.quantity : 0,
+      m.calculatedBalance
     ]);
     const csvContent = 'data:text/csv;charset=utf-8,\uFEFF' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `reporte_movimientos_${new Date().toISOString().slice(0, 10)}.csv`);
+    link.setAttribute('download', `kardex_inventario_${new Date().toISOString().slice(0, 10)}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -792,8 +843,20 @@ export const InventoryPage: React.FC = () => {
         <main style={{ flex: 1, padding: '28px', maxWidth: '1280px', width: '100%', margin: '0 auto' }}>
 
           {/* Tabs & Search */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-            <div style={{ display: 'flex', gap: '8px', background: 'white', padding: '4px', borderRadius: '8px', border: '1px solid #e2e8f0', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', marginBottom: '24px' }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              background: 'white',
+              padding: '4px',
+              borderRadius: '10px',
+              border: '1px solid #e2e8f0',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+              overflowX: 'auto',
+              maxWidth: '100%',
+              scrollbarWidth: 'none'
+            }}>
               {[
                 { id: 'inventory', label: 'Inventario', key: 'Alt+1' },
                 { id: 'categories', label: 'Categorías', key: 'Alt+2' },
@@ -806,10 +869,20 @@ export const InventoryPage: React.FC = () => {
                   key={t.id}
                   onClick={() => setActiveTab(t.id as any)}
                   style={{
-                    padding: '8px 14px', borderRadius: '6px', fontWeight: '600', fontSize: '14px', border: 'none', cursor: 'pointer', transition: 'all 0.2s',
+                    padding: '7px 11px',
+                    borderRadius: '7px',
+                    fontWeight: '600',
+                    fontSize: '13px',
+                    border: 'none',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    whiteSpace: 'nowrap',
+                    flexShrink: 0,
                     background: activeTab === t.id ? (t.id === 'services' ? '#f59e0b' : '#091426') : 'transparent',
                     color: activeTab === t.id ? 'white' : '#64748b',
-                    display: 'flex', alignItems: 'center', gap: '6px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
                   }}
                 >
                   <span>{t.label}</span>
@@ -818,19 +891,23 @@ export const InventoryPage: React.FC = () => {
               ))}
             </div>
 
-            <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginLeft: 'auto', flexShrink: 0 }}>
               {activeTab === 'movements' && (
                 <select
                   value={movementTypeFilter}
                   onChange={(e) => setMovementTypeFilter(e.target.value as any)}
                   style={{
-                    padding: '8px 12px',
+                    height: '38px',
+                    padding: '0 12px',
                     borderRadius: '8px',
                     border: '1px solid #cbd5e1',
                     fontSize: '13px',
                     background: 'white',
                     color: '#0f172a',
                     fontWeight: '500',
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+                    cursor: 'pointer',
+                    outline: 'none'
                   }}
                 >
                   <option value="all">Todos los tipos</option>
@@ -839,14 +916,14 @@ export const InventoryPage: React.FC = () => {
                 </select>
               )}
 
-              <div style={{ width: '320px', position: 'relative' }}>
+              <div style={{ width: '300px', position: 'relative' }}>
                 <TextInput
                   id="inventory-search-input"
                   placeholder={`Buscar ${activeTab === 'inventory' ? 'productos'
                     : activeTab === 'categories' ? 'categorías'
                       : activeTab === 'brands' ? 'marcas'
                         : activeTab === 'services' ? 'servicios'
-                          : activeTab === 'movements' ? 'movimientos (producto, motivo)'
+                          : activeTab === 'movements' ? 'movimientos'
                             : 'proveedores'
                     }...`}
                   value={searchValue}
@@ -1056,14 +1133,15 @@ export const InventoryPage: React.FC = () => {
                   <tr>
                     <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '12px', fontWeight: '600', color: '#64748b', textTransform: 'uppercase' }}>Fecha</th>
                     <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '12px', fontWeight: '600', color: '#64748b', textTransform: 'uppercase' }}>Producto / SKU</th>
-                    <th style={{ padding: '12px 16px', textAlign: 'center', fontSize: '12px', fontWeight: '600', color: '#64748b', textTransform: 'uppercase' }}>Tipo</th>
-                    <th style={{ padding: '12px 16px', textAlign: 'right', fontSize: '12px', fontWeight: '600', color: '#64748b', textTransform: 'uppercase' }}>Cantidad</th>
+                    <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '12px', fontWeight: '600', color: '#64748b', textTransform: 'uppercase' }}>Concepto / Motivo</th>
                     <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '12px', fontWeight: '600', color: '#64748b', textTransform: 'uppercase' }}>Proveedor</th>
-                    <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '12px', fontWeight: '600', color: '#64748b', textTransform: 'uppercase' }}>Motivo</th>
+                    <th style={{ padding: '12px 16px', textAlign: 'right', fontSize: '12px', fontWeight: '600', color: '#15803d', textTransform: 'uppercase' }}>Entrada (+)</th>
+                    <th style={{ padding: '12px 16px', textAlign: 'right', fontSize: '12px', fontWeight: '600', color: '#b91c1c', textTransform: 'uppercase' }}>Salida (-)</th>
+                    <th style={{ padding: '12px 16px', textAlign: 'right', fontSize: '12px', fontWeight: '600', color: '#0f172a', textTransform: 'uppercase' }}>Saldo (Kardex)</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {movements.length > 0 ? movements.map(m => (
+                  {movements.length > 0 ? computeKardexMovements(movements).map(m => (
                     <tr key={m.id} style={{ borderBottom: '1px solid #e2e8f0' }}>
                       <td style={{ padding: '16px', fontSize: '13px', color: '#334155', whiteSpace: 'nowrap' }}>
                         {new Date(m.date || (m as any).createdAt || Date.now()).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' })}
@@ -1076,28 +1154,30 @@ export const InventoryPage: React.FC = () => {
                           SKU: {typeof m.product === 'object' ? m.product?.sku : 'N/A'}
                         </div>
                       </td>
-                      <td style={{ padding: '16px', textAlign: 'center' }}>
-                        <span style={{
-                          padding: '4px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: '700',
-                          background: m.type === 'in' ? '#dcfce7' : '#fee2e2',
-                          color: m.type === 'in' ? '#15803d' : '#b91c1c',
-                        }}>
-                          {m.type === 'in' ? 'ENTRADA' : 'SALIDA'}
-                        </span>
-                      </td>
-                      <td style={{ padding: '16px', textAlign: 'right', fontSize: '15px', fontWeight: '700', color: m.type === 'in' ? '#15803d' : '#b91c1c' }}>
-                        {m.type === 'in' ? `+${m.quantity}` : `-${m.quantity}`}
+                      <td style={{ padding: '16px', fontSize: '13px', color: '#334155' }}>
+                        {m.reason || 'Sin especificar'}
                       </td>
                       <td style={{ padding: '16px', fontSize: '13px', color: '#475569' }}>
                         {m.provider?.name || 'N/A'}
                       </td>
-                      <td style={{ padding: '16px', fontSize: '13px', color: '#64748b' }}>
-                        {m.reason || 'Sin especificar'}
+                      <td style={{ padding: '16px', textAlign: 'right', fontSize: '14px', fontWeight: '700', color: '#15803d' }}>
+                        {m.type === 'in' ? `+${m.quantity}` : <span style={{ color: '#cbd5e1', fontWeight: '400' }}>-</span>}
+                      </td>
+                      <td style={{ padding: '16px', textAlign: 'right', fontSize: '14px', fontWeight: '700', color: '#b91c1c' }}>
+                        {m.type === 'out' ? `-${m.quantity}` : <span style={{ color: '#cbd5e1', fontWeight: '400' }}>-</span>}
+                      </td>
+                      <td style={{ padding: '16px', textAlign: 'right' }}>
+                        <span style={{
+                          padding: '4px 10px', borderRadius: '6px', fontSize: '13px', fontWeight: '800',
+                          background: '#f1f5f9', color: '#0f172a', border: '1px solid #cbd5e1', display: 'inline-block'
+                        }}>
+                          {m.calculatedBalance} un.
+                        </span>
                       </td>
                     </tr>
                   )) : (
                     <tr>
-                      <td colSpan={6} style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>
+                      <td colSpan={7} style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>
                         No hay movimientos de stock registrados.
                       </td>
                     </tr>
@@ -1622,12 +1702,12 @@ export const InventoryPage: React.FC = () => {
         </div>
       </Modal>
 
-      {/* Product Stock Movements History Modal */}
+      {/* Product Stock Movements History Modal (Kardex) */}
       <Modal
         isOpen={activeModal === 'productHistory'}
         onClose={() => setActiveModal(null)}
-        title={`Historial de Movimientos: ${selectedProduct?.name || ''}`}
-        maxWidth="680px"
+        title={`Kardex de Producto: ${selectedProduct?.name || ''}`}
+        maxWidth="780px"
         footer={
           <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
             <PrimaryButton
@@ -1639,7 +1719,7 @@ export const InventoryPage: React.FC = () => {
               style={{ background: '#16a34a', borderColor: '#16a34a' }}
             >
               <Icon name="Plus" size="sm" className="mr-1" />
-              Ingresar Stock a este Producto
+              Registrar Movimiento de Stock
             </PrimaryButton>
             <SecondaryButton onClick={() => setActiveModal(null)}>
               Cerrar <KbdBadge keys="Esc" style={{ marginLeft: '6px' }} />
@@ -1649,7 +1729,7 @@ export const InventoryPage: React.FC = () => {
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           {/* Summary Banner */}
-          <div style={{ background: '#f8fafc', padding: '14px 18px', borderRadius: '10px', border: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ background: '#f8fafc', padding: '14px 18px', borderRadius: '10px', border: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
             <div>
               <div style={{ fontSize: '12px', color: '#64748b' }}>SKU: <strong>{selectedProduct?.sku}</strong></div>
               <div style={{ fontSize: '16px', fontWeight: '700', color: '#0f172a' }}>{selectedProduct?.name}</div>
@@ -1657,57 +1737,74 @@ export const InventoryPage: React.FC = () => {
                 Categoría: {selectedProduct?.category?.name || 'N/A'} | Marca: {selectedProduct?.brand?.name || 'N/A'}
               </div>
             </div>
-            <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: '11px', color: '#64748b' }}>Stock Actual</div>
-              <div style={{ fontSize: '20px', fontWeight: '800', color: (selectedProduct?.stock || 0) <= (selectedProduct?.minStock || 0) ? '#dc2626' : '#16a34a' }}>
-                {selectedProduct?.stock} {selectedProduct?.unit}
+            <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: '11px', color: '#16a34a', fontWeight: '600' }}>Ingresos Totales</div>
+                <div style={{ fontSize: '15px', fontWeight: '700', color: '#15803d' }}>
+                  +{productMovements.filter(m => m.type === 'in').reduce((acc, m) => acc + m.quantity, 0)} {selectedProduct?.unit}
+                </div>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: '11px', color: '#dc2626', fontWeight: '600' }}>Egresos Totales</div>
+                <div style={{ fontSize: '15px', fontWeight: '700', color: '#b91c1c' }}>
+                  -{productMovements.filter(m => m.type === 'out').reduce((acc, m) => acc + m.quantity, 0)} {selectedProduct?.unit}
+                </div>
+              </div>
+              <div style={{ textAlign: 'right', borderLeft: '1px solid #cbd5e1', paddingLeft: '16px' }}>
+                <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>Saldo / Stock Actual</div>
+                <div style={{ fontSize: '20px', fontWeight: '800', color: (selectedProduct?.stock || 0) <= (selectedProduct?.minStock || 0) ? '#dc2626' : '#16a34a' }}>
+                  {selectedProduct?.stock} {selectedProduct?.unit}
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Movements table */}
-          <div style={{ maxHeight: '350px', overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: '8px' }}>
+          {/* Kardex Movements table */}
+          <div style={{ maxHeight: '380px', overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: '8px' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead style={{ background: '#f1f5f9', position: 'sticky', top: 0 }}>
+              <thead style={{ background: '#f1f5f9', position: 'sticky', top: 0, zIndex: 1 }}>
                 <tr>
-                  <th style={{ padding: '10px 12px', textAlign: 'left', fontSize: '12px', color: '#475569' }}>Fecha</th>
-                  <th style={{ padding: '10px 12px', textAlign: 'center', fontSize: '12px', color: '#475569' }}>Tipo</th>
-                  <th style={{ padding: '10px 12px', textAlign: 'right', fontSize: '12px', color: '#475569' }}>Cantidad</th>
-                  <th style={{ padding: '10px 12px', textAlign: 'left', fontSize: '12px', color: '#475569' }}>Proveedor</th>
-                  <th style={{ padding: '10px 12px', textAlign: 'left', fontSize: '12px', color: '#475569' }}>Motivo</th>
+                  <th style={{ padding: '10px 12px', textAlign: 'left', fontSize: '12px', color: '#475569', fontWeight: '600' }}>Fecha / Hora</th>
+                  <th style={{ padding: '10px 12px', textAlign: 'left', fontSize: '12px', color: '#475569', fontWeight: '600' }}>Concepto / Motivo</th>
+                  <th style={{ padding: '10px 12px', textAlign: 'left', fontSize: '12px', color: '#475569', fontWeight: '600' }}>Proveedor</th>
+                  <th style={{ padding: '10px 12px', textAlign: 'right', fontSize: '12px', color: '#15803d', fontWeight: '600' }}>Entrada (+)</th>
+                  <th style={{ padding: '10px 12px', textAlign: 'right', fontSize: '12px', color: '#b91c1c', fontWeight: '600' }}>Salida (-)</th>
+                  <th style={{ padding: '10px 12px', textAlign: 'right', fontSize: '12px', color: '#0f172a', fontWeight: '600' }}>Saldo Resultante</th>
                 </tr>
               </thead>
               <tbody>
                 {productMovementsLoading ? (
-                  <tr><td colSpan={5} style={{ padding: '24px', textAlign: 'center', color: '#64748b' }}>Cargando movimientos...</td></tr>
+                  <tr><td colSpan={6} style={{ padding: '24px', textAlign: 'center', color: '#64748b' }}>Cargando Kardex...</td></tr>
                 ) : productMovements.length > 0 ? (
-                  productMovements.map(m => (
+                  computeKardexMovements(productMovements, selectedProduct?.stock).map(m => (
                     <tr key={m.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
                       <td style={{ padding: '10px 12px', fontSize: '13px', color: '#334155', whiteSpace: 'nowrap' }}>
                         {new Date(m.date || (m as any).createdAt || Date.now()).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' })}
                       </td>
-                      <td style={{ padding: '10px 12px', textAlign: 'center' }}>
-                        <span style={{
-                          padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: '700',
-                          background: m.type === 'in' ? '#dcfce7' : '#fee2e2',
-                          color: m.type === 'in' ? '#15803d' : '#b91c1c'
-                        }}>
-                          {m.type === 'in' ? 'ENTRADA' : 'SALIDA'}
-                        </span>
-                      </td>
-                      <td style={{ padding: '10px 12px', textAlign: 'right', fontSize: '14px', fontWeight: '700', color: m.type === 'in' ? '#15803d' : '#b91c1c' }}>
-                        {m.type === 'in' ? `+${m.quantity}` : `-${m.quantity}`}
+                      <td style={{ padding: '10px 12px', fontSize: '13px', color: '#334155' }}>
+                        {m.reason || 'Sin motivo'}
                       </td>
                       <td style={{ padding: '10px 12px', fontSize: '13px', color: '#475569' }}>
                         {m.provider?.name || 'N/A'}
                       </td>
-                      <td style={{ padding: '10px 12px', fontSize: '13px', color: '#64748b' }}>
-                        {m.reason || 'Sin motivo'}
+                      <td style={{ padding: '10px 12px', textAlign: 'right', fontSize: '14px', fontWeight: '700', color: '#15803d' }}>
+                        {m.type === 'in' ? `+${m.quantity}` : <span style={{ color: '#cbd5e1', fontWeight: '400' }}>-</span>}
+                      </td>
+                      <td style={{ padding: '10px 12px', textAlign: 'right', fontSize: '14px', fontWeight: '700', color: '#b91c1c' }}>
+                        {m.type === 'out' ? `-${m.quantity}` : <span style={{ color: '#cbd5e1', fontWeight: '400' }}>-</span>}
+                      </td>
+                      <td style={{ padding: '10px 12px', textAlign: 'right' }}>
+                        <span style={{
+                          padding: '2px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: '800',
+                          background: '#f1f5f9', color: '#0f172a', border: '1px solid #cbd5e1', display: 'inline-block'
+                        }}>
+                          {m.calculatedBalance} un.
+                        </span>
                       </td>
                     </tr>
                   ))
                 ) : (
-                  <tr><td colSpan={5} style={{ padding: '24px', textAlign: 'center', color: '#64748b' }}>No hay movimientos registrados para este producto.</td></tr>
+                  <tr><td colSpan={6} style={{ padding: '24px', textAlign: 'center', color: '#64748b' }}>No hay movimientos registrados en el Kardex para este producto.</td></tr>
                 )}
               </tbody>
             </table>
