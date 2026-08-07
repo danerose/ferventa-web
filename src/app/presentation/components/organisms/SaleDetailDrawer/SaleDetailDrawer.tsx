@@ -183,6 +183,7 @@ export const SaleDetailDrawer: React.FC<SaleDetailDrawerProps> = ({
   const rootItems = parseSaleItems(sale.items);
 
   const handleConfirmCancel = async () => {
+    if (cancelling) return;
     if (!cancelReason.trim()) {
       setCancelError('Debes ingresar el motivo de cancelación.');
       return;
