@@ -903,14 +903,15 @@ export const POSPage: React.FC = () => {
                 onClick={() => createCart()}
                 title="Nuevo carrito (Alt+N)"
                 style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  width: '28px', height: '28px', borderRadius: '8px',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px',
+                  padding: '4px 10px', height: '28px', borderRadius: '8px',
                   border: '1px dashed #cbd5e1', background: 'transparent',
                   color: '#64748b', cursor: 'pointer', fontSize: '16px',
                   flexShrink: 0, transition: 'all 0.15s',
                 }}
               >
                 <Icon name="Plus" size="xs" />
+                <KbdBadge keys="Alt+N" />
               </button>
             </div>
 
