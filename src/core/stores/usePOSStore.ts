@@ -7,9 +7,53 @@ import type {
 
 export type { CartItem, PredefinedService };
 
+// ─── Cart Instance ────────────────────────────────────────────────────────────
+
+export interface Cart {
+  id: string;
+  label: string;
+  items: CartItem[];
+  applyTax: boolean;
+  isFullDiscount: boolean;
+  createdAt: number;
+}
+
+function makeCartId(): string {
+  return `cart-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+}
+
+function makeNewCart(label?: string): Cart {
+  const id = makeCartId();
+  return {
+    id,
+    label: label || 'Venta',
+    items: [],
+    applyTax: false,
+    isFullDiscount: false,
+    createdAt: Date.now(),
+  };
+}
+
+function calculateCartTotals(cart: Cart) {
+  const subtotal = cart.items.reduce((acc, item) => acc + item.subtotal, 0);
+  if (cart.isFullDiscount) {
+    return { subtotal, tax: 0, total: 0 };
+  } else if (cart.applyTax) {
+    const tax = subtotal * 0.16;
+    return { subtotal, tax, total: subtotal + tax };
+  } else {
+    return { subtotal, tax: 0, total: subtotal };
+  }
+}
+
+// ─── Store Interface ──────────────────────────────────────────────────────────
 
 interface POSState {
-  cart: CartItem[];
+  // Multi-cart state
+  carts: Cart[];
+  activeCartId: string;
+
+  // Search state (shared across carts)
   searchValue: string;
   searchResults: Product[];
   serviceSearchValue: string;
@@ -19,14 +63,21 @@ interface POSState {
   activeModal: 'payment' | 'checkoutSuccess' | null;
   activeTab: 'products' | 'services';
 
-  // Totals
+  // Computed from active cart
+  cart: CartItem[];
   subtotal: number;
   tax: number;
   total: number;
   applyTax: boolean;
   isFullDiscount: boolean;
 
-  // Cart actions
+  // Multi-cart actions
+  createCart: (label?: string) => void;
+  switchCart: (cartId: string) => void;
+  deleteCart: (cartId: string) => void;
+  renameCart: (cartId: string, label: string) => void;
+
+  // Cart actions (operate on active cart)
   addProductToCart: (product: Product, quantity?: number) => void;
   addServiceToCart: (service: PredefinedService) => void;
   addTemporaryServiceToCart: (
@@ -58,11 +109,41 @@ interface POSState {
   setActiveModal: (modal: 'payment' | 'checkoutSuccess' | null) => void;
 }
 
-function makeCartId(): string {
-  return `cart-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function getActiveCart(state: { carts: Cart[]; activeCartId: string }): Cart {
+  return state.carts.find(c => c.id === state.activeCartId) || state.carts[0];
 }
 
+function updateActiveCart(
+  state: { carts: Cart[]; activeCartId: string },
+  updater: (cart: Cart) => Cart,
+) {
+  return state.carts.map(c =>
+    c.id === state.activeCartId ? updater(c) : c
+  );
+}
+
+function syncFromActiveCart(carts: Cart[], activeCartId: string) {
+  const active = carts.find(c => c.id === activeCartId) || carts[0];
+  const totals = calculateCartTotals(active);
+  return {
+    carts,
+    cart: active.items,
+    applyTax: active.applyTax,
+    isFullDiscount: active.isFullDiscount,
+    ...totals,
+  };
+}
+
+// ─── Store ────────────────────────────────────────────────────────────────────
+
+const initialCart = makeNewCart();
+
 export const usePOSStore = create<POSState>((set, get) => ({
+  carts: [initialCart],
+  activeCartId: initialCart.id,
+
   cart: [],
   searchValue: '',
   searchResults: [],
@@ -79,34 +160,81 @@ export const usePOSStore = create<POSState>((set, get) => ({
   applyTax: false,
   isFullDiscount: false,
 
-  calculateTotals: () => {
-    const { cart, applyTax, isFullDiscount } = get();
-    const subtotal = cart.reduce((acc, item) => acc + item.subtotal, 0);
-    if (isFullDiscount) {
-      set({ subtotal, tax: 0, total: 0 });
-    } else if (applyTax) {
-      const tax = subtotal * 0.16;
-      set({ subtotal, tax, total: subtotal + tax });
-    } else {
-      set({ subtotal, tax: 0, total: subtotal });
+  // ── Multi-cart actions ──────────────────────────────────────────────────────
+
+  createCart: (label) => {
+    const { carts } = get();
+    const newCart = makeNewCart(label || `Venta ${carts.length + 1}`);
+    const newCarts = [...carts, newCart];
+    set({
+      ...syncFromActiveCart(newCarts, newCart.id),
+      activeCartId: newCart.id,
+    });
+  },
+
+  switchCart: (cartId) => {
+    const { carts } = get();
+    const target = carts.find(c => c.id === cartId);
+    if (!target) return;
+    set({
+      activeCartId: cartId,
+      ...syncFromActiveCart(carts, cartId),
+    });
+  },
+
+  deleteCart: (cartId) => {
+    const { carts, activeCartId } = get();
+    if (carts.length <= 1) {
+      // Can't delete the last cart, just clear it
+      get().clearCart();
+      return;
     }
+    const newCarts = carts.filter(c => c.id !== cartId);
+    const newActiveId = cartId === activeCartId
+      ? newCarts[0].id
+      : activeCartId;
+    set({
+      ...syncFromActiveCart(newCarts, newActiveId),
+      activeCartId: newActiveId,
+    });
+  },
+
+  renameCart: (cartId, label) => {
+    const { carts } = get();
+    const newCarts = carts.map(c =>
+      c.id === cartId ? { ...c, label } : c
+    );
+    set({ carts: newCarts });
+    // No need to sync totals, label doesn't affect them
+  },
+
+  // ── Calculate Totals ────────────────────────────────────────────────────────
+
+  calculateTotals: () => {
+    const { carts, activeCartId } = get();
+    set(syncFromActiveCart(carts, activeCartId));
   },
 
   toggleApplyTax: (val) => {
+    const { activeCartId } = get();
     const next = val !== undefined ? val : !get().applyTax;
-    set({ applyTax: next });
-    get().calculateTotals();
+    const newCarts = updateActiveCart(get(), cart => ({ ...cart, applyTax: next }));
+    set(syncFromActiveCart(newCarts, activeCartId));
   },
 
   toggleFullDiscount: (val) => {
+    const { activeCartId } = get();
     const next = val !== undefined ? val : !get().isFullDiscount;
-    set({ isFullDiscount: next });
-    get().calculateTotals();
+    const newCarts = updateActiveCart(get(), cart => ({ ...cart, isFullDiscount: next }));
+    set(syncFromActiveCart(newCarts, activeCartId));
   },
 
+  // ── Cart Item Actions ───────────────────────────────────────────────────────
+
   addProductToCart: (product, quantity = 1) => {
-    const { cart } = get();
-    const existing = cart.find(
+    const { activeCartId } = get();
+    const activeCart = getActiveCart(get());
+    const existing = activeCart.items.find(
       (item) => item.type === 'product' && item.product?.id === product.id
     );
 
@@ -116,14 +244,14 @@ export const usePOSStore = create<POSState>((set, get) => ({
       return;
     }
 
+    let newItems: CartItem[];
     if (existing) {
       const newQty = existing.quantity + quantity;
-      const updatedCart = cart.map((item) =>
+      newItems = activeCart.items.map((item) =>
         item.cartId === existing.cartId
           ? { ...item, quantity: newQty, subtotal: newQty * item.unitPrice }
           : item
       );
-      set({ cart: updatedCart });
     } else {
       const newItem: CartItem = {
         cartId: makeCartId(),
@@ -137,15 +265,17 @@ export const usePOSStore = create<POSState>((set, get) => ({
         subtotal: quantity * product.sellingPrice,
         isNoAplica: false,
       };
-      set({ cart: [...cart, newItem] });
+      newItems = [...activeCart.items, newItem];
     }
-    get().calculateTotals();
+
+    const newCarts = updateActiveCart(get(), cart => ({ ...cart, items: newItems }));
+    set(syncFromActiveCart(newCarts, activeCartId));
   },
 
   addServiceToCart: (service) => {
-    const { cart } = get();
+    const { activeCartId } = get();
+    const activeCart = getActiveCart(get());
 
-    // 1. Add the service itself (labor/base cost)
     const serviceItem: CartItem = {
       cartId: makeCartId(),
       type: 'service',
@@ -158,12 +288,11 @@ export const usePOSStore = create<POSState>((set, get) => ({
       isNoAplica: false,
     };
 
-    // 2. Add each supply as a regular product item so they can be modified independently
     const supplyItems: CartItem[] = service.supplies.map(supply => ({
       cartId: makeCartId(),
       parentCartId: serviceItem.cartId,
       type: 'product',
-      product: supply.product as any, // Cast since the structure is mostly compatible
+      product: supply.product as any,
       name: supply.product.name,
       sku: supply.product.sku,
       quantity: supply.quantity,
@@ -173,12 +302,14 @@ export const usePOSStore = create<POSState>((set, get) => ({
       isNoAplica: false,
     }));
 
-    set({ cart: [...cart, serviceItem, ...supplyItems] });
-    get().calculateTotals();
+    const newItems = [...activeCart.items, serviceItem, ...supplyItems];
+    const newCarts = updateActiveCart(get(), cart => ({ ...cart, items: newItems }));
+    set(syncFromActiveCart(newCarts, activeCartId));
   },
 
   addTemporaryServiceToCart: (name, unitPrice, supplies) => {
-    const { cart } = get();
+    const { activeCartId } = get();
+    const activeCart = getActiveCart(get());
 
     const serviceItem: CartItem = {
       cartId: makeCartId(),
@@ -205,13 +336,17 @@ export const usePOSStore = create<POSState>((set, get) => ({
       isNoAplica: false,
     }));
 
-    set({ cart: [...cart, serviceItem, ...supplyItems] });
-    get().calculateTotals();
+    const newItems = [...activeCart.items, serviceItem, ...supplyItems];
+    const newCarts = updateActiveCart(get(), cart => ({ ...cart, items: newItems }));
+    set(syncFromActiveCart(newCarts, activeCartId));
   },
 
   removeFromCart: (cartId) => {
-    set({ cart: get().cart.filter((item) => item.cartId !== cartId && item.parentCartId !== cartId) });
-    get().calculateTotals();
+    const { activeCartId } = get();
+    const activeCart = getActiveCart(get());
+    const newItems = activeCart.items.filter((item) => item.cartId !== cartId && item.parentCartId !== cartId);
+    const newCarts = updateActiveCart(get(), cart => ({ ...cart, items: newItems }));
+    set(syncFromActiveCart(newCarts, activeCartId));
   },
 
   updateQuantity: (cartId, quantity) => {
@@ -220,23 +355,27 @@ export const usePOSStore = create<POSState>((set, get) => ({
       return;
     }
 
-    const item = get().cart.find(i => i.cartId === cartId);
+    const activeCart = getActiveCart(get());
+    const item = activeCart.items.find(i => i.cartId === cartId);
     if (item?.type === 'product' && item.product && quantity > item.product.stock) {
       get().setError(`Stock insuficiente. Solo hay ${item.product.stock} unidades disponibles de ${item.product.name}.`);
       return;
     }
 
-    const updatedCart = get().cart.map((item) =>
+    const { activeCartId } = get();
+    const newItems = activeCart.items.map((item) =>
       item.cartId === cartId
         ? { ...item, quantity, subtotal: item.isNoAplica ? 0 : quantity * item.unitPrice }
         : item
     );
-    set({ cart: updatedCart });
-    get().calculateTotals();
+    const newCarts = updateActiveCart(get(), cart => ({ ...cart, items: newItems }));
+    set(syncFromActiveCart(newCarts, activeCartId));
   },
 
   updateUnitPrice: (cartId, newPrice) => {
-    const updatedCart = get().cart.map((item) => {
+    const { activeCartId } = get();
+    const activeCart = getActiveCart(get());
+    const newItems = activeCart.items.map((item) => {
       if (item.cartId !== cartId) return item;
       const price = Math.max(0, newPrice);
       return {
@@ -245,12 +384,14 @@ export const usePOSStore = create<POSState>((set, get) => ({
         subtotal: item.isNoAplica ? 0 : item.quantity * price,
       };
     });
-    set({ cart: updatedCart });
-    get().calculateTotals();
+    const newCarts = updateActiveCart(get(), cart => ({ ...cart, items: newItems }));
+    set(syncFromActiveCart(newCarts, activeCartId));
   },
 
   toggleItemNoAplica: (cartId, val) => {
-    const updatedCart = get().cart.map((item) => {
+    const { activeCartId } = get();
+    const activeCart = getActiveCart(get());
+    const newItems = activeCart.items.map((item) => {
       if (item.cartId !== cartId) return item;
       const isNoAplica = val !== undefined ? val : !item.isNoAplica;
       return {
@@ -260,19 +401,18 @@ export const usePOSStore = create<POSState>((set, get) => ({
         subtotal: item.quantity * (isNoAplica ? 0 : item.unitPrice === 0 ? item.originalPrice : item.unitPrice),
       };
     });
-    set({ cart: updatedCart });
-    get().calculateTotals();
+    const newCarts = updateActiveCart(get(), cart => ({ ...cart, items: newItems }));
+    set(syncFromActiveCart(newCarts, activeCartId));
   },
 
   clearCart: () => {
-    set({
-      cart: [],
-      subtotal: 0,
-      tax: 0,
-      total: 0,
-      applyTax: false,
-      isFullDiscount: false,
-    });
+    const { activeCartId, carts } = get();
+    const newCarts = carts.map(c =>
+      c.id === activeCartId
+        ? { ...c, items: [], applyTax: false, isFullDiscount: false }
+        : c
+    );
+    set(syncFromActiveCart(newCarts, activeCartId));
   },
 
   setActiveTab: (activeTab) => set({ activeTab }),

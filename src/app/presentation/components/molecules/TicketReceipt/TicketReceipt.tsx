@@ -51,22 +51,22 @@ function parseSaleItemsForTicket(items: any[]): ParsedTicketItem[] {
       [];
     const nestedChildren: ParsedTicketItem[] = Array.isArray(nestedRaw)
       ? nestedRaw.map((sup: any, sIdx: number) => {
-          const supProd = sup.product && typeof sup.product === 'object' ? sup.product : null;
-          const supName = sup.name || supProd?.name || 'Insumo de servicio';
-          const supSku = sup.sku || supProd?.sku || '';
-          const supQty = sup.quantity || 1;
-          const supPrice = sup.unitPrice ?? sup.priceSnapshot ?? supProd?.sellingPrice ?? 0;
-          return {
-            id: `nested-${index}-${sIdx}`,
-            type: 'product',
-            name: supName,
-            sku: supSku,
-            quantity: supQty,
-            unitPrice: supPrice,
-            subtotal: sup.subtotal ?? supPrice * supQty,
-            childItems: [],
-          };
-        })
+        const supProd = sup.product && typeof sup.product === 'object' ? sup.product : null;
+        const supName = sup.name || supProd?.name || 'Insumo de servicio';
+        const supSku = sup.sku || supProd?.sku || '';
+        const supQty = sup.quantity || 1;
+        const supPrice = sup.unitPrice ?? sup.priceSnapshot ?? supProd?.sellingPrice ?? 0;
+        return {
+          id: `nested-${index}-${sIdx}`,
+          type: 'product',
+          name: supName,
+          sku: supSku,
+          quantity: supQty,
+          unitPrice: supPrice,
+          subtotal: sup.subtotal ?? supPrice * supQty,
+          childItems: [],
+        };
+      })
       : [];
 
     return {
@@ -126,6 +126,13 @@ function parseSaleItemsForTicket(items: any[]): ParsedTicketItem[] {
   return rootItems;
 }
 
+// ─── Shared Styles ───────────────────────────────────────────────────────────
+
+const TICKET_WIDTH = '58mm';
+const FONT_FAMILY = "'Courier New', Courier, monospace";
+const SEPARATOR_DOUBLE = '══════════════════════════';
+const SEPARATOR_DASH = '──────────────────────────';
+
 export const TicketReceipt: React.FC<TicketReceiptProps> = ({
   sale,
   branchName,
@@ -133,159 +140,191 @@ export const TicketReceipt: React.FC<TicketReceiptProps> = ({
 }) => {
   if (!sale) return null;
 
-  const dateFmt = sale.createdAt
-    ? new Date(sale.createdAt).toLocaleString('es-MX', {
-        dateStyle: 'short',
-        timeStyle: 'short',
-      })
-    : new Date().toLocaleString('es-MX');
+  const now = sale.createdAt ? new Date(sale.createdAt) : new Date();
+  const datePart = now.toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const timePart = now.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false });
 
-  const bName = branchName || (sale.branch as any)?.name || 'Sucursal Matriz';
-  const sName = sellerName || (sale.seller as any)?.name || 'Atención en Caja';
-  const cName = (sale.customer as any)?.name || 'Público General';
+  const sName = sellerName || (sale.seller as any)?.name || '________';
 
   const subtotal = sale.subtotal ?? (sale.items ?? []).reduce((acc, i) => acc + ((i.unitPrice ?? 0) * (i.quantity ?? 1)), 0);
   const total = sale.total ?? subtotal;
   const discount = sale.discount ?? 0;
-  const folioStr = sale.folio || (sale as any)._id?.slice(-8) || '0000';
+  const folioStr = sale.folio || `NV-${String((sale as any)._id?.slice(-6) || '000001').padStart(6, '0')}`;
 
   const rootItems = parseSaleItemsForTicket(sale.items ?? []);
+
+  const paymentLabel =
+    sale.paymentMethod === 'cash' ? 'EFECTIVO'
+      : sale.paymentMethod === 'card' ? 'TARJETA'
+        : sale.paymentMethod === 'transfer' ? 'TRANSFERENCIA'
+          : 'EFECTIVO';
 
   return (
     <div
       id="ticket-receipt"
       className="hidden print:block"
       style={{
-        width: '80mm',
+        width: TICKET_WIDTH,
         margin: '0 auto',
-        padding: '10px',
-        fontFamily: "'Courier New', Courier, monospace",
-        fontSize: '11px',
+        padding: '6px 4px',
+        fontFamily: FONT_FAMILY,
+        fontSize: '10px',
         color: '#000',
         background: '#fff',
-        lineHeight: 1.25,
+        lineHeight: 1.3,
       }}
     >
-      {/* Store Header */}
-      <div style={{ textAlign: 'center', marginBottom: '8px' }}>
-        <h1 style={{ fontSize: '15px', fontWeight: '900', margin: '0 0 2px 0', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-          FERVENTA - AUTOPARTES Y TALLER
+      {/* ══ Store Header ══ */}
+      <div style={{ textAlign: 'center', marginBottom: '4px' }}>
+        <div style={{ fontSize: '9px', letterSpacing: '0.3px' }}>{SEPARATOR_DOUBLE}</div>
+        <h1 style={{
+          fontSize: '13px', fontWeight: '900', margin: '4px 0 1px 0',
+          textTransform: 'uppercase', letterSpacing: '0.5px',
+        }}>
+          {branchName}
         </h1>
-        <p style={{ margin: '0 0 2px 0', fontSize: '11px', fontWeight: 'bold' }}>{bName.toUpperCase()}</p>
-        <p style={{ margin: 0, fontSize: '10px' }}>TEL: 81 1876 5432</p>
-        <div style={{ borderBottom: '1.5px solid #000', margin: '6px 0' }} />
+        <p style={{ margin: '0 0 3px 0', fontSize: '9px', fontWeight: '600', letterSpacing: '0.3px' }}>
+          TALLER Y REFACCIONES PARA MOTOS
+        </p>
+        <p style={{ margin: '0 0 1px 0', fontSize: '9px' }}>
+          Tel./WhatsApp: 999 438 9747
+        </p>
+        <p style={{ margin: '0 0 1px 0', fontSize: '9px' }}>
+          Calle 29 No. 135 x 18 y 16
+        </p>
+        <p style={{ margin: '0 0 2px 0', fontSize: '9px' }}>
+          Col. Santa Bárbara, Locales 3 y 4
+        </p>
+        <div style={{ fontSize: '9px', letterSpacing: '0.3px' }}>{SEPARATOR_DOUBLE}</div>
       </div>
 
-      {/* Ticket Metadata */}
-      <div style={{ fontSize: '10px', marginBottom: '6px' }}>
+      {/* ── Ticket Metadata ── */}
+      <div style={{ fontSize: '9px', marginBottom: '4px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-          <span>FECHA: <strong>{dateFmt}</strong></span>
-          <span>FOLIO: <strong>#{folioStr}</strong></span>
+          <span>FECHA: <strong>{datePart}</strong></span>
+          <span>HORA: <strong>{timePart}</strong></span>
         </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '2px' }}>
-          <span>ATENDIÓ: {sName}</span>
-          <span>CLIENTE: {cName}</span>
+        <div style={{ marginTop: '1px' }}>
+          FOLIO: <strong>#{folioStr}</strong>
+        </div>
+        <div style={{ marginTop: '1px' }}>
+          ATENDIÓ: <strong>{sName}</strong>
         </div>
         {sale.isCancelled && (
-          <div style={{ textAlign: 'center', color: '#000', fontWeight: 'bold', border: '2px solid #000', padding: '4px', marginTop: '6px', fontSize: '11px' }}>
+          <div style={{
+            textAlign: 'center', fontWeight: 'bold',
+            border: '2px solid #000', padding: '3px', marginTop: '4px', fontSize: '10px',
+          }}>
             *** VENTA CANCELADA ***
           </div>
         )}
       </div>
 
-      <div style={{ borderBottom: '1px dashed #000', margin: '6px 0' }} />
+      {/* ── Items ── */}
+      <div style={{ fontSize: '9px', letterSpacing: '0.3px', margin: '2px 0' }}>{SEPARATOR_DASH}</div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', fontWeight: 'bold', padding: '1px 0' }}>
+        <span>CANT</span>
+        <span style={{ flex: 1, paddingLeft: '6px' }}>CONCEPTO</span>
+        <span>IMPORTE</span>
+      </div>
+      <div style={{ fontSize: '9px', letterSpacing: '0.3px', margin: '2px 0' }}>{SEPARATOR_DASH}</div>
 
-      {/* Items Table */}
-      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10px' }}>
-        <thead>
-          <tr style={{ borderBottom: '1.5px solid #000' }}>
-            <th style={{ textAlign: 'left', paddingBottom: '3px', width: '35px' }}>CAN</th>
-            <th style={{ textAlign: 'right', paddingBottom: '3px', width: '55px' }}>PRE</th>
-            <th style={{ textAlign: 'left', paddingBottom: '3px', paddingLeft: '6px' }}>CONCEPTO</th>
-            <th style={{ textAlign: 'right', paddingBottom: '3px', width: '60px' }}>SUM</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rootItems.map((item) => {
-            const isService = item.type === 'service';
-            return (
-              <React.Fragment key={item.id}>
-                <tr style={{ borderBottom: item.childItems.length > 0 ? 'none' : '1px dotted #888' }}>
-                  <td style={{ padding: '3px 0', verticalAlign: 'top', fontWeight: 'bold' }}>{item.quantity} x</td>
-                  <td style={{ textAlign: 'right', padding: '3px 0', verticalAlign: 'top' }}>
-                    ${item.unitPrice.toFixed(2)}
-                  </td>
-                  <td style={{ padding: '3px 0 3px 6px', verticalAlign: 'top', fontWeight: 'bold' }}>
-                    {isService ? `[SERVICIO] ${item.name.toUpperCase()}` : item.name.toUpperCase()}
-                    {item.sku && <div style={{ fontSize: '8px', fontWeight: 'normal', color: '#333' }}>SKU: {item.sku}</div>}
-                  </td>
-                  <td style={{ textAlign: 'right', padding: '3px 0', verticalAlign: 'top', fontWeight: 'bold' }}>
-                    ${item.subtotal.toFixed(2)}
-                  </td>
-                </tr>
+      {rootItems.map((item) => {
+        const isService = item.type === 'service';
+        return (
+          <React.Fragment key={item.id}>
+            {/* Main item */}
+            <div style={{ marginBottom: '3px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px' }}>
+                <span style={{ fontWeight: 'bold', minWidth: '28px' }}>{item.quantity}</span>
+                <span style={{ flex: 1, paddingLeft: '4px', fontWeight: 'bold', wordBreak: 'break-word' }}>
+                  {isService ? `[SERV] ${item.name}` : item.name}
+                </span>
+                <span style={{ fontWeight: 'bold', whiteSpace: 'nowrap', paddingLeft: '4px' }}>
+                  ${item.subtotal.toFixed(2)}
+                </span>
+              </div>
+              {item.unitPrice !== item.subtotal / item.quantity || item.quantity > 1 ? (
+                <div style={{ fontSize: '8px', color: '#333', paddingLeft: '32px' }}>
+                  {item.quantity} x ${item.unitPrice.toFixed(2)}
+                </div>
+              ) : null}
+            </div>
 
-                {item.childItems.map((child, cIdx) => (
-                  <tr
-                    key={child.id || `c-${cIdx}`}
-                    style={{
-                      borderBottom: cIdx === item.childItems.length - 1 ? '1px dotted #888' : 'none',
-                    }}
-                  >
-                    <td style={{ padding: '2px 0 2px 8px', verticalAlign: 'top', fontSize: '9px', color: '#444' }}>
-                      {child.quantity} x
-                    </td>
-                    <td style={{ textAlign: 'right', padding: '2px 0', verticalAlign: 'top', fontSize: '9px', color: '#444' }}>
-                      ${child.unitPrice.toFixed(2)}
-                    </td>
-                    <td style={{ padding: '2px 0 2px 10px', verticalAlign: 'top', fontSize: '9px', color: '#111' }}>
-                      └ [INSUMO] {child.name.toUpperCase()}
-                      {child.sku && <span style={{ fontSize: '8px', color: '#555' }}> ({child.sku})</span>}
-                    </td>
-                    <td style={{ textAlign: 'right', padding: '2px 0', verticalAlign: 'top', fontSize: '9px', fontWeight: 'bold', color: '#111' }}>
-                      ${child.subtotal.toFixed(2)}
-                    </td>
-                  </tr>
-                ))}
-              </React.Fragment>
-            );
-          })}
-        </tbody>
-      </table>
+            {/* Child items (supplies) */}
+            {item.childItems.map((child, cIdx) => (
+              <div key={child.id || `c-${cIdx}`} style={{ marginBottom: '2px', paddingLeft: '8px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '8px', color: '#222' }}>
+                  <span style={{ minWidth: '24px' }}>{child.quantity}</span>
+                  <span style={{ flex: 1, paddingLeft: '2px' }}>
+                    └ {child.name}
+                  </span>
+                  <span style={{ whiteSpace: 'nowrap', paddingLeft: '4px' }}>
+                    ${child.subtotal.toFixed(2)}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </React.Fragment>
+        );
+      })}
 
-      <div style={{ borderBottom: '1px dashed #000', margin: '6px 0' }} />
+      <div style={{ fontSize: '9px', letterSpacing: '0.3px', margin: '4px 0 2px' }}>{SEPARATOR_DASH}</div>
 
-      {/* Totals Section */}
-      <div style={{ fontSize: '11px', textAlign: 'right', display: 'flex', flexDirection: 'column', gap: '3px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+      {/* ── Totals ── */}
+      <div style={{ fontSize: '10px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '1px 0' }}>
           <span>SUBTOTAL:</span>
           <span>${subtotal.toFixed(2)}</span>
         </div>
         {discount > 0 && (
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '1px 0' }}>
             <span>DESCUENTO:</span>
             <span>-${discount.toFixed(2)}</span>
           </div>
         )}
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', fontWeight: '900', borderTop: '1px solid #000', paddingTop: '4px', marginTop: '2px' }}>
+        <div style={{
+          display: 'flex', justifyContent: 'space-between',
+          fontSize: '12px', fontWeight: '900',
+          borderTop: '1px solid #000', paddingTop: '3px', marginTop: '2px',
+        }}>
           <span>TOTAL:</span>
           <span>${total.toFixed(2)} MXN</span>
         </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', marginTop: '2px' }}>
-          <span>MÉTODO PAGO:</span>
-          <span style={{ textTransform: 'uppercase', fontWeight: 'bold' }}>
-            {sale.paymentMethod === 'cash' ? 'EFECTIVO' : sale.paymentMethod === 'card' ? 'TARJETA' : 'TRANSFERENCIA'}
-          </span>
+      </div>
+
+      {/* ── Payment Method ── */}
+      <div style={{ fontSize: '9px', marginTop: '4px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+          <span>MÉTODO DE PAGO:</span>
+          <span style={{ fontWeight: 'bold' }}>{paymentLabel}</span>
         </div>
       </div>
 
-      <div style={{ borderBottom: '1.5px solid #000', margin: '10px 0 8px 0' }} />
-
-      {/* Footer Details */}
-      <div style={{ textAlign: 'center', fontSize: '10px', lineHeight: 1.3 }}>
-        <p style={{ margin: '0 0 2px 0', fontWeight: 'bold' }}>IVA INCLUIDO</p>
-        <p style={{ margin: '0 0 2px 0' }}>NO. TICKET / FOLIO: #{folioStr}</p>
-        <p style={{ margin: '4px 0 0 0', fontWeight: 'bold', fontSize: '11px' }}>¡GRACIAS POR SU PREFERENCIA!</p>
+      {/* ══ IMPORTANTE ══ */}
+      <div style={{ fontSize: '9px', letterSpacing: '0.3px', margin: '6px 0 2px' }}>{SEPARATOR_DOUBLE}</div>
+      <div style={{ textAlign: 'center', fontSize: '10px', fontWeight: '900', marginBottom: '4px' }}>
+        IMPORTANTE
       </div>
+      <div style={{ fontSize: '8px', lineHeight: 1.35, paddingLeft: '4px' }}>
+        <p style={{ margin: '0 0 3px 0' }}>
+          * En partes eléctricas no aplica garantía, cambio ni devolución.
+        </p>
+        <p style={{ margin: '0 0 3px 0' }}>
+          * Cualquier aclaración deberá realizarse dentro de los 2 días posteriores a la compra, presentando este ticket.
+        </p>
+      </div>
+
+      {/* ── Footer ── */}
+      <div style={{ textAlign: 'center', marginTop: '6px', fontSize: '10px' }}>
+        <p style={{ margin: '0 0 2px 0', fontWeight: '900' }}>
+          ¡GRACIAS POR SU PREFERENCIA!
+        </p>
+        <p style={{ margin: '0', fontSize: '9px', fontWeight: '700' }}>
+          MOTO SERVICIO NOVA FV
+        </p>
+      </div>
+      <div style={{ fontSize: '9px', letterSpacing: '0.3px', marginTop: '4px', textAlign: 'center' }}>{SEPARATOR_DOUBLE}</div>
     </div>
   );
 };

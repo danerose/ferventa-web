@@ -133,6 +133,8 @@ export const POSPage: React.FC = () => {
 
   const {
     cart,
+    carts,
+    activeCartId,
     searchValue,
     searchResults,
     serviceSearchValue,
@@ -153,7 +155,14 @@ export const POSPage: React.FC = () => {
     updateUnitPrice,
     toggleItemNoAplica,
     clearCart,
+    createCart,
+    switchCart,
+    deleteCart,
+    renameCart,
   } = usePOSStore();
+
+  const [editingCartLabel, setEditingCartLabel] = useState<string | null>(null);
+  const [cartLabelValue, setCartLabelValue] = useState('');
 
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card' | 'transfer'>('cash');
   const [processing, setProcessing] = useState(false);
@@ -365,6 +374,19 @@ export const POSPage: React.FC = () => {
         e.preventDefault();
         if (cart.length > 0) clearCart();
       }
+      // Alt+N -> New cart
+      else if (e.altKey && (e.key === 'n' || e.key === 'N')) {
+        e.preventDefault();
+        createCart();
+      }
+      // Alt+1 through Alt+9 -> Switch to cart by index
+      else if (e.altKey && e.key >= '1' && e.key <= '9') {
+        e.preventDefault();
+        const idx = parseInt(e.key) - 1;
+        if (idx < carts.length) {
+          switchCart(carts[idx].id);
+        }
+      }
       // ── Arrow Keys Catalog Navigation ──
       else if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
         const listLen = activeTab === 'products' ? searchResults.length : serviceResults.length;
@@ -406,7 +428,7 @@ export const POSPage: React.FC = () => {
   }, [
     cart.length, clearCart, activeTab, searchResults, serviceResults,
     selectedIndex, activeModal, isTempServiceModalOpen, addProductToCart,
-    addServiceToCart, setSearchValue,
+    addServiceToCart, setSearchValue, createCart, switchCart, carts,
   ]);
 
   const activeBranch = branches.find(b => b.id === activeBranchId || (b as any)._id === activeBranchId);
@@ -471,7 +493,16 @@ export const POSPage: React.FC = () => {
     }
   };
 
-  const handleCloseSuccess = () => { clearCart(); setActiveModal(null); setLastCompletedSale(null); };
+  const handleCloseSuccess = () => {
+    // After successful checkout, delete the completed cart and move to next
+    if (carts.length > 1) {
+      deleteCart(activeCartId);
+    } else {
+      clearCart();
+    }
+    setActiveModal(null);
+    setLastCompletedSale(null);
+  };
 
   const handlePrintReceipt = () => {
     document.body.classList.remove('print-doc-mode');
@@ -778,12 +809,117 @@ export const POSPage: React.FC = () => {
           {/* ── Cart Sidebar ───────────────────────────────────────────────── */}
           <aside style={{ width: '420px', background: 'white', borderLeft: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', height: '100vh', flexShrink: 0 }}>
 
+            {/* ── Multi-Cart Tabs Bar ── */}
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: '2px',
+              padding: '8px 12px', borderBottom: '1px solid #e2e8f0',
+              background: '#f8fafc', overflowX: 'auto',
+              scrollbarWidth: 'thin',
+            }}>
+              {carts.map((c, idx) => {
+                const isActive = c.id === activeCartId;
+                const itemCount = c.items.filter(i => !i.parentCartId).length;
+                return (
+                  <div
+                    key={c.id}
+                    onClick={() => switchCart(c.id)}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '6px',
+                      padding: '6px 12px', borderRadius: '8px',
+                      background: isActive ? '#2563eb' : 'white',
+                      color: isActive ? 'white' : '#475569',
+                      border: isActive ? '1px solid #2563eb' : '1px solid #e2e8f0',
+                      cursor: 'pointer', fontSize: '12px', fontWeight: '600',
+                      whiteSpace: 'nowrap', transition: 'all 0.15s',
+                      flexShrink: 0,
+                    }}
+                  >
+                    {editingCartLabel === c.id ? (
+                      <input
+                        autoFocus
+                        type="text"
+                        value={cartLabelValue}
+                        onChange={(e) => setCartLabelValue(e.target.value)}
+                        onBlur={() => { renameCart(c.id, cartLabelValue || c.label); setEditingCartLabel(null); }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') { renameCart(c.id, cartLabelValue || c.label); setEditingCartLabel(null); }
+                          if (e.key === 'Escape') setEditingCartLabel(null);
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                        style={{
+                          width: '70px', fontSize: '11px', fontWeight: '600',
+                          border: 'none', borderBottom: '1px solid currentColor',
+                          outline: 'none', background: 'transparent', color: 'inherit',
+                          padding: '0 2px',
+                        }}
+                      />
+                    ) : (
+                      <span
+                        onDoubleClick={(e) => { e.stopPropagation(); setEditingCartLabel(c.id); setCartLabelValue(c.label); }}
+                        title="Doble clic para renombrar"
+                      >
+                        {c.label}
+                      </span>
+                    )}
+                    {itemCount > 0 && (
+                      <span style={{
+                        background: isActive ? 'rgba(255,255,255,0.3)' : '#e2e8f0',
+                        fontSize: '10px', fontWeight: '700',
+                        borderRadius: '10px', padding: '0 5px', minWidth: '16px',
+                        textAlign: 'center', lineHeight: '16px',
+                      }}>
+                        {itemCount}
+                      </span>
+                    )}
+                    {idx <= 8 && (
+                      <span style={{
+                        fontSize: '9px', opacity: 0.6,
+                        background: isActive ? 'rgba(255,255,255,0.2)' : '#f1f5f9',
+                        padding: '1px 4px', borderRadius: '3px',
+                        fontFamily: 'monospace',
+                      }}>
+                        Alt+{idx + 1}
+                      </span>
+                    )}
+                    {carts.length > 1 && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); deleteCart(c.id); }}
+                        style={{
+                          background: 'none', border: 'none', cursor: 'pointer',
+                          color: isActive ? 'rgba(255,255,255,0.7)' : '#94a3b8',
+                          padding: '0', lineHeight: 1, fontSize: '14px',
+                          display: 'flex', alignItems: 'center',
+                        }}
+                        title="Cerrar este carrito"
+                      >
+                        <Icon name="X" size="xs" />
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+              {/* Add new cart button */}
+              <button
+                onClick={() => createCart()}
+                title="Nuevo carrito (Alt+N)"
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  width: '28px', height: '28px', borderRadius: '8px',
+                  border: '1px dashed #cbd5e1', background: 'transparent',
+                  color: '#64748b', cursor: 'pointer', fontSize: '16px',
+                  flexShrink: 0, transition: 'all 0.15s',
+                }}
+              >
+                <Icon name="Plus" size="xs" />
+              </button>
+            </div>
+
             {/* Cart header */}
-            <div style={{ padding: '20px 24px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ padding: '14px 24px 12px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Icon name="ShoppingCart" size="sm" />
-                <h2 style={{ fontSize: '16px', fontWeight: '700', color: '#0f172a', margin: 0 }}>
-                  Carrito
+                <h2 style={{ fontSize: '15px', fontWeight: '700', color: '#0f172a', margin: 0 }}>
+                  {carts.find(c => c.id === activeCartId)?.label || 'Carrito'}
                 </h2>
                 {cart.length > 0 && (
                   <span style={{ background: '#2563eb', color: 'white', fontSize: '11px', fontWeight: '700', borderRadius: '20px', padding: '1px 8px' }}>
