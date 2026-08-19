@@ -5,3 +5,5 @@ export * from './ApproveRescheduledModal';
 export * from './CancelApprovedModal';
 export * from './AddAppointmentModal';
 export * from './CompleteAppointmentModal';
+export * from './ProductDetailModal';
+

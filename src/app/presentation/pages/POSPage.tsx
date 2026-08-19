@@ -12,6 +12,7 @@ import {
   TemporaryServiceModal,
   TicketReceipt,
   QuotationReceipt,
+  ProductDetailModal,
 } from '../components';
 import { useAuthStore } from '../../../core/stores/useAuthStore';
 import { usePOSStore } from '../../../core/stores/usePOSStore';
@@ -21,7 +22,7 @@ import { APIClientPortalRepository } from '../../data/repositories/APIClientPort
 import { APISalesRepository } from '../../data/repositories/APISalesRepository';
 import { APIInventoryRepository } from '../../data/repositories/APIInventoryRepository';
 import { APIServicesRepository } from '../../data/repositories/APIServicesRepository';
-import type { PredefinedService, Sale } from '../../domain/entities/SalesEntities';
+import type { PredefinedService, Sale, CartItem } from '../../domain/entities/SalesEntities';
 import type { Branch } from '../../domain/entities/AdminEntities';
 import type { Product } from '@/app/domain/entities/InventoryEntities';
 
@@ -116,6 +117,115 @@ const InlinePrice: React.FC<InlinePriceProps> = ({
   );
 };
 
+// ─── Cart Item Row Component ──────────────────────────────────────────────────
+
+interface CartItemRowProps {
+  cartItem: CartItem;
+  onUpdateUnitPrice: (cartId: string, price: number) => void;
+  onToggleItemNoAplica: (cartId: string) => void;
+  onRemoveFromCart: (cartId: string) => void;
+  onUpdateQuantity: (cartId: string, quantity: number) => void;
+  onSelectDetailProduct: (product: Product) => void;
+}
+
+const CartItemRow: React.FC<CartItemRowProps> = ({
+  cartItem,
+  onUpdateUnitPrice,
+  onToggleItemNoAplica,
+  onRemoveFromCart,
+  onUpdateQuantity,
+  onSelectDetailProduct,
+}) => {
+  const cartItemBrand = cartItem.product
+    ? typeof cartItem.product.brand === 'object' && cartItem.product.brand?.name
+      ? cartItem.product.brand.name
+      : typeof cartItem.product.brand === 'string'
+      ? cartItem.product.brand
+      : ''
+    : '';
+
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+          {cartItem.type === 'service' && (
+            <span style={{ fontSize: '10px', background: '#fffbeb', color: '#d97706', padding: '1px 6px', borderRadius: '4px', fontWeight: '700', border: '1px solid #fde68a', flexShrink: 0 }}>
+              Servicio
+            </span>
+          )}
+          {cartItem.parentCartId && (
+            <span style={{ fontSize: '10px', background: '#bae6fd', color: '#0369a1', padding: '1px 6px', borderRadius: '4px', fontWeight: '700', border: '1px solid #7dd3fc', flexShrink: 0 }}>
+              Insumo de servicio
+            </span>
+          )}
+          {cartItemBrand && (
+            <span style={{ fontSize: '10px', background: '#eff6ff', color: '#2563eb', padding: '1px 6px', borderRadius: '4px', fontWeight: '600', border: '1px solid #bfdbfe', flexShrink: 0 }}>
+              {cartItemBrand}
+            </span>
+          )}
+          <span style={{ fontSize: '13px', fontWeight: '700', color: '#0f172a', wordBreak: 'break-word' }}>{cartItem.name}</span>
+          {cartItem.product && (
+            <button
+              type="button"
+              onClick={() => onSelectDetailProduct(cartItem.product!)}
+              title="Ver detalles del producto"
+              style={{
+                background: 'none',
+                border: 'none',
+                padding: 0,
+                cursor: 'pointer',
+                color: '#2563eb',
+                display: 'inline-flex',
+                alignItems: 'center',
+                marginLeft: '2px',
+              }}
+            >
+              <Icon name="Info" size="xs" />
+            </button>
+          )}
+        </div>
+        {cartItem.sku && (
+          <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '1px' }}>SKU: {cartItem.sku}</div>
+        )}
+
+        <div style={{ marginTop: '6px' }}>
+          <InlinePrice
+            cartId={cartItem.cartId}
+            unitPrice={cartItem.unitPrice}
+            originalPrice={cartItem.originalPrice}
+            isNoAplica={!!cartItem.isNoAplica}
+            onUpdate={onUpdateUnitPrice}
+          />
+        </div>
+
+        <label style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: cartItem.isNoAplica ? '#16a34a' : '#94a3b8', fontWeight: '600', cursor: 'pointer', marginTop: '6px', userSelect: 'none' }}>
+          <input
+            type="checkbox"
+            checked={!!cartItem.isNoAplica}
+            onChange={() => onToggleItemNoAplica(cartItem.cartId)}
+            style={{ width: '13px', height: '13px', accentColor: '#16a34a' }}
+          />
+          No aplica
+        </label>
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px', flexShrink: 0 }}>
+        <button onClick={() => onRemoveFromCart(cartItem.cartId)} style={{ color: '#ef4444', border: 'none', background: 'none', cursor: 'pointer', padding: 0 }}>
+          <Icon name="Trash2" size="sm" />
+        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <button onClick={() => onUpdateQuantity(cartItem.cartId, cartItem.quantity - 1)} style={{ width: '26px', height: '26px', borderRadius: '6px', border: '1px solid #cbd5e1', background: 'white', cursor: 'pointer', fontWeight: '700', fontSize: '16px', lineHeight: 1 }}>−</button>
+          <span style={{ fontSize: '14px', fontWeight: '700', width: '22px', textAlign: 'center' }}>{cartItem.quantity}</span>
+          <button onClick={() => onUpdateQuantity(cartItem.cartId, cartItem.quantity + 1)} style={{ width: '26px', height: '26px', borderRadius: '6px', border: '1px solid #cbd5e1', background: 'white', cursor: 'pointer', fontWeight: '700', fontSize: '16px', lineHeight: 1 }}>+</button>
+        </div>
+        <span style={{ fontSize: '13px', fontWeight: '700', color: '#0f172a' }}>
+          ${cartItem.subtotal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+        </span>
+      </div>
+    </div>
+  );
+};
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export const POSPage: React.FC = () => {
@@ -129,6 +239,8 @@ export const POSPage: React.FC = () => {
   const [allProductsForSupplies, setAllProductsForSupplies] = useState<Product[]>([]);
   const [isTempServiceModalOpen, setIsTempServiceModalOpen] = useState(false);
   const [lastCompletedSale, setLastCompletedSale] = useState<Sale | null>(null);
+  const [selectedDetailProduct, setSelectedDetailProduct] = useState<Product | null>(null);
+
 
 
   const {
@@ -637,6 +749,13 @@ export const POSPage: React.FC = () => {
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: '16px' }}>
                       {searchResults.map((product: Product, idx: number) => {
                         const isSelected = idx === selectedIndex;
+                        const brandName =
+                          typeof product.brand === 'object' && product.brand?.name
+                            ? product.brand.name
+                            : typeof product.brand === 'string'
+                            ? product.brand
+                            : '';
+
                         return (
                           <div
                             key={product.id}
@@ -657,9 +776,65 @@ export const POSPage: React.FC = () => {
                                 <KbdBadge keys="Enter ↵" style={{ background: '#2563eb', color: 'white', border: 'none', boxShadow: '0 2px 4px rgba(0,0,0,0.15)' }} />
                               </div>
                             )}
-                            <div>
-                              <div style={{ fontSize: '13px', fontWeight: '700', color: '#0f172a', lineHeight: 1.3 }}>{product.name}</div>
-                              <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '2px' }}>SKU: {product.sku}</div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ fontSize: '13px', fontWeight: '700', color: '#0f172a', lineHeight: 1.3, wordBreak: 'break-word' }}>
+                                  {product.name}
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginTop: '4px' }}>
+                                  <span style={{ fontSize: '11px', color: '#64748b' }}>SKU: {product.sku}</span>
+                                  {brandName && (
+                                    <span
+                                      style={{
+                                        fontSize: '10px',
+                                        fontWeight: '600',
+                                        color: '#2563eb',
+                                        background: '#eff6ff',
+                                        border: '1px solid #bfdbfe',
+                                        padding: '1px 6px',
+                                        borderRadius: '4px',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '3px',
+                                      }}
+                                    >
+                                      <Icon name="Tag" size="xs" style={{ width: '10px', height: '10px' }} />
+                                      {brandName}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedDetailProduct(product);
+                                }}
+                                title="Ver detalles del producto"
+                                style={{
+                                  background: '#f1f5f9',
+                                  border: '1px solid #cbd5e1',
+                                  borderRadius: '6px',
+                                  padding: '4px 6px',
+                                  cursor: 'pointer',
+                                  color: '#475569',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  transition: 'all 0.15s ease-in-out',
+                                  flexShrink: 0,
+                                }}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.background = '#e2e8f0';
+                                  e.currentTarget.style.color = '#1d4ed8';
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.background = '#f1f5f9';
+                                  e.currentTarget.style.color = '#475569';
+                                }}
+                              >
+                                <Icon name="Info" size="xs" />
+                              </button>
                             </div>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto' }}>
                               <div>
@@ -949,75 +1124,29 @@ export const POSPage: React.FC = () => {
                   {cart.filter(item => !item.parentCartId).map(item => {
                     const childItems = cart.filter(child => child.parentCartId === item.cartId);
 
-                    const renderItemRow = (cartItem: typeof cart[0]) => (
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                            {cartItem.type === 'service' && (
-                              <span style={{ fontSize: '10px', background: '#fffbeb', color: '#d97706', padding: '1px 6px', borderRadius: '4px', fontWeight: '700', border: '1px solid #fde68a', flexShrink: 0 }}>
-                                Servicio
-                              </span>
-                            )}
-                            {cartItem.parentCartId && (
-                              <span style={{ fontSize: '10px', background: '#bae6fd', color: '#0369a1', padding: '1px 6px', borderRadius: '4px', fontWeight: '700', border: '1px solid #7dd3fc', flexShrink: 0 }}>
-                                Insumo de servicio
-                              </span>
-                            )}
-                            <span style={{ fontSize: '13px', fontWeight: '700', color: '#0f172a', wordBreak: 'break-word' }}>{cartItem.name}</span>
-                          </div>
-                          {cartItem.sku && (
-                            <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '1px' }}>SKU: {cartItem.sku}</div>
-                          )}
-
-                          {/* Inline price editor */}
-                          <div style={{ marginTop: '6px' }}>
-                            <InlinePrice
-                              cartId={cartItem.cartId}
-                              unitPrice={cartItem.unitPrice}
-                              originalPrice={cartItem.originalPrice}
-                              isNoAplica={!!cartItem.isNoAplica}
-                              onUpdate={updateUnitPrice}
-                            />
-                          </div>
-
-                          {/* No aplica toggle */}
-                          <label style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: cartItem.isNoAplica ? '#16a34a' : '#94a3b8', fontWeight: '600', cursor: 'pointer', marginTop: '6px', userSelect: 'none' }}>
-                            <input
-                              type="checkbox"
-                              checked={!!cartItem.isNoAplica}
-                              onChange={() => toggleItemNoAplica(cartItem.cartId)}
-                              style={{ width: '13px', height: '13px', accentColor: '#16a34a' }}
-                            />
-                            No aplica
-                          </label>
-                        </div>
-
-                        {/* Quantity controls + delete */}
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px', flexShrink: 0 }}>
-                          <button onClick={() => removeFromCart(cartItem.cartId)} style={{ color: '#ef4444', border: 'none', background: 'none', cursor: 'pointer', padding: 0 }}>
-                            <Icon name="Trash2" size="sm" />
-                          </button>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <button onClick={() => updateQuantity(cartItem.cartId, cartItem.quantity - 1)} style={{ width: '26px', height: '26px', borderRadius: '6px', border: '1px solid #cbd5e1', background: 'white', cursor: 'pointer', fontWeight: '700', fontSize: '16px', lineHeight: 1 }}>−</button>
-                            <span style={{ fontSize: '14px', fontWeight: '700', width: '22px', textAlign: 'center' }}>{cartItem.quantity}</span>
-                            <button onClick={() => updateQuantity(cartItem.cartId, cartItem.quantity + 1)} style={{ width: '26px', height: '26px', borderRadius: '6px', border: '1px solid #cbd5e1', background: 'white', cursor: 'pointer', fontWeight: '700', fontSize: '16px', lineHeight: 1 }}>+</button>
-                          </div>
-                          <span style={{ fontSize: '13px', fontWeight: '700', color: '#0f172a' }}>
-                            ${cartItem.subtotal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
-                          </span>
-                        </div>
-                      </div>
-                    );
-
                     return (
                       <div key={item.cartId} style={{ border: '1px solid #f1f5f9', borderRadius: '10px', padding: '12px', background: '#fafafa' }}>
-                        {renderItemRow(item)}
+                        <CartItemRow
+                          cartItem={item}
+                          onUpdateUnitPrice={updateUnitPrice}
+                          onToggleItemNoAplica={toggleItemNoAplica}
+                          onRemoveFromCart={removeFromCart}
+                          onUpdateQuantity={updateQuantity}
+                          onSelectDetailProduct={setSelectedDetailProduct}
+                        />
 
                         {childItems.length > 0 && (
                           <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px dashed #cbd5e1', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                             {childItems.map(child => (
                               <div key={child.cartId} style={{ border: '1px solid #bae6fd', borderRadius: '8px', padding: '10px', background: '#f0f9ff' }}>
-                                {renderItemRow(child)}
+                                <CartItemRow
+                                  cartItem={child}
+                                  onUpdateUnitPrice={updateUnitPrice}
+                                  onToggleItemNoAplica={toggleItemNoAplica}
+                                  onRemoveFromCart={removeFromCart}
+                                  onUpdateQuantity={updateQuantity}
+                                  onSelectDetailProduct={setSelectedDetailProduct}
+                                />
                               </div>
                             ))}
                           </div>
@@ -1195,6 +1324,14 @@ export const POSPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Product Detail Modal */}
+      <ProductDetailModal
+        isOpen={!!selectedDetailProduct}
+        onClose={() => setSelectedDetailProduct(null)}
+        product={selectedDetailProduct}
+        onAddToCart={(prod) => addProductToCart(prod, 1)}
+      />
     </div>
   );
 };
