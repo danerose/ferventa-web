@@ -1,4 +1,4 @@
-import type { Sale, CreateSalePayload } from '../../domain/entities/SalesEntities';
+import type { Sale, CreateSalePayload } from '@/app/domain';
 
 export class APISalesRepository {
   private baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';

@@ -1,10 +1,10 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Icon } from '@/app/presentation/components';
-import { useAuthStore } from '@/core/stores/useAuthStore';
-import { APIAdminRepository } from '@/app/data/repositories/APIAdminRepository';
-import { APIClientPortalRepository } from '@/app/data/repositories/APIClientPortalRepository';
-import type { Branch } from '@/app/domain/entities/AdminEntities';
+import { useAuthStore } from '@/app/presentation/stores';
+import { APIAdminRepository } from '@/app/data';
+import { APIClientPortalRepository } from '@/app/data';
+import type { Branch } from '@/app/domain';
 
 const adminRepo = new APIAdminRepository();
 const clientPortalRepo = new APIClientPortalRepository();

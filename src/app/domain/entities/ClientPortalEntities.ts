@@ -1,3 +1,5 @@
+import type { Holiday } from '@/app/domain';
+
 export interface Vehicle {
   brand: string;
   model: string;
@@ -48,11 +50,6 @@ export interface MaintenanceTrack {
   items: MaintenanceTrackItem[];
   history: MaintenanceTrackHistory[];
   evidence: MaintenanceEvidence[];
-}
-
-export interface Holiday {
-  date: string;
-  description: string;
 }
 
 export interface BusySlot {

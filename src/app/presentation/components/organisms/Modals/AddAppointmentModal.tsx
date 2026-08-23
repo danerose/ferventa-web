@@ -1,6 +1,6 @@
 import React from 'react';
-import { Modal } from '@/app/presentation/components/molecules/Modal/Modal';
-import { AppointmentForm } from '../AppointmentForm';
+import { Modal } from '@/app/presentation/components';
+import { AppointmentForm } from '@/app/presentation/components';
 
 export interface AddAppointmentModalProps {
   isOpen: boolean;

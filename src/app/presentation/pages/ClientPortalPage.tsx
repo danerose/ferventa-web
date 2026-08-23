@@ -1,7 +1,7 @@
 import React from 'react';
-import { AppointmentForm } from '../components/organisms/AppointmentForm';
-import { StatusSearch } from '../components/organisms/StatusSearch';
-import { StatusResults } from '../components/organisms/StatusResults';
+import { AppointmentForm } from '@/app/presentation/components';
+import { StatusSearch } from '@/app/presentation/components';
+import { StatusResults } from '@/app/presentation/components';
 import { Box, Flex, Grid, Stack, Icon, PrimaryButton } from '@/app/presentation/components';
 
 export interface ClientPortalPageProps {

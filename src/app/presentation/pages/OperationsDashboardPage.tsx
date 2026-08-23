@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Icon, Sidebar, SaleDetailDrawer, TicketReceipt } from '../components';
-import { useAuthStore } from '../../../core/stores/useAuthStore';
+import { useAuthStore } from '@/app/presentation/stores';
 import { APISalesRepository } from '../../data/repositories/APISalesRepository';
 import { APIAdminRepository } from '../../data/repositories/APIAdminRepository';
 import { APIInventoryRepository } from '../../data/repositories/APIInventoryRepository';
@@ -1178,7 +1178,7 @@ export const OperationsDashboardPage: React.FC = () => {
       />
 
       {/* Printable Ticket Receipt */}
-      <TicketReceipt sale={printSale || selectedSale} />
+      <TicketReceipt sale={printSale || selectedSale} branchName={(printSale || selectedSale)?.branch?.name || allBranches.find(b => b.id === (typeof (printSale || selectedSale)?.branch === 'string' ? (printSale || selectedSale)?.branch : (printSale || selectedSale)?.branch?.id || (printSale || selectedSale)?.branch?.id))?.name || allBranches.find(b => b.id === activeBranchId)?.name || 'Sucursal Principal'} />
     </div>
   );
 };

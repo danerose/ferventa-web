@@ -1,7 +1,7 @@
 import React from 'react';
 import { Icon, PrimaryButton, SecondaryButton } from '@/app/presentation/components';
-import type { AdminAppointment } from '@/app/domain/entities/AdminEntities';
-import { formatScheduledAt } from '@/core/utils/formatScheduledAt';
+import type { AdminAppointment } from '@/app/domain';
+import { formatScheduledAt } from '@/core/utils/formatters/formatScheduledAt';
 
 export const STATUS_LABELS: Record<string, string> = {
   pending: 'Pendiente',

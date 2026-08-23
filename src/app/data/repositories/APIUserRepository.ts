@@ -1,4 +1,4 @@
-import type { User, Role, CreateUserDto, UpdateUserDto, CreateUserResponse, CheckUsernameResponse } from '../../domain/entities/UserEntities';
+import type { User, Role, CreateUserDto, UpdateUserDto, CreateUserResponse, CheckUsernameResponse } from '@/app/domain';
 
 export class APIUserRepository {
   private baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';

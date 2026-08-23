@@ -1,16 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Icon, Sidebar, PrimaryButton, SecondaryButton, TextInput, SearchableSelect, Modal, KbdBadge } from '../components';
-import { useAuthStore } from '../../../core/stores/useAuthStore';
-import { useInventoryStore } from '../../../core/stores/useInventoryStore';
+import { useAuthStore } from '@/app/presentation/stores';
+import { useInventoryStore } from '@/app/presentation/stores';
 import { useBarcodeScanner } from '../../../core/hooks/useBarcodeScanner';
-import { APIAdminRepository } from '../../data/repositories/APIAdminRepository';
-import { APIClientPortalRepository } from '../../data/repositories/APIClientPortalRepository';
-import type { CreateProductDto, CreateProviderDto, Product, Provider, StockMovement } from '../../domain/entities/InventoryEntities';
-import type { Branch } from '../../domain/entities/AdminEntities';
-import { APIInventoryRepository } from '@/app/data/repositories/APIInventoryRepository';
-import { APIServicesRepository } from '../../data/repositories/APIServicesRepository';
-import type { PredefinedService, CreateServiceDto } from '../../domain/entities/SalesEntities';
+import { APIAdminRepository } from '@/app/data';
+import { APIClientPortalRepository } from '@/app/data';
+import type { CreateProductDto, CreateProviderDto, Product, Provider, StockMovement } from '@/app/domain';
+import type { Branch } from '@/app/domain';
+import { APIInventoryRepository } from '@/app/data';
+import { APIServicesRepository } from '@/app/data';
+import type { PredefinedService, CreateServiceDto } from '@/app/domain';
 
 const inventoryRepo = new APIInventoryRepository();
 const adminRepo = new APIAdminRepository();

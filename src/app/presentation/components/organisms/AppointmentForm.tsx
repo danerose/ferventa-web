@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { useClientPortalStore } from '../../stores/useClientPortalStore';
+import { useClientPortalStore } from '@/app/presentation/stores';
 import { Box, Flex, Stack, Grid, TextInput, PrimaryButton, Icon, DateTimePicker } from '@/app/presentation/components';
 
 export const AppointmentForm: React.FC = () => {

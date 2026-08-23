@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Icon, Sidebar, PrimaryButton, SecondaryButton, TextInput, Modal, AlertModal, ConfirmModal } from '../components';
-import { useAuthStore } from '../../../core/stores/useAuthStore';
+import { useAuthStore } from '@/app/presentation/stores/index';
 import { APIAdminRepository } from '../../data/repositories/APIAdminRepository';
 import type { Schedule, Holiday } from '../../domain/entities/AdminEntities';
 
@@ -10,7 +10,7 @@ const adminRepo = new APIAdminRepository();
 export const ScheduleSettingsPage: React.FC = () => {
   const navigate = useNavigate();
   const { user, accessToken, clearAuth } = useAuthStore();
-  
+
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [holidays, setHolidays] = useState<Holiday[]>([]);
   const [loading, setLoading] = useState(false);
@@ -41,10 +41,10 @@ export const ScheduleSettingsPage: React.FC = () => {
         adminRepo.getSchedule(),
         adminRepo.getHolidays()
       ]);
-      
+
       // Initialize with default if empty
       if (schData.length === 0) {
-        const defaultSchedule = Array.from({length: 7}).map((_, i) => ({
+        const defaultSchedule = Array.from({ length: 7 }).map((_, i) => ({
           dayOfWeek: i,
           isWorking: i >= 1 && i <= 5, // Mon-Fri
           startTime: '09:00',
@@ -156,11 +156,11 @@ export const ScheduleSettingsPage: React.FC = () => {
         </header>
 
         <main style={{ flex: 1, padding: '28px', maxWidth: '800px', width: '100%', margin: '0 auto' }}>
-          
+
           <div style={{ display: 'flex', gap: '8px', background: 'white', padding: '4px', borderRadius: '8px', border: '1px solid #e2e8f0', marginBottom: '24px', width: 'fit-content' }}>
-            <button 
+            <button
               onClick={() => setActiveTab('schedule')}
-              style={{ 
+              style={{
                 padding: '8px 16px', borderRadius: '6px', fontWeight: '600', fontSize: '14px', border: 'none', cursor: 'pointer', transition: 'all 0.2s',
                 background: activeTab === 'schedule' ? '#091426' : 'transparent',
                 color: activeTab === 'schedule' ? 'white' : '#64748b'
@@ -168,9 +168,9 @@ export const ScheduleSettingsPage: React.FC = () => {
             >
               Horario Laboral
             </button>
-            <button 
+            <button
               onClick={() => setActiveTab('holidays')}
-              style={{ 
+              style={{
                 padding: '8px 16px', borderRadius: '6px', fontWeight: '600', fontSize: '14px', border: 'none', cursor: 'pointer', transition: 'all 0.2s',
                 background: activeTab === 'holidays' ? '#091426' : 'transparent',
                 color: activeTab === 'holidays' ? 'white' : '#64748b'
@@ -196,7 +196,7 @@ export const ScheduleSettingsPage: React.FC = () => {
                         <input type="checkbox" checked={s.isWorking} onChange={(e) => updateScheduleDay(index, { isWorking: e.target.checked })} />
                         Laborable
                       </label>
-                      
+
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, opacity: s.isWorking ? 1 : 0.4, pointerEvents: s.isWorking ? 'auto' : 'none' }}>
                         <input type="time" value={s.startTime} onChange={(e) => updateScheduleDay(index, { startTime: e.target.value })} style={{ padding: '6px 10px', borderRadius: '6px', border: '1px solid #cbd5e1' }} />
                         <span>a</span>
@@ -256,7 +256,7 @@ export const ScheduleSettingsPage: React.FC = () => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div>
             <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#0f172a', marginBottom: '8px' }}>Fecha</label>
-            <input 
+            <input
               type="date"
               value={holidayDate}
               onChange={(e) => setHolidayDate(e.target.value)}
@@ -265,8 +265,8 @@ export const ScheduleSettingsPage: React.FC = () => {
           </div>
           <div>
             <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#0f172a', marginBottom: '8px' }}>Descripción</label>
-            <TextInput 
-              placeholder="Día del trabajo..." 
+            <TextInput
+              placeholder="Día del trabajo..."
               value={holidayDesc}
               onChange={(e) => setHolidayDesc(e.target.value)}
             />

@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import type { OccupiedSlots } from '../../../../domain/entities/ClientPortalEntities';
-import { Box, Flex, Grid, Stack, Icon, PrimaryButton } from '../../index';
+import type { OccupiedSlots } from '@/app/domain';
+import { Box, Flex, Grid, Stack, Icon, PrimaryButton } from '@/app/presentation/components';
 
 interface DateTimePickerProps {
   selectedDate: string;

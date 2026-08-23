@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useAuthStore } from '@/core/stores/useAuthStore';
-import { APIAdminRepository } from '@/app/data/repositories/APIAdminRepository';
-import type { AdminMaintenanceOrder } from '@/app/domain/entities/AdminEntities';
+import { useAuthStore } from '@/app/presentation/stores';
+import { APIAdminRepository } from '@/app/data';
+import type { AdminMaintenanceOrder } from '@/app/domain';
 import { Sidebar, Icon, PrimaryButton, SecondaryButton } from '@/app/presentation/components';
-import { Modal } from '@/app/presentation/components/molecules/Modal/Modal';
+import { Modal } from '@/app/presentation/components';
 
 const adminRepo = new APIAdminRepository();
 

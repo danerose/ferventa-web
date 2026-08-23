@@ -3,7 +3,7 @@ import type {
   TodayAttendanceStatus,
   AttendancePeriodSummary,
   UserAttendanceBreakdown,
-} from '../../domain/entities/AttendanceEntities';
+} from '@/app/domain';
 
 export class APIAttendanceRepository {
   private baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Icon, TextInput, PrimaryButton } from '@/app/presentation/components';
-import { useAuthStore } from '@/core/stores/useAuthStore';
-import { APIAdminRepository } from '@/app/data/repositories/APIAdminRepository';
+import { useAuthStore } from '@/app/presentation/stores';
+import { APIAdminRepository } from '@/app/data';
 
 const adminRepo = new APIAdminRepository();
 

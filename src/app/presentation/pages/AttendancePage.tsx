@@ -1,19 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Icon, Sidebar, PrimaryButton, SecondaryButton } from '../components';
-import { useAuthStore } from '../../../core/stores/useAuthStore';
-import { APIUserRepository } from '../../data/repositories/APIUserRepository';
-import { APIAdminRepository } from '../../data/repositories/APIAdminRepository';
-import { APIAttendanceRepository } from '../../data/repositories/APIAttendanceRepository';
-import { AttendanceWidget } from '../components/organisms/AttendanceWidget/AttendanceWidget';
-import { UserBreakdownModal } from '../components/organisms/Modals/UserBreakdownModal';
-import { EditAttendanceModal } from '../components/organisms/Modals/EditAttendanceModal';
-import type { Branch } from '../../domain/entities/AdminEntities';
-import type { User } from '../../domain/entities/UserEntities';
+import { useAuthStore } from '@/app/presentation/stores';
+import { APIUserRepository } from '@/app/data';
+import { APIAdminRepository } from '@/app/data';
+import { APIAttendanceRepository } from '@/app/data';
+import { AttendanceWidget } from '@/app/presentation/components';
+import { UserBreakdownModal } from '@/app/presentation/components';
+import { EditAttendanceModal } from '@/app/presentation/components';
+import type { Branch } from '@/app/domain';
+import type { User } from '@/app/domain';
 import type {
   AttendanceRecord,
   AttendancePeriodSummary,
-} from '../../domain/entities/AttendanceEntities';
+} from '@/app/domain';
 
 const userRepo = new APIUserRepository();
 const adminRepo = new APIAdminRepository();

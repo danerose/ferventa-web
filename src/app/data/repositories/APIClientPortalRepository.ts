@@ -1,5 +1,5 @@
-import type { Appointment, MaintenanceTrack, OccupiedSlots } from '../../domain/entities/ClientPortalEntities';
-import type { ClientPortalRepository } from '../../domain/repositories/ClientPortalRepository';
+import type { Appointment, MaintenanceTrack, OccupiedSlots } from '@/app/domain';
+import type { ClientPortalRepository } from '@/app/domain';
 
 interface RawAppointment {
   id?: string;

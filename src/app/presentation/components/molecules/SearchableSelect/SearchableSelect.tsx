@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Icon } from '../../atoms/Icon/Icon';
+import { Icon } from '@/app/presentation/components';
 
 interface Option {
   id: string;

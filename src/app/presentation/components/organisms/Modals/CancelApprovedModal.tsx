@@ -1,7 +1,7 @@
 import React from 'react';
-import { Modal } from '@/app/presentation/components/molecules/Modal/Modal';
+import { Modal } from '@/app/presentation/components';
 import { PrimaryButton, SecondaryButton, Icon } from '@/app/presentation/components';
-import type { AdminAppointment } from '@/app/domain/entities/AdminEntities';
+import type { AdminAppointment } from '@/app/domain';
 
 export interface CancelApprovedModalProps {
   isOpen: boolean;

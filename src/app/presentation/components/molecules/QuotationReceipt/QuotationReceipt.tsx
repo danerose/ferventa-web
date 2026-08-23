@@ -1,5 +1,5 @@
 import React from 'react';
-import type { CartItem } from '@/app/domain/entities/SalesEntities';
+import type { CartItem } from '@/app/domain';
 
 interface QuotationReceiptProps {
   items: CartItem[];

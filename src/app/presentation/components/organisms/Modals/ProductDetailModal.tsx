@@ -1,6 +1,6 @@
 import React from 'react';
 import { Modal, PrimaryButton, SecondaryButton, Icon } from '@/app/presentation/components';
-import type { Product } from '@/app/domain/entities/InventoryEntities';
+import type { Product } from '@/app/domain';
 
 interface ProductDetailModalProps {
   isOpen: boolean;

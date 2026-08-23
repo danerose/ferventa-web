@@ -1,4 +1,4 @@
-import type { Product } from './InventoryEntities';
+import type { Product } from '@/app/domain';
 
 // ─── Predefined Services (Workshop Catalog) ──────────────────────────────────
 

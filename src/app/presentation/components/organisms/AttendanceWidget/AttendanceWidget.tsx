@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Icon } from '@/app/presentation/components';
-import { APIAttendanceRepository } from '@/app/data/repositories/APIAttendanceRepository';
-import type { TodayAttendanceStatus } from '@/app/domain/entities/AttendanceEntities';
+import { APIAttendanceRepository } from '@/app/data';
+import type { TodayAttendanceStatus } from '@/app/domain';
 
 const attendanceRepo = new APIAttendanceRepository();
 

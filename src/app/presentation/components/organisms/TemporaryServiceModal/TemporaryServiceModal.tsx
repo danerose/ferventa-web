@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { Icon } from '../../atoms/Icon/Icon';
-import { PrimaryButton } from '../../atoms/Button/PrimaryButton';
-import { SecondaryButton } from '../../atoms/Button/SecondaryButton';
-import { TextInput } from '../../atoms/Input/TextInput';
-import { Modal } from '../../molecules/Modal';
-import { KbdBadge } from '../../atoms/KbdBadge/KbdBadge';
-import type { Product } from '@/app/domain/entities/InventoryEntities';
+import { Icon } from '@/app/presentation/components';
+import { PrimaryButton } from '@/app/presentation/components';
+import { SecondaryButton } from '@/app/presentation/components';
+import { TextInput } from '@/app/presentation/components';
+import { Modal } from '@/app/presentation/components';
+import { KbdBadge } from '@/app/presentation/components';
+import type { Product } from '@/app/domain';
 
 interface SelectedSupply {
   product: Product;

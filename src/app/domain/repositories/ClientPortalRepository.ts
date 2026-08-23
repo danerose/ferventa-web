@@ -1,4 +1,4 @@
-import type { Appointment, MaintenanceTrack, OccupiedSlots } from '../entities/ClientPortalEntities';
+import type { Appointment, MaintenanceTrack, OccupiedSlots } from '@/app/domain';
 
 export interface ClientPortalRepository {
   bookAppointment(appointment: Appointment): Promise<Appointment>;

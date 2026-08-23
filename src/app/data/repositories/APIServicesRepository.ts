@@ -2,7 +2,7 @@ import type {
   PredefinedService,
   CreateServiceDto,
   UpdateServiceDto,
-} from '../../domain/entities/SalesEntities';
+} from '@/app/domain';
 
 export class APIServicesRepository {
   private baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';

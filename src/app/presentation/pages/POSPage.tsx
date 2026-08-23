@@ -14,17 +14,19 @@ import {
   QuotationReceipt,
   ProductDetailModal,
 } from '../components';
-import { useAuthStore } from '../../../core/stores/useAuthStore';
-import { usePOSStore } from '../../../core/stores/usePOSStore';
-import { useBarcodeScanner } from '../../../core/hooks/useBarcodeScanner';
-import { APIAdminRepository } from '../../data/repositories/APIAdminRepository';
-import { APIClientPortalRepository } from '../../data/repositories/APIClientPortalRepository';
-import { APISalesRepository } from '../../data/repositories/APISalesRepository';
-import { APIInventoryRepository } from '../../data/repositories/APIInventoryRepository';
-import { APIServicesRepository } from '../../data/repositories/APIServicesRepository';
-import type { PredefinedService, Sale, CartItem } from '../../domain/entities/SalesEntities';
-import type { Branch } from '../../domain/entities/AdminEntities';
-import type { Product } from '@/app/domain/entities/InventoryEntities';
+import { useAuthStore } from '@/app/presentation/stores';
+import { usePOSStore } from '@/app/presentation/stores';
+import { usePrinterSettingsStore } from '@/app/presentation/stores';
+import { thermalPrintService } from '@/core/services/thermalPrintService';
+import { useBarcodeScanner } from '@/core/hooks/useBarcodeScanner';
+import { APIAdminRepository } from '@/app/data';
+import { APIClientPortalRepository } from '@/app/data';
+import { APISalesRepository } from '@/app/data';
+import { APIInventoryRepository } from '@/app/data';
+import { APIServicesRepository } from '@/app/data';
+import type { PredefinedService, Sale, CartItem } from '@/app/domain';
+import type { Branch } from '@/app/domain';
+import type { Product } from '@/app/domain';
 
 const inventoryRepo = new APIInventoryRepository();
 const salesRepo = new APISalesRepository();
@@ -231,6 +233,7 @@ const CartItemRow: React.FC<CartItemRowProps> = ({
 export const POSPage: React.FC = () => {
   const navigate = useNavigate();
   const { user, accessToken, activeBranchId, clearAuth } = useAuthStore();
+  const printerSettings = usePrinterSettingsStore();
   const [branches, setBranches] = useState<Branch[]>([]);
   const [activeTab, setActiveTab] = useState<'products' | 'services'>('products');
   const [allServices, setAllServices] = useState<PredefinedService[]>([]);
@@ -591,12 +594,16 @@ export const POSPage: React.FC = () => {
 
       setLastCompletedSale(createdSale);
       setActiveModal('checkoutSuccess');
-      // Auto-print thermal receipt ticket automatically for USB thermal printers
-      document.body.classList.remove('print-doc-mode');
-      document.body.classList.add('print-ticket-mode');
-      setTimeout(() => {
-        window.print();
-      }, 200);
+
+      // Impresión térmica directa y optimizada (compatible con Safari / macOS y USB/Bluetooth)
+      if (printerSettings.autoPrintOnSale) {
+        thermalPrintService.print({
+          sale: createdSale,
+          branchName: activeBranchName,
+          sellerName: user?.name,
+          settings: printerSettings,
+        });
+      }
     } catch (err: any) {
       if (err.message === 'UNAUTHORIZED') handleUnauthorized();
       else setAlertState({ isOpen: true, title: 'Error al procesar venta', message: err.message, isError: true });
@@ -617,11 +624,14 @@ export const POSPage: React.FC = () => {
   };
 
   const handlePrintReceipt = () => {
-    document.body.classList.remove('print-doc-mode');
-    document.body.classList.add('print-ticket-mode');
-    setTimeout(() => {
-      window.print();
-    }, 100);
+    if (lastCompletedSale) {
+      thermalPrintService.print({
+        sale: lastCompletedSale,
+        branchName: activeBranchName,
+        sellerName: user?.name,
+        settings: printerSettings,
+      });
+    }
   };
 
   const handlePrintQuotation = () => {

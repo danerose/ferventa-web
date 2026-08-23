@@ -1,5 +1,5 @@
-import type { OccupiedSlots } from '../entities/ClientPortalEntities';
-import type { ClientPortalRepository } from '../repositories/ClientPortalRepository';
+import type { OccupiedSlots } from '@/app/domain';
+import type { ClientPortalRepository } from '@/app/domain';
 
 export class GetOccupiedSlotsUseCase {
   private clientPortalRepository: ClientPortalRepository;

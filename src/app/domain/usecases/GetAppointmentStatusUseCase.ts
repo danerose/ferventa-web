@@ -1,5 +1,5 @@
-import type { Appointment } from '../entities/ClientPortalEntities';
-import type { ClientPortalRepository } from '../repositories/ClientPortalRepository';
+import type { Appointment } from '@/app/domain';
+import type { ClientPortalRepository } from '@/app/domain';
 
 export class GetAppointmentStatusUseCase {
   private clientPortalRepository: ClientPortalRepository;

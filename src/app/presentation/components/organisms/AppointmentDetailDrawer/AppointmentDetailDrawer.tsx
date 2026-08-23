@@ -1,7 +1,7 @@
 import React from 'react';
 import { Icon, PrimaryButton, SecondaryButton } from '@/app/presentation/components';
-import { STATUS_LABELS, STATUS_STYLES } from '@/app/presentation/components/molecules/AppointmentCard/AppointmentCard';
-import type { AdminAppointment } from '@/app/domain/entities/AdminEntities';
+import { STATUS_LABELS, STATUS_STYLES } from '@/app/presentation/components';
+import type { AdminAppointment } from '@/app/domain';
 
 export interface AppointmentDetailDrawerProps {
   appt: AdminAppointment | null;

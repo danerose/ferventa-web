@@ -1,10 +1,10 @@
 import { create } from 'zustand';
-import type { Appointment, MaintenanceTrack, OccupiedSlots } from '../../domain/entities/ClientPortalEntities';
-import { APIClientPortalRepository } from '../../data/repositories/APIClientPortalRepository';
-import { BookAppointmentUseCase } from '../../domain/usecases/BookAppointmentUseCase';
-import { GetAppointmentStatusUseCase } from '../../domain/usecases/GetAppointmentStatusUseCase';
-import { GetMaintenanceTrackUseCase } from '../../domain/usecases/GetMaintenanceTrackUseCase';
-import { GetOccupiedSlotsUseCase } from '../../domain/usecases/GetOccupiedSlotsUseCase';
+import type { Appointment, MaintenanceTrack, OccupiedSlots } from '@/app/domain';
+import { APIClientPortalRepository } from '@/app/data';
+import { BookAppointmentUseCase } from '@/app/domain';
+import { GetAppointmentStatusUseCase } from '@/app/domain';
+import { GetMaintenanceTrackUseCase } from '@/app/domain';
+import { GetOccupiedSlotsUseCase } from '@/app/domain';
 
 const repository = new APIClientPortalRepository();
 const bookAppointmentUseCase = new BookAppointmentUseCase(repository);

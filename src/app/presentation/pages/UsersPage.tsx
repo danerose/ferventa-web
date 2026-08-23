@@ -1,37 +1,15 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Icon, Sidebar, PrimaryButton, SecondaryButton, TextInput } from '../components';
-import { useAuthStore } from '../../../core/stores/useAuthStore';
-import { useUserStore } from '../../../core/stores/useUserStore';
-import { APIUserRepository } from '../../data/repositories/APIUserRepository';
-import { APIAdminRepository } from '../../data/repositories/APIAdminRepository';
-import type { CreateUserDto, CreateUserResponse, UpdateUserDto } from '../../domain/entities/UserEntities';
+import { useAuthStore } from '@/app/presentation/stores';
+import { useUserStore } from '@/app/presentation/stores';
+import { APIUserRepository } from '@/app/data';
+import { APIAdminRepository } from '@/app/data';
+import { translateRole } from '@/core/utils/index';
+import type { CreateUserDto, CreateUserResponse, UpdateUserDto } from '@/app/domain';
 
 const userRepo = new APIUserRepository();
 const adminRepo = new APIAdminRepository();
-
-const ROLE_TRANSLATIONS: Record<string, string> = {
-  admin: 'Administrador',
-  administrator: 'Administrador',
-  mechanic: 'Mecánico',
-  warehouse: 'Almacén',
-  receptionist: 'Recepción',
-  reception: 'Recepción',
-  cashier: 'Cajero',
-  seller: 'Vendedor',
-  vendor: 'Vendedor',
-  salesperson: 'Vendedor',
-  sales: 'Ventas / Vendedor',
-  customer: 'Cliente',
-  client: 'Cliente',
-  user: 'Usuario',
-};
-
-const translateRoleName = (rawName?: string): string => {
-  if (!rawName) return '-';
-  const lower = rawName.toLowerCase().trim();
-  return ROLE_TRANSLATIONS[lower] || rawName;
-};
 
 export const UsersPage: React.FC = () => {
   const navigate = useNavigate();
@@ -438,7 +416,7 @@ export const UsersPage: React.FC = () => {
                       <td style={{ padding: '16px', fontSize: '14px', color: '#0f172a', fontWeight: '600' }}>{u.name}</td>
                       <td style={{ padding: '16px', fontSize: '14px', color: '#855300', fontWeight: '600' }}>{u.username || '-'}</td>
                       <td style={{ padding: '16px', fontSize: '14px', color: '#475569' }}>{u.email}</td>
-                      <td style={{ padding: '16px', fontSize: '14px', color: '#475569' }}>{translateRoleName(u.role?.name)}</td>
+                      <td style={{ padding: '16px', fontSize: '14px', color: '#475569' }}>{translateRole(u.role?.name)}</td>
                       <td style={{ padding: '16px' }}>
                         <span style={{
                           padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: '600',
@@ -564,7 +542,7 @@ export const UsersPage: React.FC = () => {
                   {roles.map(r => {
                     const roleVal = r.id || (r as any)._id || r.name;
                     return (
-                      <option key={roleVal} value={roleVal}>{translateRoleName(r.name)}</option>
+                      <option key={roleVal} value={roleVal}>{translateRole(r.name)}</option>
                     );
                   })}
                 </select>
@@ -662,7 +640,7 @@ export const UsersPage: React.FC = () => {
                   {roles.map(r => {
                     const roleVal = r.id || (r as any)._id || r.name;
                     return (
-                      <option key={roleVal} value={roleVal}>{translateRoleName(r.name)}</option>
+                      <option key={roleVal} value={roleVal}>{translateRole(r.name)}</option>
                     );
                   })}
                 </select>

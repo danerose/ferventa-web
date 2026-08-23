@@ -1,4 +1,4 @@
-import type { User } from './UserEntities';
+import type { User } from '@/app/domain';
 
 export interface AttendanceBreak {
   _id?: string;

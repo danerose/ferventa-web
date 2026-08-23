@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Icon } from '../../atoms/Icon/Icon';
 import { PrimaryButton } from '../../atoms/Button/PrimaryButton';
 import { SecondaryButton } from '../../atoms/Button/SecondaryButton';
-import { Modal } from '../../molecules/Modal';
+import { Modal } from '@/app/presentation/components';
 import { KbdBadge } from '../../atoms/KbdBadge/KbdBadge';
 import { TextInput } from '../../atoms/Input/TextInput';
 import type { Sale } from '@/app/domain/entities/SalesEntities';
@@ -13,6 +13,7 @@ interface SaleDetailDrawerProps {
   sale: Sale | null;
   onCancelSale?: (saleId: string, reason: string) => Promise<void>;
   onPrintTicket?: (sale: Sale) => void;
+  branchName?: string;
 }
 
 interface ParsedItem {
@@ -150,6 +151,7 @@ export const SaleDetailDrawer: React.FC<SaleDetailDrawerProps> = ({
   sale,
   onCancelSale,
   onPrintTicket,
+  branchName: externalBranchName,
 }) => {
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
@@ -177,7 +179,7 @@ export const SaleDetailDrawer: React.FC<SaleDetailDrawerProps> = ({
       })
     : '-';
 
-  const branchName = (sale.branch as any)?.name || 'Sucursal Principal';
+  const branchName = externalBranchName || (sale.branch as any)?.name || 'Sucursal Principal';
   const customerName = (sale.customer as any)?.name || 'Cliente General';
   const sellerName = (sale.seller as any)?.name || 'Vendedor';
   const rootItems = parseSaleItems(sale.items);

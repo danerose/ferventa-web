@@ -1,5 +1,5 @@
 import React from 'react';
-import { Flex, type FlexProps } from '../Flex/Flex';
+import { Flex, type FlexProps } from '@/app/presentation/components';
 
 export type StackProps = Omit<FlexProps, 'direction'>;
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Modal } from './Modal';
+import { Modal } from '@/app/presentation/components';
 import { PrimaryButton, KbdBadge } from '@/app/presentation/components';
 
 export interface AlertModalProps {

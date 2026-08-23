@@ -1,4 +1,4 @@
-import type { Brand, Category, Provider, Product, StockMovement, CreateProviderDto, CreateProductDto, CreateStockMovementDto } from '../../domain/entities/InventoryEntities';
+import type { Brand, Category, Provider, Product, StockMovement, CreateProviderDto, CreateProductDto, CreateStockMovementDto } from '@/app/domain';
 
 export interface PaginatedResult<T> {
   items: T[];

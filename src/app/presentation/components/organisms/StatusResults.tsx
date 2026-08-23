@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useClientPortalStore } from '../../stores/useClientPortalStore';
+import { useClientPortalStore } from '@/app/presentation/stores';
 import { Box, Flex, Stack, Grid, Icon } from '@/app/presentation/components';
 
 export const StatusResults: React.FC = () => {

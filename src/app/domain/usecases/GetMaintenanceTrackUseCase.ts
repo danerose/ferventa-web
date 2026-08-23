@@ -1,5 +1,5 @@
-import type { MaintenanceTrack } from '../entities/ClientPortalEntities';
-import type { ClientPortalRepository } from '../repositories/ClientPortalRepository';
+import type { MaintenanceTrack } from '@/app/domain';
+import type { ClientPortalRepository } from '@/app/domain';
 
 export class GetMaintenanceTrackUseCase {
   private clientPortalRepository: ClientPortalRepository;

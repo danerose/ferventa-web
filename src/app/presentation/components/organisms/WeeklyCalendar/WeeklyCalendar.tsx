@@ -1,6 +1,6 @@
 import React, { useMemo, useCallback } from 'react';
 import { Icon } from '@/app/presentation/components';
-import type { AdminAppointment } from '@/app/domain/entities/AdminEntities';
+import type { AdminAppointment } from '@/app/domain';
 
 export interface WeeklyCalendarProps {
   timelineAppointments: AdminAppointment[];

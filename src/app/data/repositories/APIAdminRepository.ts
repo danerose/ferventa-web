@@ -1,4 +1,4 @@
-import type { AuthUser, AdminAppointment, AdminMaintenanceOrder, Branch, Schedule, Holiday } from '../../domain/entities/AdminEntities';
+import type { AuthUser, AdminAppointment, AdminMaintenanceOrder, Branch, Schedule, Holiday } from '@/app/domain';
 
 export interface LoginResult {
   accessToken: string;
