@@ -1,7 +1,9 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Icon, Sidebar, SaleDetailDrawer, TicketReceipt } from '../components';
+import { Icon, Sidebar, SaleDetailDrawer } from '../components';
 import { useAuthStore } from '@/app/presentation/stores';
+import { usePrinterSettingsStore } from '@/app/presentation/stores';
+import { thermalPrintService } from '@/core/services/thermalPrintService';
 import { APISalesRepository } from '../../data/repositories/APISalesRepository';
 import { APIAdminRepository } from '../../data/repositories/APIAdminRepository';
 import { APIInventoryRepository } from '../../data/repositories/APIInventoryRepository';
@@ -331,6 +333,7 @@ type SalesPeriod = 'today' | 'week' | 'month' | 'custom';
 export const OperationsDashboardPage: React.FC = () => {
   const navigate = useNavigate();
   const { user, accessToken, activeBranchId, clearAuth } = useAuthStore();
+  const printerSettings = usePrinterSettingsStore() as import('@/app/presentation/stores').PrinterSettings;
   const isAdmin = isAdminUser(user);
 
   const handleUnauthorized = useCallback(() => {
@@ -359,10 +362,9 @@ export const OperationsDashboardPage: React.FC = () => {
   const [salesLoading, setSalesLoading] = useState(false);
   const [salesError, setSalesError] = useState<string | null>(null);
 
-  // ── Sidepanel Drawer & Ticket state ──────────────────────────────────────
+  // ── Sidepanel Drawer state ────────────────────────────────────────────────
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const [printSale, setPrintSale] = useState<Sale | null>(null);
 
   const handleSelectSale = useCallback(async (sale: Sale) => {
     setSelectedSale(sale);
@@ -1168,17 +1170,23 @@ export const OperationsDashboardPage: React.FC = () => {
         isOpen={isDrawerOpen}
         onClose={() => { setIsDrawerOpen(false); setSelectedSale(null); }}
         sale={selectedSale}
+        branchName={
+          selectedSale?.branch?.name ||
+          allBranches.find(b => b.id === (typeof selectedSale?.branch === 'string' ? selectedSale?.branch : selectedSale?.branch?.id))?.name ||
+          allBranches.find(b => b.id === activeBranchId)?.name ||
+          'Sucursal Principal'
+        }
         onCancelSale={handleCancelSale}
         onPrintTicket={(s) => {
-          setPrintSale(s);
-          document.body.classList.remove('print-doc-mode');
-          document.body.classList.add('print-ticket-mode');
-          setTimeout(() => window.print(), 150);
+          const branchName =
+            s?.branch?.name ||
+            allBranches.find(b => b.id === (typeof s?.branch === 'string' ? s?.branch : s?.branch?.id))?.name ||
+            allBranches.find(b => b.id === activeBranchId)?.name ||
+            'Sucursal Principal';
+          const sellerName = (s?.seller as any)?.name || user?.name || 'Cajero';
+          thermalPrintService.print({ sale: s, branchName, sellerName, settings: printerSettings });
         }}
       />
-
-      {/* Printable Ticket Receipt */}
-      <TicketReceipt sale={printSale || selectedSale} branchName={(printSale || selectedSale)?.branch?.name || allBranches.find(b => b.id === (typeof (printSale || selectedSale)?.branch === 'string' ? (printSale || selectedSale)?.branch : (printSale || selectedSale)?.branch?.id || (printSale || selectedSale)?.branch?.id))?.name || allBranches.find(b => b.id === activeBranchId)?.name || 'Sucursal Principal'} />
     </div>
   );
 };
