@@ -7,6 +7,7 @@ export interface IAuthRepository {
   login(credentials: LoginCredentials): Promise<{ user: AuthUser; accessToken: string; refreshToken: string }>;
   logout(): Promise<void>;
   getSession(): { user: AuthUser | null; accessToken: string | null; refreshToken: string | null };
+  saveSession(session: { user: AuthUser; accessToken: string; refreshToken: string }): void;
   getActiveBranchId(): string | null;
   setActiveBranchId(id: string | null): void;
 }
@@ -40,6 +41,10 @@ export class AuthRepository implements IAuthRepository {
       accessToken: model.accessToken,
       refreshToken: model.refreshToken,
     };
+  }
+
+  saveSession(session: { user: AuthUser; accessToken: string; refreshToken: string }): void {
+    this.local.saveSession(session);
   }
 
   async logout(): Promise<void> {

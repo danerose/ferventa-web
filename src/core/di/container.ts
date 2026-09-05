@@ -57,6 +57,10 @@ export class AuthUseCases {
     return this.repository.login(credentials);
   }
 
+  saveSession(session: { user: AuthUser; accessToken: string; refreshToken: string }): void {
+    this.repository.saveSession(session);
+  }
+
   logout(): Promise<void> {
     return this.repository.logout();
   }

@@ -14,17 +14,38 @@ export class APISpecialOrdersRepository implements ISpecialOrdersRepository {
 
   private async fetchWithAuth(
     url: string,
-    token: string,
-    branchId: string,
+    token?: string,
+    branchId?: string,
     options: RequestInit = {}
   ): Promise<Response> {
     const headers = new Headers(options.headers || {});
-    if (!headers.has('Authorization') && token) {
-      headers.set('Authorization', `Bearer ${token}`);
+    
+    let resolvedToken = token;
+    if (!resolvedToken) {
+      try {
+        const authRaw = localStorage.getItem('ferventa_auth');
+        if (authRaw) {
+          const { accessToken } = JSON.parse(authRaw);
+          resolvedToken = accessToken;
+        }
+      } catch {
+        // ignore
+      }
     }
-    if (!headers.has('x-branch-id') && branchId) {
-      headers.set('x-branch-id', branchId);
+
+    if (!headers.has('Authorization') && resolvedToken) {
+      headers.set('Authorization', `Bearer ${resolvedToken}`);
     }
+
+    let resolvedBranchId = branchId;
+    if (!resolvedBranchId) {
+      resolvedBranchId = localStorage.getItem('ferventa_active_branch') || '000000000000000000000000';
+    }
+
+    if (!headers.has('x-branch-id') && resolvedBranchId) {
+      headers.set('x-branch-id', resolvedBranchId);
+    }
+
     return fetch(url, {
       ...options,
       headers,

@@ -1,7 +1,8 @@
 import React from 'react';
-import { Modal } from '@/app/presentation/components';
+import { Modal, Textarea } from '@/app/presentation/components';
 import { PrimaryButton, SecondaryButton, TextInput } from '@/app/presentation/components';
 import type { AdminAppointment } from '@/app/domain';
+import { cn } from '@/core/utils/cn';
 
 export interface ApproveRescheduledModalProps {
   isOpen: boolean;
@@ -57,7 +58,7 @@ export const ApproveRescheduledModal: React.FC<ApproveRescheduledModalProps> = (
         onClick={onConfirm}
         disabled={updating || !finalDate || !finalTime}
         loading={updating}
-        className={isApprovedMode ? 'bg-[#091426] hover:bg-[#1e293b]' : 'bg-[#8b5cf6] hover:bg-[#7c3aed]'}
+        color={isApprovedMode ? 'neutral' : 'secondary'}
       >
         {isApprovedMode ? 'Guardar y Reagendar' : 'Actualizar Cita y Aprobar'}
       </PrimaryButton>
@@ -73,8 +74,8 @@ export const ApproveRescheduledModal: React.FC<ApproveRescheduledModalProps> = (
       headerVariant={isApprovedMode ? 'neutral' : 'secondary'}
       maxWidth="600px"
     >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-        <p style={{ fontSize: '13.5px', color: '#475569', margin: 0 }}>
+      <div className="flex flex-col gap-4">
+        <p className="text-sm text-base-content/80 m-0">
           {isApprovedMode
             ? 'Selecciona la nueva fecha y hora para la cita aprobada.'
             : 'Selecciona la fecha y hora final acordada con el cliente para esta cita reagendada antes de proceder con su aprobación.'}
@@ -82,18 +83,18 @@ export const ApproveRescheduledModal: React.FC<ApproveRescheduledModalProps> = (
 
         {/* Final schedule selection */}
         <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
-            gap: '12px',
-            background: isApprovedMode ? '#f8fafc' : '#f5f3ff',
-            border: isApprovedMode ? '1px solid #e2e8f0' : '1px solid #ddd6fe',
-            borderRadius: '8px',
-            padding: '14px',
-          }}
+          className={cn(
+            'grid grid-cols-1 sm:grid-cols-2 gap-3 p-3.5 rounded-DEFAULT border',
+            isApprovedMode ? 'bg-base-200/50 border-base-300' : 'bg-secondary/10 border-secondary/30'
+          )}
         >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <label style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', color: isApprovedMode ? '#475569' : '#6d28d9' }}>
+          <div className="flex flex-col gap-1">
+            <label
+              className={cn(
+                'text-[11px] font-bold uppercase tracking-wider',
+                isApprovedMode ? 'text-base-content/70' : 'text-secondary'
+              )}
+            >
               Fecha Final *
             </label>
             <TextInput
@@ -103,23 +104,19 @@ export const ApproveRescheduledModal: React.FC<ApproveRescheduledModalProps> = (
               size="sm"
             />
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <label style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', color: isApprovedMode ? '#475569' : '#6d28d9' }}>
+          <div className="flex flex-col gap-1">
+            <label
+              className={cn(
+                'text-[11px] font-bold uppercase tracking-wider',
+                isApprovedMode ? 'text-base-content/70' : 'text-secondary'
+              )}
+            >
               Hora Final (Intervalos 15 min) *
             </label>
             <select
               value={finalTime}
               onChange={(e) => onFinalTimeChange(e.target.value)}
-              style={{
-                padding: '8px 10px',
-                borderRadius: '6px',
-                border: '1px solid #cbd5e1',
-                fontSize: '13px',
-                color: '#0f172a',
-                outline: 'none',
-                background: 'white',
-                height: '36px',
-              }}
+              className="select select-bordered select-sm w-full bg-base-100 text-base-content border-base-300 font-normal focus:outline-none focus:border-primary h-9"
             >
               {timeSlotOptions.map((t) => (
                 <option key={t} value={t}>
@@ -132,49 +129,42 @@ export const ApproveRescheduledModal: React.FC<ApproveRescheduledModalProps> = (
 
         {/* Visual aid panel (agenda items) inside approve modal */}
         {Boolean(occupiedSlots) && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <span style={{ fontSize: '11px', fontWeight: '700', color: '#64748b' }}>
+          <div className="flex flex-col gap-1">
+            <span className="text-xs font-bold uppercase tracking-wider text-base-content/70">
               Agenda del día seleccionado ({finalDate}):
             </span>
             {(() => {
               const dayInfo = occupiedList.find((d) => d.dateStr === finalDate);
               if (!dayInfo) {
                 return (
-                  <div style={{ fontSize: '11px', color: '#94a3b8', fontStyle: 'italic' }}>
+                  <div className="text-xs text-base-content/50 italic">
                     Elige una fecha para ver disponibilidad.
                   </div>
                 );
               }
               if (dayInfo.isClosed) {
                 return (
-                  <div style={{ fontSize: '11.5px', color: '#dc2626', fontWeight: '600' }}>
+                  <div className="text-xs text-error font-semibold">
                     Cerrado: {dayInfo.closedReason}
                   </div>
                 );
               }
               if (dayInfo.busyTimes.length === 0) {
                 return (
-                  <div style={{ fontSize: '11.5px', color: '#16a34a', fontStyle: 'italic' }}>
+                  <div className="text-xs text-success italic font-medium">
                     Todo el día libre
                   </div>
                 );
               }
               return (
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                  <span style={{ fontSize: '10px', color: '#94a3b8', fontWeight: '600', alignSelf: 'center' }}>
+                <div className="flex flex-wrap gap-1 items-center">
+                  <span className="text-[10px] text-base-content/60 font-semibold">
                     Ocupado:
                   </span>
                   {dayInfo.busyTimes.map((t, idx) => (
                     <span
                       key={idx}
-                      style={{
-                        background: '#fee2e2',
-                        color: '#991b1b',
-                        padding: '1px 6px',
-                        borderRadius: '4px',
-                        fontSize: '10px',
-                        fontWeight: '600',
-                      }}
+                      className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-error/15 text-error border border-error/30"
                     >
                       {t}
                     </span>
@@ -185,28 +175,19 @@ export const ApproveRescheduledModal: React.FC<ApproveRescheduledModalProps> = (
           </div>
         )}
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-          <label style={{ fontSize: '12px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b' }}>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs font-bold uppercase tracking-wider text-base-content/70">
             Mensaje a enviar (Editable)
           </label>
-          <textarea
+          <Textarea
             value={modalMessage}
             onChange={(e) => onMessageChange(e.target.value)}
             rows={8}
-            style={{
-              width: '100%',
-              padding: '12px',
-              borderRadius: '8px',
-              border: '1px solid #cbd5e1',
-              fontSize: '13px',
-              color: '#0f172a',
-              fontFamily: 'Inter, system-ui, sans-serif',
-              outline: 'none',
-              resize: 'vertical',
-            }}
+            className="font-sans text-[13px]"
           />
         </div>
       </div>
     </Modal>
   );
 };
+

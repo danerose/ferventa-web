@@ -17,7 +17,7 @@ import {
 import { useAuthStore } from '@/app/presentation/stores';
 import { APIAdminRepository } from '@/app/data';
 import type { SpecialOrder, CreateSpecialOrderPayload } from '@/app/domain';
-import { formatCurrency } from '@/core/utils';
+import { formatCurrency, cn } from '@/core/utils';
 
 const adminRepo = new APIAdminRepository();
 
@@ -498,20 +498,21 @@ export const CreateSpecialOrderModal: React.FC<CreateSpecialOrderModalProps> = (
               </Heading>
             </Flex>
 
-            <Grid cols={{ base: 1, md: 2 }} gap="md">
+            <Stack spacing="md">
               <Box>
                 <Text size="xs" weight="medium" className="text-base-content/70 mb-1.5 block">
                   Método de Pago Inicial *
                 </Text>
-                <Flex gap="xs" className="w-full">
+                <div className="grid grid-cols-3 gap-2 w-full">
                   <SecondaryButton
                     type="button"
                     onClick={() => setPaymentMethod('cash')}
-                    className={`flex-1 flex items-center justify-center gap-1.5 text-xs py-2 ${
+                    className={cn(
+                      'flex items-center justify-center gap-1.5 text-xs py-2 h-auto min-h-[38px]',
                       paymentMethod === 'cash'
-                        ? 'btn-primary font-semibold'
+                        ? 'btn-primary font-semibold shadow-xs'
                         : ''
-                    }`}
+                    )}
                   >
                     <Icon name="Banknote" size="xs" /> Efectivo
                   </SecondaryButton>
@@ -519,11 +520,12 @@ export const CreateSpecialOrderModal: React.FC<CreateSpecialOrderModalProps> = (
                   <SecondaryButton
                     type="button"
                     onClick={() => setPaymentMethod('card')}
-                    className={`flex-1 flex items-center justify-center gap-1.5 text-xs py-2 ${
+                    className={cn(
+                      'flex items-center justify-center gap-1.5 text-xs py-2 h-auto min-h-[38px]',
                       paymentMethod === 'card'
-                        ? 'btn-primary font-semibold'
+                        ? 'btn-primary font-semibold shadow-xs'
                         : ''
-                    }`}
+                    )}
                   >
                     <Icon name="CreditCard" size="xs" /> Tarjeta
                   </SecondaryButton>
@@ -531,15 +533,16 @@ export const CreateSpecialOrderModal: React.FC<CreateSpecialOrderModalProps> = (
                   <SecondaryButton
                     type="button"
                     onClick={() => setPaymentMethod('transfer')}
-                    className={`flex-1 flex items-center justify-center gap-1.5 text-xs py-2 ${
+                    className={cn(
+                      'flex items-center justify-center gap-1.5 text-xs py-2 h-auto min-h-[38px]',
                       paymentMethod === 'transfer'
-                        ? 'btn-primary font-semibold'
+                        ? 'btn-primary font-semibold shadow-xs'
                         : ''
-                    }`}
+                    )}
                   >
                     <Icon name="ArrowLeftRight" size="xs" /> Transferencia
                   </SecondaryButton>
-                </Flex>
+                </div>
               </Box>
 
               <Box>
@@ -553,20 +556,20 @@ export const CreateSpecialOrderModal: React.FC<CreateSpecialOrderModalProps> = (
                   className="w-full"
                 />
               </Box>
-            </Grid>
 
-            <Box className="mt-3">
-              <Text size="xs" weight="medium" className="text-base-content/70 mb-1.5 block">
-                Notas y Condiciones Especiales
-              </Text>
-              <Textarea
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Ej. El cliente lo requiere antes del sábado; especificación de color o modelo exacto..."
-                rows={2}
-                className="w-full text-xs"
-              />
-            </Box>
+              <Box>
+                <Text size="xs" weight="medium" className="text-base-content/70 mb-1.5 block">
+                  Notas y Condiciones Especiales
+                </Text>
+                <Textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Ej. El cliente lo requiere antes del sábado; especificación de color o modelo exacto..."
+                  rows={2}
+                  className="w-full text-xs"
+                />
+              </Box>
+            </Stack>
           </Box>
         </Stack>
       </form>

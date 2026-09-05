@@ -1,5 +1,5 @@
 import React from 'react';
-import { Modal } from '@/app/presentation/components';
+import { Modal, Textarea } from '@/app/presentation/components';
 import { PrimaryButton, SecondaryButton, TextInput } from '@/app/presentation/components';
 import type { AdminAppointment } from '@/app/domain';
 
@@ -37,7 +37,7 @@ export const RejectAppointmentModal: React.FC<RejectAppointmentModalProps> = ({
         onClick={onConfirm}
         disabled={updating || !rejectionReason.trim()}
         loading={updating}
-        className="bg-[#dc2626] hover:bg-[#b91c1c] text-white border-none"
+        color="error"
       >
         Rechazar y Enviar
       </PrimaryButton>
@@ -53,9 +53,9 @@ export const RejectAppointmentModal: React.FC<RejectAppointmentModalProps> = ({
       headerVariant="error"
       maxWidth="600px"
     >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-          <label style={{ fontSize: '12px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b' }}>
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs font-bold uppercase tracking-wider text-base-content/70">
             Motivo del rechazo *
           </label>
           <TextInput
@@ -67,28 +67,19 @@ export const RejectAppointmentModal: React.FC<RejectAppointmentModalProps> = ({
           />
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-          <label style={{ fontSize: '12px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b' }}>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs font-bold uppercase tracking-wider text-base-content/70">
             Mensaje a enviar (Editable)
           </label>
-          <textarea
+          <Textarea
             value={modalMessage}
             onChange={(e) => onMessageChange(e.target.value)}
             rows={8}
-            style={{
-              width: '100%',
-              padding: '12px',
-              borderRadius: '8px',
-              border: '1px solid #cbd5e1',
-              fontSize: '13.5px',
-              color: '#0f172a',
-              fontFamily: 'Inter, system-ui, sans-serif',
-              outline: 'none',
-              resize: 'vertical',
-            }}
+            className="font-sans text-[13.5px]"
           />
         </div>
       </div>
     </Modal>
   );
 };
+

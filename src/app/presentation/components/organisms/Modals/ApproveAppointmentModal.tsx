@@ -1,5 +1,5 @@
 import React from 'react';
-import { Modal } from '@/app/presentation/components';
+import { Modal, Textarea } from '@/app/presentation/components';
 import { PrimaryButton, SecondaryButton } from '@/app/presentation/components';
 import type { AdminAppointment } from '@/app/domain';
 
@@ -43,33 +43,24 @@ export const ApproveAppointmentModal: React.FC<ApproveAppointmentModalProps> = (
       footer={footer}
       maxWidth="600px"
     >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-        <p style={{ fontSize: '14px', color: '#475569', margin: 0 }}>
-          Se aprobará la cita para <strong>{appt.customerName}</strong> y se abrirá WhatsApp con los detalles de confirmación.
+      <div className="flex flex-col gap-4">
+        <p className="text-sm text-base-content/80 m-0">
+          Se aprobará la cita para <strong className="text-base-content font-semibold">{appt.customerName}</strong> y se abrirá WhatsApp con los detalles de confirmación.
         </p>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-          <label style={{ fontSize: '12px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b' }}>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs font-bold uppercase tracking-wider text-base-content/70">
             Mensaje a enviar (Editable)
           </label>
-          <textarea
+          <Textarea
             value={modalMessage}
             onChange={(e) => onMessageChange(e.target.value)}
             rows={8}
-            style={{
-              width: '100%',
-              padding: '12px',
-              borderRadius: '8px',
-              border: '1px solid #cbd5e1',
-              fontSize: '13.5px',
-              color: '#0f172a',
-              fontFamily: 'Inter, system-ui, sans-serif',
-              outline: 'none',
-              resize: 'vertical',
-            }}
+            className="font-sans text-[13.5px]"
           />
         </div>
       </div>
     </Modal>
   );
 };
+

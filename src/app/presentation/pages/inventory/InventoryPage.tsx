@@ -815,7 +815,7 @@ export const InventoryPage: React.FC = () => {
                     color={t.id === 'services' ? 'warning' : 'neutral'}
                     className="whitespace-nowrap shrink-0"
                   >
-                    <Text as="span">{t.label}</Text>
+                    <span>{t.label}</span>
                     <KbdBadge keys={t.key} />
                   </PrimaryButton>
                 ) : (
@@ -826,7 +826,7 @@ export const InventoryPage: React.FC = () => {
                     onClick={() => setActiveTab(t.id)}
                     className="whitespace-nowrap shrink-0"
                   >
-                    <Text as="span">{t.label}</Text>
+                    <span>{t.label}</span>
                     <KbdBadge keys={t.key} />
                   </TertiaryButton>
                 )

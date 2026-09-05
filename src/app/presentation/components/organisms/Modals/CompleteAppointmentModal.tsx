@@ -29,7 +29,7 @@ export const CompleteAppointmentModal: React.FC<CompleteAppointmentModalProps> =
         onClick={onConfirm}
         disabled={updating}
         loading={updating}
-        className="bg-[#166534] hover:bg-[#15803d] text-white border-none"
+        color="success"
       >
         Completar Cita
       </PrimaryButton>
@@ -45,27 +45,17 @@ export const CompleteAppointmentModal: React.FC<CompleteAppointmentModalProps> =
       headerVariant="success"
       maxWidth="500px"
     >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-        <div
-          style={{
-            background: '#f0fdf4',
-            border: '1px solid #bbf7d0',
-            borderRadius: '8px',
-            padding: '16px',
-            display: 'flex',
-            gap: '12px',
-            alignItems: 'start',
-          }}
-        >
-          <Icon name="CheckCircle" className="text-[#166534]" style={{ flexShrink: 0, marginTop: '2px' }} />
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <span style={{ fontSize: '14px', fontWeight: '700', color: '#166534' }}>
+      <div className="flex flex-col gap-4">
+        <div className="bg-success/10 border border-success/20 rounded-DEFAULT p-4 flex gap-3 items-start">
+          <Icon name="CheckCircle" className="text-success shrink-0 mt-0.5" />
+          <div className="flex flex-col gap-1">
+            <span className="text-sm font-bold text-success">
               Confirmar Recepción de Cliente
             </span>
-            <p style={{ fontSize: '13.5px', color: '#14532d', margin: 0, lineHeight: '1.4' }}>
-              ¿Deseas marcar la cita de <strong>{appt.customerName}</strong> como completada?
+            <p className="text-sm text-base-content/80 m-0 leading-relaxed">
+              ¿Deseas marcar la cita de <strong className="text-base-content font-semibold">{appt.customerName}</strong> como completada?
             </p>
-            <p style={{ fontSize: '12.5px', color: '#15803d', fontWeight: '600', marginTop: '8px', margin: 0 }}>
+            <p className="text-xs text-success font-semibold mt-2 m-0">
               Al dar Completar declaras que el Cliente asistió a la cita y el mantenimiento pasará a mostrarse en la pestaña de mantenimiento.
             </p>
           </div>

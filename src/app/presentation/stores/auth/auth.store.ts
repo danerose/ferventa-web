@@ -25,8 +25,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   setAuth: (user, accessToken, refreshToken) => {
     let newActiveBranchId: string | null = null;
     if (user.branches && user.branches.length > 0) {
-      newActiveBranchId = user.branches[0];
+      const firstBranch = user.branches[0];
+      newActiveBranchId = typeof firstBranch === 'object' && firstBranch !== null
+        ? ((firstBranch as { id?: string; _id?: string }).id || (firstBranch as { id?: string; _id?: string })._id || '')
+        : String(firstBranch);
     }
+    authUseCases.saveSession({ user, accessToken, refreshToken });
     authUseCases.setActiveBranchId(newActiveBranchId);
     set({ user, accessToken, refreshToken, activeBranchId: newActiveBranchId });
   },
@@ -45,3 +49,4 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     return !!get().accessToken;
   },
 }));
+

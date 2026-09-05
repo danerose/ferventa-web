@@ -1,5 +1,5 @@
 import React from 'react';
-import { Modal } from '@/app/presentation/components';
+import { Modal, Textarea } from '@/app/presentation/components';
 import { PrimaryButton, SecondaryButton, TextInput, Icon } from '@/app/presentation/components';
 import type { AdminAppointment } from '@/app/domain';
 
@@ -75,91 +75,46 @@ export const RescheduleAppointmentModal: React.FC<RescheduleAppointmentModalProp
       footer={footer}
       maxWidth="980px"
     >
-      <div style={{ display: 'flex', gap: '20px', minHeight: '400px' }}>
+      <div className="flex flex-col md:flex-row gap-5 min-h-[400px]">
         {/* Left Column: Visual helper of occupied schedule */}
-        <div
-          style={{
-            width: '320px',
-            borderRight: '1px solid #e2e8f0',
-            background: '#f8fafc',
-            padding: '20px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '12px',
-            overflowY: 'auto',
-            borderRadius: '8px',
-          }}
-        >
-          <h4
-            style={{
-              fontSize: '13px',
-              fontWeight: '700',
-              textTransform: 'uppercase',
-              letterSpacing: '0.05em',
-              color: '#475569',
-              margin: '0 0 4px 0',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-            }}
-          >
+        <div className="w-full md:w-80 border-b md:border-b-0 md:border-r border-base-300 bg-base-200/40 p-4 flex flex-col gap-3 overflow-y-auto rounded-DEFAULT">
+          <h4 className="text-xs font-bold uppercase tracking-wider text-base-content/80 m-0 flex items-center gap-1.5">
             <Icon name="CalendarRange" size="xs" />
             Visualizador de Agenda (Ayuda)
           </h4>
-          <p style={{ fontSize: '12px', color: '#64748b', margin: 0 }}>
+          <p className="text-xs text-base-content/60 m-0">
             Horarios y citas agendadas de los próximos 7 días laborales.
           </p>
 
           {occupiedLoading ? (
-            <div style={{ display: 'flex', justifyContent: 'center', padding: '40px 0' }}>
-              <span style={{ fontSize: '13px', color: '#94a3b8' }}>Cargando agenda...</span>
+            <div className="flex justify-center py-10">
+              <span className="text-xs text-base-content/50">Cargando agenda...</span>
             </div>
           ) : occupiedList.length === 0 ? (
-            <div style={{ display: 'flex', justifyContent: 'center', padding: '40px 0' }}>
-              <span style={{ fontSize: '13px', color: '#94a3b8' }}>No hay información de agenda.</span>
+            <div className="flex justify-center py-10">
+              <span className="text-xs text-base-content/50">No hay información de agenda.</span>
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div className="flex flex-col gap-2.5">
               {occupiedList.map((day) => (
                 <div
                   key={day.dateStr}
-                  style={{
-                    background: 'white',
-                    border: '1px solid #e2e8f0',
-                    borderRadius: '8px',
-                    padding: '10px',
-                    fontSize: '12px',
-                  }}
+                  className="bg-base-100 border border-base-300 rounded-DEFAULT p-2.5 text-xs shadow-2xs"
                 >
-                  <div
-                    style={{
-                      fontWeight: '700',
-                      color: '#091426',
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      marginBottom: '4px',
-                    }}
-                  >
+                  <div className="font-bold text-base-content flex justify-between mb-1">
                     <span>{day.dayLabel}</span>
-                    {day.isClosed && <span style={{ color: '#dc2626', fontSize: '10.5px' }}>{day.closedReason}</span>}
+                    {day.isClosed && <span className="text-error text-[10.5px] font-semibold">{day.closedReason}</span>}
                   </div>
                   {day.isClosed ? null : day.busyTimes.length === 0 ? (
-                    <div style={{ color: '#16a34a', fontStyle: 'italic' }}>Todo el día libre</div>
+                    <div className="text-success italic font-medium">Todo el día libre</div>
                   ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', marginTop: '4px' }}>
-                      <span style={{ fontSize: '10px', color: '#94a3b8', fontWeight: '600' }}>OCUPADO EN:</span>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                    <div className="flex flex-col gap-1 mt-1">
+                      <span className="text-[10px] text-base-content/60 font-semibold uppercase">OCUPADO EN:</span>
+                      <div className="flex flex-wrap gap-1">
                         {day.busyTimes.map((t, idx) => (
                           <span
                             key={idx}
-                            style={{
-                              background: '#fee2e2',
-                              color: '#991b1b',
-                              padding: '2px 6px',
-                              borderRadius: '4px',
-                              fontSize: '10px',
-                              fontWeight: '600',
-                            }}
+                            className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-error/15 text-error border border-error/30"
                           >
                             {t}
                           </span>
@@ -174,47 +129,28 @@ export const RescheduleAppointmentModal: React.FC<RescheduleAppointmentModalProp
         </div>
 
         {/* Right Column: Suggestion builder & message */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px', overflowY: 'auto' }}>
-          <p style={{ fontSize: '13px', color: '#475569', margin: 0 }}>
+        <div className="flex-1 flex flex-col gap-4 overflow-y-auto">
+          <p className="text-sm text-base-content/80 m-0">
             La cita original no puede ser agendada en la hora solicitada. Selecciona una o varias opciones alternativas para sugerirle al cliente.
           </p>
 
           {/* Builder section */}
-          <div
-            style={{
-              background: '#f8fafc',
-              border: '1px dashed #cbd5e1',
-              borderRadius: '10px',
-              padding: '14px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '12px',
-            }}
-          >
-            <span style={{ fontSize: '12px', fontWeight: '700', color: '#091426' }}>
+          <div className="bg-base-200/40 border border-dashed border-base-300 rounded-DEFAULT p-3.5 flex flex-col gap-3">
+            <span className="text-xs font-bold uppercase tracking-wider text-base-content">
               Añadir sugerencia de horario
             </span>
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <div className="flex gap-2 items-center flex-wrap sm:flex-nowrap">
               <TextInput
                 type="date"
                 value={newSuggestionDate}
                 onChange={(e) => onNewSuggestionDateChange(e.target.value)}
                 size="sm"
-                style={{ flex: 1 }}
+                className="flex-1"
               />
               <select
                 value={newSuggestionTime}
                 onChange={(e) => onNewSuggestionTimeChange(e.target.value)}
-                style={{
-                  padding: '8px 10px',
-                  borderRadius: '6px',
-                  border: '1px solid #cbd5e1',
-                  fontSize: '13px',
-                  color: '#0f172a',
-                  outline: 'none',
-                  background: 'white',
-                  height: '36px',
-                }}
+                className="select select-bordered select-sm bg-base-100 text-base-content border-base-300 font-normal focus:outline-none focus:border-primary h-9"
               >
                 {timeSlotOptions.map((t) => (
                   <option key={t} value={t}>
@@ -226,7 +162,7 @@ export const RescheduleAppointmentModal: React.FC<RescheduleAppointmentModalProp
                 type="button"
                 onClick={handleAddSuggestion}
                 size="sm"
-                className="bg-[#091426] hover:bg-[#1e293b] text-white py-1.5"
+                color="neutral"
               >
                 <Icon name="Plus" size="xs" className="mr-1" /> Añadir
               </PrimaryButton>
@@ -234,37 +170,19 @@ export const RescheduleAppointmentModal: React.FC<RescheduleAppointmentModalProp
 
             {/* Suggestions list tags */}
             {suggestedSchedules.length > 0 && (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '4px' }}>
+              <div className="flex flex-wrap gap-1.5 mt-1">
                 {suggestedSchedules.map((s, idx) => (
                   <div
                     key={idx}
-                    style={{
-                      background: '#f3e8ff',
-                      border: '1px solid #d8b4fe',
-                      color: '#5b21b6',
-                      borderRadius: '6px',
-                      padding: '4px 10px',
-                      fontSize: '12px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      fontWeight: '600',
-                    }}
+                    className="bg-primary/10 border border-primary/20 text-primary rounded px-2.5 py-1 text-xs flex items-center gap-1.5 font-semibold"
                   >
                     <span>
                       {s.date.split('-').slice(1).join('/')} a las {format12h(s.time)}
                     </span>
                     <button
+                      type="button"
                       onClick={() => handleRemoveSuggestion(idx)}
-                      style={{
-                        background: 'transparent',
-                        border: 'none',
-                        color: '#7c3aed',
-                        cursor: 'pointer',
-                        padding: 0,
-                        display: 'flex',
-                        alignItems: 'center',
-                      }}
+                      className="text-primary hover:opacity-75 cursor-pointer p-0 flex items-center"
                     >
                       <Icon name="X" size="xs" />
                     </button>
@@ -275,25 +193,15 @@ export const RescheduleAppointmentModal: React.FC<RescheduleAppointmentModalProp
           </div>
 
           {/* Message area */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <label style={{ fontSize: '12px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b' }}>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-bold uppercase tracking-wider text-base-content/70">
               Mensaje a enviar (Editable)
             </label>
-            <textarea
+            <Textarea
               value={modalMessage}
               onChange={(e) => onMessageChange(e.target.value)}
               rows={8}
-              style={{
-                width: '100%',
-                padding: '12px',
-                borderRadius: '8px',
-                border: '1px solid #cbd5e1',
-                fontSize: '13px',
-                color: '#0f172a',
-                fontFamily: 'Inter, system-ui, sans-serif',
-                outline: 'none',
-                resize: 'vertical',
-              }}
+              className="font-sans text-[13px]"
             />
           </div>
         </div>
@@ -301,3 +209,4 @@ export const RescheduleAppointmentModal: React.FC<RescheduleAppointmentModalProp
     </Modal>
   );
 };
+

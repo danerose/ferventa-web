@@ -47,7 +47,7 @@ export const CancelApprovedModal: React.FC<CancelApprovedModalProps> = ({
         onClick={onConfirm}
         disabled={updating}
         loading={updating}
-        className="bg-[#dc2626] hover:bg-[#b91c1c] text-white border-none"
+        color="error"
       >
         Sí, Cancelar Cita
       </PrimaryButton>
@@ -63,28 +63,18 @@ export const CancelApprovedModal: React.FC<CancelApprovedModalProps> = ({
       headerVariant="error"
       maxWidth="500px"
     >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-        <div
-          style={{
-            background: '#fef2f2',
-            border: '1px solid #fee2e2',
-            borderRadius: '8px',
-            padding: '16px',
-            display: 'flex',
-            gap: '12px',
-            alignItems: 'start',
-          }}
-        >
-          <Icon name="AlertCircle" className="text-[#dc2626]" style={{ flexShrink: 0, marginTop: '2px' }} />
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <span style={{ fontSize: '14px', fontWeight: '700', color: '#991b1b' }}>Advertencia Importante</span>
-            <p style={{ fontSize: '13.5px', color: '#7f1d1d', margin: 0, lineHeight: '1.4' }}>
+      <div className="flex flex-col gap-4">
+        <div className="bg-error/10 border border-error/20 rounded-DEFAULT p-4 flex gap-3 items-start">
+          <Icon name="AlertCircle" className="text-error shrink-0 mt-0.5" />
+          <div className="flex flex-col gap-1">
+            <span className="text-sm font-bold text-error">Advertencia Importante</span>
+            <p className="text-sm text-base-content/80 m-0 leading-relaxed">
               Esta acción no puede ser deshecha. ¿Estás seguro de que deseas cancelar la cita de{' '}
-              <strong>{appt.customerName}</strong>?
+              <strong className="text-base-content font-semibold">{appt.customerName}</strong>?
               {(() => {
                 const { date, time, period } = formatScheduledAt(appt.scheduledAt);
                 return (
-                  <span style={{ display: 'block', marginTop: '6px', fontSize: '12px', color: '#991b1b', fontWeight: '600' }}>
+                  <span className="block mt-1.5 text-xs text-error font-semibold">
                     Fecha programada: {date} a las {time} {period}
                   </span>
                 );
