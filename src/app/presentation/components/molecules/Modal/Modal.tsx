@@ -1,5 +1,8 @@
 import React from 'react';
 import { Icon, KbdBadge } from '@/app/presentation/components';
+import { cn } from '@/core/utils/cn';
+
+export type ModalHeaderVariant = 'primary' | 'secondary' | 'accent' | 'neutral' | 'info' | 'success' | 'warning' | 'error';
 
 export interface ModalProps {
   isOpen: boolean;
@@ -8,10 +11,22 @@ export interface ModalProps {
   title: string;
   children: React.ReactNode;
   footer?: React.ReactNode;
-  headerBackground?: string;
+  headerVariant?: ModalHeaderVariant;
+  headerBackground?: string; // Kept for backward compatibility
   maxWidth?: string;
   zIndex?: number;
 }
+
+const headerVariantMap: Record<ModalHeaderVariant, string> = {
+  neutral: 'bg-neutral text-neutral-content',
+  primary: 'bg-primary text-primary-content',
+  secondary: 'bg-secondary text-secondary-content',
+  accent: 'bg-accent text-accent-content',
+  info: 'bg-info text-info-content',
+  success: 'bg-success text-success-content',
+  warning: 'bg-warning text-warning-content',
+  error: 'bg-error text-error-content',
+};
 
 export const Modal: React.FC<ModalProps> = ({
   isOpen,
@@ -20,7 +35,8 @@ export const Modal: React.FC<ModalProps> = ({
   title,
   children,
   footer,
-  headerBackground = '#091426',
+  headerVariant = 'neutral',
+  headerBackground,
   maxWidth = '600px',
   zIndex = 1100,
 }) => {
@@ -28,8 +44,11 @@ export const Modal: React.FC<ModalProps> = ({
   const hasFocusedRef = React.useRef(false);
   const onCloseRef = React.useRef(onClose);
   const onConfirmRef = React.useRef(onConfirm);
-  onCloseRef.current = onClose;
-  onConfirmRef.current = onConfirm;
+
+  React.useEffect(() => {
+    onCloseRef.current = onClose;
+    onConfirmRef.current = onConfirm;
+  }, [onClose, onConfirm]);
 
   // Auto-focus first input element once on modal open
   React.useEffect(() => {
@@ -82,52 +101,28 @@ export const Modal: React.FC<ModalProps> = ({
 
   if (!isOpen) return null;
 
+  const headerClass = headerVariantMap[headerVariant] || headerVariantMap.neutral;
+
   return (
     <div
-      className="modal-backdrop"
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'rgba(9, 20, 38, 0.4)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex,
-        padding: '20px',
-        backdropFilter: 'blur(2px)',
-      }}
+      className="fixed inset-0 bg-neutral/50 backdrop-blur-xs flex items-center justify-center p-5"
+      style={{ zIndex }}
       onClick={onClose}
     >
       <div
         ref={containerRef}
-        style={{
-          background: 'white',
-          borderRadius: '16px',
-          maxWidth,
-          width: '100%',
-          display: 'flex',
-          flexDirection: 'column',
-          overflow: 'hidden',
-          boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)',
-          margin: 'auto',
-          maxHeight: '90vh',
-        }}
+        className="bg-base-100 text-base-content rounded-2xl flex flex-col overflow-hidden shadow-2xl m-auto max-h-[90vh] w-full border border-base-300 animate-in fade-in zoom-in-95 duration-150"
+        style={{ maxWidth }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div
-          style={{
-            padding: '16px 24px',
-            background: headerBackground,
-            color: 'white',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-          }}
+          className={cn('px-6 py-4 flex justify-between items-center', headerClass)}
+          style={headerBackground ? { background: headerBackground } : undefined}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <span style={{ fontSize: '18px', fontWeight: '700' }}>{title}</span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(255,255,255,0.15)', padding: '3px 8px', borderRadius: '6px', fontSize: '11px', color: '#f1f5f9' }}>
+          <div className="flex items-center gap-3">
+            <span className="text-lg font-bold">{title}</span>
+            <div className="flex items-center gap-1.5 bg-white/15 px-2 py-0.5 rounded-md text-xs opacity-90">
               <KbdBadge keys="Tab ↹" style={{ fontSize: '9px', padding: '1px 4px' }} />
               <span>Navegar campos</span>
             </div>
@@ -135,39 +130,20 @@ export const Modal: React.FC<ModalProps> = ({
           <button
             onClick={onClose}
             title="Cerrar (Esc)"
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: 'white',
-              cursor: 'pointer',
-              opacity: 0.8,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-            }}
+            className="btn btn-ghost btn-xs btn-circle text-current hover:bg-white/20 flex items-center gap-1"
           >
-            <KbdBadge keys="Esc" style={{ fontSize: '9px', padding: '1px 4px' }} />
-            <Icon name="X" />
+            <Icon name="X" size="sm" />
           </button>
         </div>
 
         {/* Content */}
-        <div style={{ padding: '24px', overflowY: 'auto', flex: 1 }}>
+        <div className="p-6 overflow-y-auto flex-1">
           {children}
         </div>
 
         {/* Footer */}
         {footer && (
-          <div
-            style={{
-              padding: '16px 24px',
-              background: '#f8fafc',
-              borderTop: '1px solid #e2e8f0',
-              display: 'flex',
-              justifyContent: 'end',
-              gap: '12px',
-            }}
-          >
+          <div className="px-6 py-4 bg-base-200/50 border-t border-base-300 flex justify-end gap-3">
             {footer}
           </div>
         )}

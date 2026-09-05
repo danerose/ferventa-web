@@ -1,0 +1,108 @@
+import type { User } from '@/app/domain';
+
+export interface AttendanceBreak {
+  _id?: string;
+  id?: string;
+  startTime: string;
+  endTime?: string | null;
+  durationMinutes?: number;
+  note?: string;
+}
+
+export interface AttendanceRecord {
+  _id: string;
+  id?: string;
+  user: string | User;
+  branch: string | { _id?: string; id?: string; name?: string; code?: string };
+  date: string;
+  clockIn: string;
+  clockOut?: string | null;
+  breaks: AttendanceBreak[];
+  status: 'working' | 'on_break' | 'completed';
+  totalWorkMinutes: number;
+  totalBreakMinutes: number;
+  netWorkMinutes: number;
+  clockInNote?: string;
+  clockOutNote?: string;
+  adminNotes?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface TodayAttendanceStatus {
+  hasActiveShift: boolean;
+  status: 'off_shift' | 'working' | 'on_break' | 'completed' | string;
+  attendance?: AttendanceRecord | null;
+  lastRecordToday?: AttendanceRecord | null;
+  currentWorkMinutes?: number;
+  currentWorkHours?: number;
+  totalBreakMinutes?: number;
+  totalBreakHours?: number;
+  netWorkMinutes?: number;
+  netWorkHours?: number;
+  activeBreak?: {
+    startTime: string;
+    durationMinutes: number;
+    note?: string;
+  } | null;
+}
+
+export interface AttendanceUserSummary {
+  userId: string;
+  userName: string;
+  userEmail?: string;
+  branchId: string;
+  branchName?: string;
+  totalShifts: number;
+  completedShifts: number;
+  totalWorkMinutes: number;
+  totalWorkHours: number;
+  totalBreakMinutes: number;
+  totalBreakHours: number;
+  netWorkMinutes: number;
+  netWorkHours: number;
+}
+
+export interface AttendancePeriodSummary {
+  period: 'weekly' | 'biweekly' | 'monthly' | 'custom';
+  range: {
+    startDate: string;
+    endDate: string;
+  };
+  usersSummary: AttendanceUserSummary[];
+}
+
+export interface UserAttendanceBreakdown {
+  user: User;
+  records: AttendanceRecord[];
+  totals: {
+    totalShifts: number;
+    totalWorkMinutes: number;
+    totalBreakMinutes: number;
+    netWorkMinutes: number;
+    totalWorkHours: number;
+    totalBreakHours: number;
+    netWorkHours: number;
+  };
+}
+
+export interface BranchTodayUserStatus {
+  userId?: string;
+  user?: User | { _id?: string; id?: string; name?: string; username?: string; role?: string | { name?: string }; isActive?: boolean };
+  name?: string;
+  email?: string;
+  role?: string | { name?: string };
+  status: 'working' | 'onBreak' | 'on_break' | 'completed' | 'off_shift' | string;
+  attendance?: AttendanceRecord | null;
+  totalWorkMinutes?: number;
+  totalBreakMinutes?: number;
+  netWorkMinutes?: number;
+  currentWorkMinutes?: number;
+}
+
+export interface BranchTodayStatus {
+  branchId?: string;
+  branchName?: string;
+  date?: string;
+  users: BranchTodayUserStatus[];
+}

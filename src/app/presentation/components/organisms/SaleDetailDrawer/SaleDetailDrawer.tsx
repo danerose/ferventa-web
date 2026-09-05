@@ -1,11 +1,6 @@
 import React, { useState } from 'react';
-import { Icon } from '../../atoms/Icon/Icon';
-import { PrimaryButton } from '../../atoms/Button/PrimaryButton';
-import { SecondaryButton } from '../../atoms/Button/SecondaryButton';
-import { Modal } from '@/app/presentation/components';
-import { KbdBadge } from '../../atoms/KbdBadge/KbdBadge';
-import { TextInput } from '../../atoms/Input/TextInput';
-import type { Sale } from '@/app/domain/entities/SalesEntities';
+import { Icon, PrimaryButton, SecondaryButton, Modal, KbdBadge, TextInput } from '@/app/presentation/components';
+import type { Sale } from '@/app/domain';
 
 interface SaleDetailDrawerProps {
   isOpen: boolean;
@@ -30,25 +25,49 @@ interface ParsedItem {
   childItems: ParsedItem[];
 }
 
-function parseSaleItems(items: any[]): ParsedItem[] {
+interface RawDrawerItem {
+  id?: string;
+  _id?: string;
+  cartId?: string;
+  parentCartId?: string;
+  parentId?: string;
+  parentServiceId?: string;
+  type?: string;
+  name?: string;
+  sku?: string;
+  quantity?: number;
+  unitPrice?: number;
+  priceSnapshot?: number;
+  subtotal?: number;
+  product?: { name?: string; sku?: string; sellingPrice?: number };
+  service?: { name?: string; supplies?: RawDrawerItem[] };
+  serviceId?: { name?: string; sku?: string; basePrice?: number; supplies?: RawDrawerItem[] };
+  supplies?: RawDrawerItem[];
+  suppliesConsumed?: RawDrawerItem[];
+  origin?: string;
+  isSupply?: boolean;
+}
+
+function parseSaleItems(items: unknown[]): ParsedItem[] {
   if (!Array.isArray(items)) return [];
 
+  const rawList = items as RawDrawerItem[];
   // Step 1: Normalize items
-  const normalized: (ParsedItem & { raw: any })[] = items.map((item, index) => {
-    const isService = item.type === 'service' || !!item.serviceId || !!item.service;
+  const normalized: (ParsedItem & { raw: RawDrawerItem })[] = rawList.map((item, index) => {
+    const isService = item.type === 'service' || Boolean(item.serviceId) || Boolean(item.service);
     const name =
       item.name ||
-      (item.product as any)?.name ||
-      (item.service as any)?.name ||
-      (item.serviceId as any)?.name ||
+      item.product?.name ||
+      item.service?.name ||
+      item.serviceId?.name ||
       (isService ? 'Servicio' : 'Artículo');
-    const sku = item.sku || (item.product as any)?.sku || (item.serviceId as any)?.sku || '';
+    const sku = item.sku || item.product?.sku || item.serviceId?.sku || '';
     const quantity = item.quantity || 1;
     const unitPrice =
       item.unitPrice ??
       item.priceSnapshot ??
-      (item.product as any)?.sellingPrice ??
-      (item.serviceId as any)?.basePrice ??
+      item.product?.sellingPrice ??
+      item.serviceId?.basePrice ??
       0;
     const subtotal = item.subtotal ?? unitPrice * quantity;
     const itemId = String(item.cartId || item.id || item._id || `item-${index}`);
@@ -58,11 +77,11 @@ function parseSaleItems(items: any[]): ParsedItem[] {
     const nestedRaw =
       item.suppliesConsumed ||
       item.supplies ||
-      (item.serviceId as any)?.supplies ||
-      (item.service as any)?.supplies ||
+      item.serviceId?.supplies ||
+      item.service?.supplies ||
       [];
     const nestedChildren: ParsedItem[] = Array.isArray(nestedRaw)
-      ? nestedRaw.map((sup: any, sIdx: number) => {
+      ? nestedRaw.map((sup: RawDrawerItem, sIdx: number) => {
           const supProd = sup.product && typeof sup.product === 'object' ? sup.product : null;
           const supName = sup.name || supProd?.name || 'Insumo de servicio';
           const supSku = sup.sku || supProd?.sku || '';
@@ -179,9 +198,9 @@ export const SaleDetailDrawer: React.FC<SaleDetailDrawerProps> = ({
       })
     : '-';
 
-  const branchName = externalBranchName || (sale.branch as any)?.name || 'Sucursal Principal';
-  const customerName = (sale.customer as any)?.name || 'Cliente General';
-  const sellerName = (sale.seller as any)?.name || 'Vendedor';
+  const branchName = externalBranchName || sale.branch?.name || 'Sucursal Principal';
+  const customerName = sale.customer?.name || 'Cliente General';
+  const sellerName = sale.seller?.name || 'Vendedor';
   const rootItems = parseSaleItems(sale.items);
 
   const handleConfirmCancel = async () => {
@@ -195,12 +214,12 @@ export const SaleDetailDrawer: React.FC<SaleDetailDrawerProps> = ({
     setCancelling(true);
     setCancelError(null);
     try {
-      await onCancelSale(sale.id || (sale as any)._id, cancelReason.trim());
+      await onCancelSale(sale.id, cancelReason.trim());
       setIsCancelModalOpen(false);
       setCancelReason('');
       onClose();
-    } catch (err: any) {
-      setCancelError(err.message || 'Error al cancelar la venta');
+    } catch (err) {
+      setCancelError(err instanceof Error ? err.message : 'Error al cancelar la venta');
     } finally {
       setCancelling(false);
     }
@@ -222,189 +241,116 @@ export const SaleDetailDrawer: React.FC<SaleDetailDrawerProps> = ({
       />
 
       {/* Sidepanel Drawer */}
-      <aside
-        style={{
-          position: 'fixed',
-          top: 0,
-          right: 0,
-          bottom: 0,
-          width: '500px',
-          maxWidth: '90vw',
-          background: 'white',
-          boxShadow: '-4px 0 25px rgba(0,0,0,0.15)',
-          zIndex: 999,
-          display: 'flex',
-          flexDirection: 'column',
-          animation: 'slideInRight 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
-        }}
-      >
+      <aside className="fixed top-0 right-0 bottom-0 w-[500px] max-w-[90vw] bg-base-100 border-l border-base-300 shadow-2xl z-[999] flex flex-col animate-slide-in-right">
         {/* Drawer Header */}
-        <div
-          style={{
-            padding: '20px 24px',
-            borderBottom: '1px solid #e2e8f0',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            background: '#f8fafc',
-          }}
-        >
+        <div className="p-5 px-6 border-b border-base-300 flex justify-between items-center bg-base-200/50">
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <h2 style={{ fontSize: '18px', fontWeight: '700', color: '#0f172a', margin: 0 }}>
-                Venta {sale.folio || (sale as any)._id?.slice(-8)}
+            <div className="flex items-center gap-2.5">
+              <h2 className="text-lg font-bold text-base-content m-0">
+                Venta {sale.folio || sale.id.slice(-8)}
               </h2>
               <span
-                style={{
-                  padding: '2px 10px',
-                  borderRadius: '12px',
-                  fontSize: '11px',
-                  fontWeight: '700',
-                  background: sale.isCancelled ? '#fef2f2' : '#f0fdf4',
-                  color: sale.isCancelled ? '#dc2626' : '#16a34a',
-                  border: `1px solid ${sale.isCancelled ? '#fecaca' : '#bbf7d0'}`,
-                }}
+                className={`px-2.5 py-0.5 rounded-full text-xs font-bold border ${
+                  sale.isCancelled
+                    ? 'bg-error/15 text-error border-error/30'
+                    : 'bg-success/15 text-success border-success/30'
+                }`}
               >
                 {sale.isCancelled ? 'Cancelada' : 'Completada'}
               </span>
             </div>
-            <p style={{ fontSize: '12px', color: '#64748b', margin: '4px 0 0' }}>{dateFmt}</p>
+            <p className="text-xs text-base-content/60 m-0 mt-1">{dateFmt}</p>
           </div>
 
           <button
             onClick={onClose}
-            style={{
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              color: '#64748b',
-              padding: '4px',
-              borderRadius: '6px',
-            }}
+            className="btn btn-ghost btn-sm btn-circle text-base-content/60 hover:text-base-content"
           >
             <Icon name="X" size="md" />
           </button>
         </div>
 
         {/* Drawer Content */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-5">
           {/* Metadata Cards */}
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
-              gap: '12px',
-              background: '#f8fafc',
-              padding: '16px',
-              borderRadius: '12px',
-              border: '1px solid #e2e8f0',
-            }}
-          >
+          <div className="grid grid-cols-2 gap-3 bg-base-200 p-4 rounded-xl border border-base-300">
             <div>
-              <div style={{ fontSize: '11px', fontWeight: '600', color: '#64748b', textTransform: 'uppercase' }}>Cliente</div>
-              <div style={{ fontSize: '14px', fontWeight: '700', color: '#0f172a', marginTop: '2px' }}>{customerName}</div>
+              <div className="text-[11px] font-semibold text-base-content/60 uppercase">Cliente</div>
+              <div className="text-sm font-bold text-base-content mt-0.5">{customerName}</div>
             </div>
             <div>
-              <div style={{ fontSize: '11px', fontWeight: '600', color: '#64748b', textTransform: 'uppercase' }}>Sucursal</div>
-              <div style={{ fontSize: '14px', fontWeight: '700', color: '#0f172a', marginTop: '2px' }}>{branchName}</div>
+              <div className="text-[11px] font-semibold text-base-content/60 uppercase">Sucursal</div>
+              <div className="text-sm font-bold text-base-content mt-0.5">{branchName}</div>
             </div>
             <div>
-              <div style={{ fontSize: '11px', fontWeight: '600', color: '#64748b', textTransform: 'uppercase' }}>Atendió</div>
-              <div style={{ fontSize: '13px', fontWeight: '600', color: '#334155', marginTop: '2px' }}>{sellerName}</div>
+              <div className="text-[11px] font-semibold text-base-content/60 uppercase">Atendió</div>
+              <div className="text-xs font-semibold text-base-content/80 mt-0.5">{sellerName}</div>
             </div>
             <div>
-              <div style={{ fontSize: '11px', fontWeight: '600', color: '#64748b', textTransform: 'uppercase' }}>Método de Pago</div>
-              <div style={{ fontSize: '13px', fontWeight: '600', color: '#334155', marginTop: '2px', textTransform: 'capitalize' }}>
+              <div className="text-[11px] font-semibold text-base-content/60 uppercase">Método de Pago</div>
+              <div className="text-xs font-semibold text-base-content/80 mt-0.5 capitalize">
                 {sale.paymentMethod === 'cash' ? 'Efectivo' : sale.paymentMethod === 'card' ? 'Tarjeta' : 'Transferencia'}
-                {(sale as any).paymentReference && <span style={{ fontSize: '11px', color: '#94a3b8', display: 'block' }}>Ref: {(sale as any).paymentReference}</span>}
+                {sale.paymentReference && <span className="text-[11px] text-base-content/50 block">Ref: {sale.paymentReference}</span>}
               </div>
             </div>
           </div>
 
           {/* Cancellation Warning Banner */}
           {sale.isCancelled && (
-            <div
-              style={{
-                padding: '12px 16px',
-                background: '#fef2f2',
-                border: '1px solid #fecaca',
-                borderRadius: '10px',
-                color: '#991b1b',
-                fontSize: '13px',
-              }}
-            >
-              <div style={{ fontWeight: '700', marginBottom: '2px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <div className="p-3.5 px-4 bg-error/10 border border-error/20 rounded-xl text-error text-xs">
+              <div className="font-bold mb-0.5 flex items-center gap-1.5">
                 <Icon name="AlertTriangle" size="sm" />
                 Venta Cancelada
               </div>
-              <div>Motivo: {(sale as any).cancelReason || 'Sin motivo registrado'}</div>
+              <div>Motivo: {('cancelReason' in sale && typeof (sale as { cancelReason?: unknown }).cancelReason === 'string' ? (sale as { cancelReason: string }).cancelReason : 'Sin motivo registrado')}</div>
             </div>
           )}
 
           {/* Items breakdown */}
           <div>
-            <h3 style={{ fontSize: '14px', fontWeight: '700', color: '#0f172a', marginBottom: '12px' }}>
+            <h3 className="text-sm font-bold text-base-content mb-3">
               Artículos & Servicios ({rootItems.length})
             </h3>
 
             {rootItems.length === 0 ? (
-              <div style={{ padding: '20px', textAlign: 'center', color: '#64748b', border: '1px dashed #cbd5e1', borderRadius: '10px', fontSize: '13px' }}>
+              <div className="p-5 text-center text-base-content/60 border border-dashed border-base-300 rounded-xl text-xs">
                 Sin artículos registrados en esta venta
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div className="flex flex-col gap-3">
                 {rootItems.map((item) => (
                   <div
                     key={item.id}
-                    style={{
-                      border: '1px solid #e2e8f0',
-                      borderRadius: '12px',
-                      padding: '14px',
-                      background: '#fafafa',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '10px',
-                    }}
+                    className="border border-base-300 rounded-xl p-3.5 bg-base-200/50 flex flex-col gap-2.5"
                   >
                     {/* Main Item Header */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                    <div className="flex justify-between items-start gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
                           {item.type === 'service' && (
-                            <span
-                              style={{
-                                fontSize: '10px',
-                                background: '#fffbeb',
-                                color: '#d97706',
-                                padding: '2px 7px',
-                                borderRadius: '4px',
-                                fontWeight: '700',
-                                border: '1px solid #fde68a',
-                                flexShrink: 0,
-                              }}
-                            >
+                            <span className="text-[10px] bg-amber-500/15 text-amber-600 dark:text-amber-400 px-1.5 py-0.5 rounded-md font-bold border border-amber-500/30 shrink-0">
                               Servicio
                             </span>
                           )}
-                          <span style={{ fontSize: '14px', fontWeight: '700', color: '#0f172a', wordBreak: 'break-word' }}>
+                          <span className="text-sm font-bold text-base-content break-words">
                             {item.name}
                           </span>
                         </div>
                         {item.sku && (
-                          <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '2px' }}>
+                          <div className="text-[11px] text-base-content/50 mt-0.5">
                             SKU: {item.sku}
                           </div>
                         )}
-                        <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>
+                        <div className="text-xs text-base-content/60 mt-1">
                           ${item.unitPrice.toLocaleString('es-MX', { minimumFractionDigits: 2 })} c/u
                         </div>
                       </div>
 
-                      <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                        <div style={{ fontSize: '12px', color: '#64748b', fontWeight: '600' }}>
-                          Cant: <span style={{ color: '#0f172a', fontWeight: '700' }}>{item.quantity}</span>
+                      <div className="text-right shrink-0">
+                        <div className="text-xs text-base-content/60 font-medium">
+                          Cant: <span className="text-base-content font-bold">{item.quantity}</span>
                         </div>
-                        <div style={{ fontSize: '14px', fontWeight: '800', color: '#0f172a', marginTop: '2px' }}>
+                        <div className="text-sm font-extrabold text-base-content mt-0.5">
                           ${item.subtotal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
                         </div>
                       </div>
@@ -412,62 +358,33 @@ export const SaleDetailDrawer: React.FC<SaleDetailDrawerProps> = ({
 
                     {/* Child Service Supplies Container */}
                     {item.childItems.length > 0 && (
-                      <div
-                        style={{
-                          marginTop: '4px',
-                          paddingTop: '10px',
-                          borderTop: '1px dashed #cbd5e1',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: '8px',
-                        }}
-                      >
+                      <div className="mt-1 pt-2.5 border-t border-dashed border-base-300 flex flex-col gap-2">
                         {item.childItems.map((child) => (
                           <div
                             key={child.id}
-                            style={{
-                              border: '1px solid #bae6fd',
-                              borderRadius: '8px',
-                              padding: '10px 12px',
-                              background: '#f0f9ff',
-                              display: 'flex',
-                              justifyContent: 'space-between',
-                              alignItems: 'center',
-                              gap: '12px',
-                            }}
+                            className="border border-info/30 rounded-lg p-2.5 bg-info/10 flex justify-between items-center gap-3"
                           >
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                                <span
-                                  style={{
-                                    fontSize: '10px',
-                                    background: '#bae6fd',
-                                    color: '#0369a1',
-                                    padding: '1px 6px',
-                                    borderRadius: '4px',
-                                    fontWeight: '700',
-                                    border: '1px solid #7dd3fc',
-                                    flexShrink: 0,
-                                  }}
-                                >
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="text-[10px] bg-info/20 text-info px-1.5 py-0.5 rounded-md font-bold border border-info/30 shrink-0">
                                   Insumo de servicio
                                 </span>
-                                <span style={{ fontSize: '13px', fontWeight: '600', color: '#0369a1', wordBreak: 'break-word' }}>
+                                <span className="text-xs font-semibold text-info break-words">
                                   {child.name}
                                 </span>
                               </div>
                               {child.sku && (
-                                <div style={{ fontSize: '11px', color: '#0284c7', marginTop: '2px' }}>
+                                <div className="text-[11px] text-info/70 mt-0.5">
                                   SKU: {child.sku}
                                 </div>
                               )}
                             </div>
 
-                            <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                              <div style={{ fontSize: '12px', color: '#0369a1', fontWeight: '600' }}>
-                                Cant: <span style={{ fontWeight: '700' }}>{child.quantity}</span>
+                            <div className="text-right shrink-0">
+                              <div className="text-xs text-info font-medium">
+                                Cant: <span className="font-bold">{child.quantity}</span>
                               </div>
-                              <div style={{ fontSize: '13px', fontWeight: '700', color: '#0369a1', marginTop: '1px' }}>
+                              <div className="text-xs font-bold text-info mt-0.5">
                                 ${child.subtotal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
                               </div>
                             </div>
@@ -482,18 +399,18 @@ export const SaleDetailDrawer: React.FC<SaleDetailDrawerProps> = ({
           </div>
 
           {/* Financial summary */}
-          <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: '#64748b' }}>
+          <div className="bg-base-200 p-4 rounded-xl border border-base-300 flex flex-col gap-2">
+            <div className="flex justify-between text-xs text-base-content/70">
               <span>Subtotal</span>
               <span>${(sale.subtotal ?? sale.total).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
             </div>
             {sale.discount ? sale.discount > 0 ? (
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: '#16a34a', fontWeight: '600' }}>
+              <div className="flex justify-between text-xs text-success font-semibold">
                 <span>Descuento</span>
                 <span>-${sale.discount.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
               </div>
             ) : null : null}
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '18px', fontWeight: '800', color: '#0f172a', paddingTop: '8px', borderTop: '1px solid #cbd5e1' }}>
+            <div className="flex justify-between text-lg font-extrabold text-base-content pt-2 border-t border-base-300">
               <span>Total</span>
               <span>${sale.total.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
             </div>
@@ -501,7 +418,7 @@ export const SaleDetailDrawer: React.FC<SaleDetailDrawerProps> = ({
         </div>
 
         {/* Drawer Footer Actions */}
-        <div style={{ padding: '16px 24px', borderTop: '1px solid #e2e8f0', background: '#f8fafc', display: 'flex', gap: '12px' }}>
+        <div className="p-4 px-6 border-t border-base-300 bg-base-200/50 flex gap-3">
           {onPrintTicket && (
             <SecondaryButton className="flex-1 justify-center" onClick={() => onPrintTicket(sale)}>
               <Icon name="Printer" size="sm" className="mr-2" />
@@ -512,7 +429,7 @@ export const SaleDetailDrawer: React.FC<SaleDetailDrawerProps> = ({
           {!sale.isCancelled && onCancelSale && (
             <PrimaryButton
               className="flex-1 justify-center"
-              style={{ background: '#ef4444', borderColor: '#ef4444' }}
+              color="error"
               onClick={() => {
                 setCancelReason('');
                 setCancelError(null);
@@ -530,7 +447,7 @@ export const SaleDetailDrawer: React.FC<SaleDetailDrawerProps> = ({
       <Modal isOpen={isCancelModalOpen} onClose={() => setIsCancelModalOpen(false)} onConfirm={handleConfirmCancel} title="Cancelar Venta" zIndex={1100}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <p style={{ fontSize: '14px', color: '#64748b', margin: 0 }}>
-            ¿Estás seguro de que deseas cancelar la venta <strong>{sale.folio || (sale as any)._id?.slice(-8)}</strong>? Esta acción devolverá el stock de los productos e insumos al almacén.
+            ¿Estás seguro de que deseas cancelar la venta <strong>{sale.folio || sale.id.slice(-8)}</strong>? Esta acción devolverá el stock de los productos e insumos al almacén.
           </p>
 
           <div>
@@ -542,8 +459,8 @@ export const SaleDetailDrawer: React.FC<SaleDetailDrawerProps> = ({
               disabled={cancelling}
               placeholder="Ej. Devolución de producto, Error en cobro, Solicitud del cliente..."
               value={cancelReason}
-              onChange={(e) => setCancelReason(e.target.value)}
-              onKeyDown={(e) => {
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCancelReason(e.target.value)}
+              onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
                 if (e.key === 'Enter') {
                   e.preventDefault();
                   handleConfirmCancel();

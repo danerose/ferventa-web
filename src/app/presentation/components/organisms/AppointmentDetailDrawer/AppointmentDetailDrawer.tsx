@@ -1,6 +1,16 @@
-import React from 'react';
-import { Icon, PrimaryButton, SecondaryButton } from '@/app/presentation/components';
-import { STATUS_LABELS, STATUS_STYLES } from '@/app/presentation/components';
+import React, { useState, useEffect } from 'react';
+import {
+  Icon,
+  PrimaryButton,
+  SecondaryButton,
+  Box,
+  Flex,
+  Stack,
+  Text,
+  TextInput,
+  Textarea,
+} from '@/app/presentation/components';
+import { STATUS_LABELS, STATUS_STYLES } from '@/core/constants';
 import type { AdminAppointment } from '@/app/domain';
 
 export interface AppointmentDetailDrawerProps {
@@ -10,6 +20,10 @@ export interface AppointmentDetailDrawerProps {
   onRejectClick: (appt: AdminAppointment) => void;
   onRescheduleClick: (appt: AdminAppointment) => void;
   onCompleteClick: (appt: AdminAppointment) => void;
+  onCheckInClick?: (
+    appt: AdminAppointment,
+    checkInData?: { serviceRequested?: string; laborCost?: number; notes?: string }
+  ) => Promise<void> | void;
   onRescheduleApprovedClick: (appt: AdminAppointment) => void;
   onCancelClick: (appt: AdminAppointment) => void;
 }
@@ -39,162 +53,91 @@ export const AppointmentDetailDrawer: React.FC<AppointmentDetailDrawerProps> = (
   onRejectClick,
   onRescheduleClick,
   onCompleteClick,
+  onCheckInClick,
   onRescheduleApprovedClick,
   onCancelClick,
 }) => {
+  const [serviceRequested, setServiceRequested] = useState('');
+  const [laborCost, setLaborCost] = useState<number | ''>(0);
+  const [notes, setNotes] = useState('');
+  const [isReceiving, setIsReceiving] = useState(false);
+
+  useEffect(() => {
+    if (appt) {
+      setServiceRequested(appt.serviceRequested || '');
+      setLaborCost(0);
+      setNotes(appt.notes || '');
+      setIsReceiving(false);
+    }
+  }, [appt]);
+
   if (!appt) return null;
 
   const statusStyle = STATUS_STYLES[appt.status] || STATUS_STYLES.pending;
 
   return (
     <div
-      className="print:contents"
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'rgba(9, 20, 38, 0.4)',
-        zIndex: 100,
-        display: 'flex',
-        justifyContent: 'flex-end',
-        backdropFilter: 'blur(2px)',
-        transition: 'opacity 0.2s ease-in-out',
-      }}
+      className="print:contents fixed inset-0 bg-neutral-900/60 z-50 flex justify-end backdrop-blur-xs transition-opacity duration-200"
       onClick={onClose}
     >
       <aside
-        className="print:hidden"
-        style={{
-          width: '360px',
-          height: '100%',
-          background: 'white',
-          boxShadow: '-4px 0 24px rgba(9, 20, 38, 0.15)',
-          display: 'flex',
-          flexDirection: 'column',
-          animation: 'slideInRight 0.2s ease-out',
-          fontFamily: 'Inter, system-ui, sans-serif',
-        }}
+        className="print:hidden w-[420px] max-w-full h-full bg-base-100 border-l border-base-300 text-base-content shadow-2xl flex flex-col font-sans transition-colors duration-200"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div
-          style={{
-            padding: '24px',
-            borderBottom: '1px solid #cbd5e1',
-            background: '#f8fafc',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-          }}
-        >
+        <div className="p-6 border-b border-base-300 bg-base-200/50 flex justify-between items-center">
           <div>
-            <h3 style={{ fontSize: '18px', fontWeight: '800', color: '#091426', margin: 0 }}>
+            <h3 className="text-lg font-extrabold text-base-content m-0">
               Detalle de la Cita
             </h3>
-            <span
-              style={{
-                fontSize: '11px',
-                fontWeight: '700',
-                color: '#64748b',
-                textTransform: 'uppercase',
-                letterSpacing: '0.05em',
-              }}
-            >
+            <span className="text-[11px] font-bold text-base-content/60 uppercase tracking-wider">
               Información rápida
             </span>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: '#64748b',
-              cursor: 'pointer',
-              padding: '4px',
-              display: 'flex',
-              alignItems: 'center',
-            }}
+            className="p-1 rounded-lg hover:bg-base-300/50 text-base-content/60 hover:text-base-content cursor-pointer transition-colors"
           >
             <Icon name="X" size="md" />
           </button>
         </div>
 
         {/* Sidebar Body */}
-        <div style={{ flex: 1, padding: '24px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+        <div className="flex-1 p-6 overflow-y-auto flex flex-col gap-6">
           {/* Client Profile Card */}
-          <div style={{ background: '#f8fafc', borderRadius: '12px', padding: '16px', border: '1px solid #e2e8f0' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-              <div
-                style={{
-                  width: '40px',
-                  height: '40px',
-                  borderRadius: '50%',
-                  background: '#091426',
-                  color: 'white',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontWeight: '700',
-                  fontSize: '16px',
-                }}
-              >
+          <div className="bg-base-200/60 border border-base-300 rounded-xl p-4">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-primary text-primary-content flex items-center justify-center font-bold text-base shrink-0">
                 {appt.customerName.charAt(0).toUpperCase()}
               </div>
-              <div>
-                <h4 style={{ fontSize: '15px', fontWeight: '800', color: '#091426', margin: 0 }}>
+              <div className="min-w-0 flex-1">
+                <h4 className="text-base font-bold text-base-content m-0 truncate">
                   {appt.customerName}
                 </h4>
                 <span
-                  style={{
-                    ...statusStyle,
-                    fontSize: '9.5px',
-                    fontWeight: '700',
-                    letterSpacing: '0.05em',
-                    textTransform: 'uppercase',
-                    padding: '2px 6px',
-                    borderRadius: '4px',
-                    display: 'inline-block',
-                    marginTop: '4px',
-                  }}
+                  style={statusStyle}
+                  className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded inline-block mt-1"
                 >
                   {STATUS_LABELS[appt.status] || appt.status}
                 </span>
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <div className="grid grid-cols-2 gap-3 pt-2 border-t border-base-300/50">
               <div>
-                <span
-                  style={{
-                    fontSize: '10px',
-                    fontWeight: '700',
-                    color: '#64748b',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.02em',
-                    display: 'block',
-                    marginBottom: '2px',
-                  }}
-                >
+                <span className="text-[10px] font-bold text-base-content/60 uppercase tracking-wider block mb-0.5">
                   Vehículo
                 </span>
-                <span style={{ fontSize: '13px', fontWeight: '600', color: '#091426' }}>
+                <span className="text-xs font-semibold text-base-content block truncate">
                   {appt.vehicle ? `${appt.vehicle.brand} ${appt.vehicle.model}` : 'Genérico'}
                 </span>
               </div>
               <div>
-                <span
-                  style={{
-                    fontSize: '10px',
-                    fontWeight: '700',
-                    color: '#64748b',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.02em',
-                    display: 'block',
-                    marginBottom: '2px',
-                  }}
-                >
+                <span className="text-[10px] font-bold text-base-content/60 uppercase tracking-wider block mb-0.5">
                   Serie
                 </span>
-                <span style={{ fontSize: '12px', fontFamily: 'JetBrains Mono, monospace', fontWeight: '600', color: '#855300' }}>
+                <span className="text-xs font-mono font-semibold text-primary block">
                   {appt.vehicle?.serialNumberLastFour ? `***${appt.vehicle.serialNumberLastFour}` : 'N/A'}
                 </span>
               </div>
@@ -202,39 +145,18 @@ export const AppointmentDetailDrawer: React.FC<AppointmentDetailDrawerProps> = (
           </div>
 
           {/* Info Details */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div className="flex flex-col gap-4">
             {/* Phone */}
             {appt.customerPhone && (
-              <div style={{ display: 'flex', gap: '12px', alignItems: 'start' }}>
-                <div
-                  style={{
-                    width: '32px',
-                    height: '32px',
-                    borderRadius: '8px',
-                    background: '#eff4ff',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: '#1e40af',
-                    flexShrink: 0,
-                  }}
-                >
+              <div className="flex gap-3 items-start">
+                <div className="w-8 h-8 rounded-lg bg-base-200 border border-base-300 flex items-center justify-center text-primary shrink-0">
                   <Icon name="Phone" size="sm" />
                 </div>
                 <div>
-                  <span
-                    style={{
-                      fontSize: '11px',
-                      fontWeight: '700',
-                      color: '#64748b',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.02em',
-                      display: 'block',
-                    }}
-                  >
+                  <span className="text-[11px] font-bold text-base-content/60 uppercase tracking-wider block">
                     Teléfono
                   </span>
-                  <span style={{ fontSize: '13.5px', fontWeight: '600', color: '#091426' }}>
+                  <span className="text-sm font-semibold text-base-content">
                     {appt.customerPhone}
                   </span>
                 </div>
@@ -243,36 +165,15 @@ export const AppointmentDetailDrawer: React.FC<AppointmentDetailDrawerProps> = (
 
             {/* Email */}
             {appt.customerEmail && (
-              <div style={{ display: 'flex', gap: '12px', alignItems: 'start' }}>
-                <div
-                  style={{
-                    width: '32px',
-                    height: '32px',
-                    borderRadius: '8px',
-                    background: '#eff4ff',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: '#1e40af',
-                    flexShrink: 0,
-                  }}
-                >
+              <div className="flex gap-3 items-start">
+                <div className="w-8 h-8 rounded-lg bg-base-200 border border-base-300 flex items-center justify-center text-primary shrink-0">
                   <Icon name="Mail" size="sm" />
                 </div>
                 <div>
-                  <span
-                    style={{
-                      fontSize: '11px',
-                      fontWeight: '700',
-                      color: '#64748b',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.02em',
-                      display: 'block',
-                    }}
-                  >
+                  <span className="text-[11px] font-bold text-base-content/60 uppercase tracking-wider block">
                     Correo
                   </span>
-                  <span style={{ fontSize: '13.5px', fontWeight: '600', color: '#091426' }}>
+                  <span className="text-sm font-semibold text-base-content">
                     {appt.customerEmail}
                   </span>
                 </div>
@@ -280,219 +181,128 @@ export const AppointmentDetailDrawer: React.FC<AppointmentDetailDrawerProps> = (
             )}
 
             {/* Scheduled time */}
-            <div style={{ display: 'flex', gap: '12px', alignItems: 'start' }}>
-              <div
-                style={{
-                  width: '32px',
-                  height: '32px',
-                  borderRadius: '8px',
-                  background: '#eff4ff',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#1e40af',
-                  flexShrink: 0,
-                }}
-              >
+            <div className="flex gap-3 items-start">
+              <div className="w-8 h-8 rounded-lg bg-base-200 border border-base-300 flex items-center justify-center text-primary shrink-0">
                 <Icon name="Clock" size="sm" />
               </div>
               <div>
-                <span
-                  style={{
-                    fontSize: '11px',
-                    fontWeight: '700',
-                    color: '#64748b',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.02em',
-                    display: 'block',
-                  }}
-                >
+                <span className="text-[11px] font-bold text-base-content/60 uppercase tracking-wider block">
                   Fecha y Hora
                 </span>
-                <span style={{ fontSize: '13.5px', fontWeight: '600', color: '#091426', display: 'block' }}>
+                <span className="text-sm font-semibold text-base-content block">
                   {(() => {
                     const { date, time, period } = formatScheduledAt(appt.scheduledAt);
                     return `${date}, ${time} ${period}`;
                   })()}
                 </span>
                 {appt.duration && (
-                  <span style={{ fontSize: '11px', color: '#64748b', fontStyle: 'italic', display: 'block', marginTop: '2px' }}>
+                  <span className="text-xs text-base-content/60 italic block mt-0.5">
                     Duración estimada: {appt.duration} min
                   </span>
                 )}
               </div>
             </div>
 
-            {/* Service Requested */}
-            <div style={{ display: 'flex', gap: '12px', alignItems: 'start' }}>
-              <div
-                style={{
-                  width: '32px',
-                  height: '32px',
-                  borderRadius: '8px',
-                  background: '#eff4ff',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#1e40af',
-                  flexShrink: 0,
-                }}
-              >
-                <Icon name="Wrench" size="sm" />
-              </div>
-              <div>
-                <span
-                  style={{
-                    fontSize: '11px',
-                    fontWeight: '700',
-                    color: '#64748b',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.02em',
-                    display: 'block',
-                  }}
-                >
-                  Servicio Solicitado
-                </span>
-                <span style={{ fontSize: '13.5px', fontWeight: '700', color: '#091426' }}>
-                  {appt.serviceRequested}
-                </span>
-              </div>
-            </div>
+            {/* If appointment is approved, show the Reception / Check-in Form section */}
+            {appt.status === 'approved' ? (
+              <Box className="border-t border-base-300 pt-5">
+                <Flex align="center" gap="xs" className="mb-3">
+                  <Icon name="FileText" size="xs" className="text-primary" />
+                  <Text size="xs" weight="bold" className="uppercase tracking-wider text-base-content">
+                    Motivo de Ingreso y Servicio
+                  </Text>
+                </Flex>
 
-            {/* Mechanic */}
-            {appt.assignedMechanic && (
-              <div style={{ display: 'flex', gap: '12px', alignItems: 'start' }}>
-                <div
-                  style={{
-                    width: '32px',
-                    height: '32px',
-                    borderRadius: '8px',
-                    background: '#eff4ff',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: '#1e40af',
-                    flexShrink: 0,
-                  }}
-                >
-                  <Icon name="User" size="sm" />
-                </div>
-                <div>
-                  <span
-                    style={{
-                      fontSize: '11px',
-                      fontWeight: '700',
-                      color: '#64748b',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.02em',
-                      display: 'block',
-                    }}
-                  >
-                    Mecánico Asignado
-                  </span>
-                  <span style={{ fontSize: '13.5px', fontWeight: '600', color: '#091426' }}>
-                    {appt.assignedMechanic}
-                  </span>
-                </div>
-              </div>
-            )}
+                <Stack gap="md">
+                  <Box>
+                    <Text size="xs" weight="semibold" className="text-base-content/70 mb-1.5 block">
+                      Servicio Solicitado / Falla reportada *
+                    </Text>
+                    <Textarea
+                      value={serviceRequested}
+                      onChange={(e) => setServiceRequested(e.target.value)}
+                      placeholder="Ej. Revisión de frenos, afinación completa y cambio de balatas delanteras"
+                      rows={2}
+                      className="w-full text-sm"
+                    />
+                  </Box>
 
-            {/* Branch */}
-            {appt.branchName && (
-              <div style={{ display: 'flex', gap: '12px', alignItems: 'start' }}>
-                <div
-                  style={{
-                    width: '32px',
-                    height: '32px',
-                    borderRadius: '8px',
-                    background: '#eff4ff',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: '#1e40af',
-                    flexShrink: 0,
-                  }}
-                >
-                  <Icon name="MapPin" size="sm" />
-                </div>
-                <div>
-                  <span
-                    style={{
-                      fontSize: '11px',
-                      fontWeight: '700',
-                      color: '#64748b',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.02em',
-                      display: 'block',
-                    }}
-                  >
-                    Sucursal
-                  </span>
-                  <span style={{ fontSize: '13.5px', fontWeight: '600', color: '#091426' }}>
-                    {appt.branchName}
-                  </span>
-                </div>
-              </div>
-            )}
+                  <Box>
+                    <Text size="xs" weight="semibold" className="text-base-content/70 mb-1.5 block">
+                      Mano de Obra Estimada ($ MXN)
+                    </Text>
+                    <TextInput
+                      value={laborCost}
+                      onChange={(e) => setLaborCost(e.target.value ? Number(e.target.value) : '')}
+                      placeholder="0.00"
+                      type="number"
+                      size="sm"
+                      className="w-full text-sm"
+                    />
+                  </Box>
 
-            {/* Notes */}
-            {appt.notes && (
-              <div style={{ display: 'flex', gap: '12px', alignItems: 'start' }}>
-                <div
-                  style={{
-                    width: '32px',
-                    height: '32px',
-                    borderRadius: '8px',
-                    background: '#eff4ff',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: '#1e40af',
-                    flexShrink: 0,
-                  }}
-                >
-                  <Icon name="FileText" size="sm" />
+                  <Box>
+                    <Text size="xs" weight="semibold" className="text-base-content/70 mb-1.5 block">
+                      Notas de Recepción / Pertenencias
+                    </Text>
+                    <TextInput
+                      value={notes}
+                      onChange={(e) => setNotes(e.target.value)}
+                      placeholder="Ej. Deja casco, tanque a 1/2, rechinido al frenar"
+                      size="sm"
+                      className="w-full text-sm"
+                    />
+                  </Box>
+                </Stack>
+              </Box>
+            ) : (
+              <>
+                {/* Service Requested */}
+                <div className="flex gap-3 items-start">
+                  <div className="w-8 h-8 rounded-lg bg-base-200 border border-base-300 flex items-center justify-center text-primary shrink-0">
+                    <Icon name="Wrench" size="sm" />
+                  </div>
+                  <div>
+                    <span className="text-[11px] font-bold text-base-content/60 uppercase tracking-wider block">
+                      Servicio Solicitado
+                    </span>
+                    <span className="text-sm font-bold text-base-content">
+                      {appt.serviceRequested}
+                    </span>
+                  </div>
                 </div>
-                <div>
-                  <span
-                    style={{
-                      fontSize: '11px',
-                      fontWeight: '700',
-                      color: '#64748b',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.02em',
-                      display: 'block',
-                    }}
-                  >
-                    Notas
-                  </span>
-                  <p style={{ fontSize: '13px', fontStyle: 'italic', color: '#475569', margin: 0, lineHeight: '1.4' }}>
-                    "{appt.notes}"
-                  </p>
-                </div>
-              </div>
+
+                {/* Notes */}
+                {appt.notes && (
+                  <div className="flex gap-3 items-start">
+                    <div className="w-8 h-8 rounded-lg bg-base-200 border border-base-300 flex items-center justify-center text-primary shrink-0">
+                      <Icon name="FileText" size="sm" />
+                    </div>
+                    <div>
+                      <span className="text-[11px] font-bold text-base-content/60 uppercase tracking-wider block">
+                        Notas
+                      </span>
+                      <p className="text-xs italic text-base-content/70 m-0 leading-relaxed">
+                        "{appt.notes}"
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>
 
         {/* Sidebar Footer Actions */}
-        <div
-          style={{
-            padding: '20px 24px',
-            borderTop: '1px solid #e2e8f0',
-            background: '#f8fafc',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '8px',
-          }}
-        >
-          <SecondaryButton
+        <div className="p-5 border-t border-base-300 bg-base-200/50 flex flex-col gap-2">
+          <button
+            type="button"
             onClick={() => window.print()}
-            className="w-full bg-white border-[#cbd5e1] hover:bg-[#f1f5f9] text-[#091426] py-2.5 rounded-lg text-[13px] mb-4"
+            className="btn btn-sm btn-outline border-base-300 text-base-content hover:bg-base-200 w-full mb-2 gap-2"
           >
-            <Icon name="Printer" size="sm" className="mr-2" />
+            <Icon name="Printer" size="sm" />
             Imprimir Comprobante
-          </SecondaryButton>
+          </button>
 
           {(appt.status === 'pending' || appt.status === 'rescheduled') && (
             <>
@@ -501,7 +311,7 @@ export const AppointmentDetailDrawer: React.FC<AppointmentDetailDrawerProps> = (
                   onClose();
                   onApproveClick(appt);
                 }}
-                className="w-full bg-[#091426] hover:bg-[#1e293b] text-white border-none py-2.5 rounded-lg text-[13px]"
+                className="w-full py-2"
               >
                 Aprobar Cita
               </PrimaryButton>
@@ -510,7 +320,7 @@ export const AppointmentDetailDrawer: React.FC<AppointmentDetailDrawerProps> = (
                   onClose();
                   onRescheduleClick(appt);
                 }}
-                className="w-full bg-white border-[#cbd5e1] hover:bg-[#f1f5f9] text-[#091426] py-2.5 rounded-lg text-[13px]"
+                className="w-full py-2"
               >
                 Proponer Reagendación
               </SecondaryButton>
@@ -519,7 +329,7 @@ export const AppointmentDetailDrawer: React.FC<AppointmentDetailDrawerProps> = (
                   onClose();
                   onRejectClick(appt);
                 }}
-                className="w-full bg-transparent border-none text-[#dc2626] hover:bg-[#fef2f2] py-2 rounded-lg text-[12px]"
+                className="w-full py-2 text-error hover:bg-error/10 border-transparent hover:border-error/20"
               >
                 Rechazar Cita
               </SecondaryButton>
@@ -529,28 +339,55 @@ export const AppointmentDetailDrawer: React.FC<AppointmentDetailDrawerProps> = (
           {appt.status === 'approved' && (
             <>
               <PrimaryButton
-                onClick={() => {
-                  onCompleteClick(appt);
+                disabled={isReceiving}
+                onClick={async () => {
+                  setIsReceiving(true);
+                  try {
+                    if (onCheckInClick) {
+                      await onCheckInClick(appt, {
+                        serviceRequested: serviceRequested.trim() || appt.serviceRequested,
+                        laborCost: Number(laborCost) || 0,
+                        notes: notes.trim(),
+                      });
+                    } else {
+                      onCompleteClick(appt);
+                    }
+                    onClose();
+                  } finally {
+                    setIsReceiving(false);
+                  }
                 }}
-                className="w-full bg-[#166534] hover:bg-[#15803d] text-white border-none py-2.5 rounded-lg text-[13px]"
+                className="w-full py-2"
               >
-                Completar Cita
+                {isReceiving ? (
+                  <Flex align="center" justify="center" gap="xs">
+                    <Icon name="RefreshCw" size="xs" className="animate-spin" />
+                    <Text size="sm" className="font-bold">Recibiendo vehículo...</Text>
+                  </Flex>
+                ) : (
+                  <Flex align="center" justify="center" gap="xs">
+                    <Icon name="Wrench" size="xs" />
+                    <Text size="sm" className="font-bold">Recibir Vehículo (Check in)</Text>
+                  </Flex>
+                )}
               </PrimaryButton>
-              <PrimaryButton
+              <SecondaryButton
+                disabled={isReceiving}
                 onClick={() => {
                   onClose();
                   onRescheduleApprovedClick(appt);
                 }}
-                className="w-full bg-[#091426] hover:bg-[#1e293b] text-white border-none py-2.5 rounded-lg text-[13px]"
+                className="w-full py-2"
               >
                 Reagendar Cita
-              </PrimaryButton>
+              </SecondaryButton>
               <SecondaryButton
+                disabled={isReceiving}
                 onClick={() => {
                   onClose();
                   onCancelClick(appt);
                 }}
-                className="w-full bg-white border-[#fca5a5] hover:bg-[#fef2f2] text-[#dc2626] py-2.5 rounded-lg text-[13px]"
+                className="w-full py-2 text-error hover:bg-error/10 border-transparent hover:border-error/20"
               >
                 Cancelar Cita
               </SecondaryButton>
@@ -558,17 +395,7 @@ export const AppointmentDetailDrawer: React.FC<AppointmentDetailDrawerProps> = (
           )}
 
           {(appt.status === 'completed' || appt.status === 'rejected' || appt.status === 'cancelled') && (
-            <div
-              style={{
-                textTransform: 'uppercase',
-                fontSize: '11px',
-                fontWeight: '700',
-                letterSpacing: '0.05em',
-                color: '#64748b',
-                textAlign: 'center',
-                padding: '6px',
-              }}
-            >
+            <div className="uppercase text-[11px] font-bold tracking-wider text-base-content/50 text-center py-2">
               Esta cita está finalizada ({STATUS_LABELS[appt.status] || appt.status})
             </div>
           )}

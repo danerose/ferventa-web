@@ -49,8 +49,8 @@ export const EditAttendanceModal: React.FC<EditAttendanceModalProps> = ({
 
       onSuccess();
       onClose();
-    } catch (err: any) {
-      setErrorMsg(err.message || 'Error al actualizar el registro de asistencia');
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : 'Error al actualizar el registro de asistencia');
     } finally {
       setIsLoading(false);
     }

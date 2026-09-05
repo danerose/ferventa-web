@@ -41,7 +41,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
       onConfirm={handleConfirm}
       title={title}
       maxWidth="400px"
-      headerBackground={isDestructive ? '#ef4444' : '#091426'}
+      headerVariant={isDestructive ? 'error' : 'neutral'}
       footer={
         <>
           <SecondaryButton onClick={onClose} disabled={loading}>
@@ -52,7 +52,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
             onClick={handleConfirm}
             loading={loading}
             disabled={loading}
-            style={isDestructive ? { backgroundColor: '#ef4444', borderColor: '#ef4444' } : undefined}
+            color={isDestructive ? 'error' : 'primary'}
           >
             {confirmText}
             <KbdBadge keys="Enter ↵" style={{ marginLeft: '6px' }} />

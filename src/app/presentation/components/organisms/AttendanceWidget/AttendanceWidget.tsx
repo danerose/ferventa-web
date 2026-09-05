@@ -38,8 +38,8 @@ export const AttendanceWidget: React.FC<AttendanceWidgetProps> = ({
     try {
       const data = await attendanceRepo.getTodayStatus(userId);
       setStatusData(data);
-    } catch (err: any) {
-      setErrorMsg(err.message || 'No se pudo obtener el estado de asistencia');
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : 'No se pudo obtener el estado de asistencia');
     } finally {
       if (showSpinner) setIsInitialLoading(false);
     }
@@ -50,7 +50,7 @@ export const AttendanceWidget: React.FC<AttendanceWidgetProps> = ({
       setIsInitialLoading(true);
       attendanceRepo.getTodayStatus(userId)
         .then((data) => setStatusData(data))
-        .catch((err: any) => setErrorMsg(err.message || 'No se pudo obtener el estado'))
+        .catch((err: unknown) => setErrorMsg(err instanceof Error ? err.message : 'No se pudo obtener el estado'))
         .finally(() => setIsInitialLoading(false));
     }
   }, [userId]);
@@ -89,7 +89,7 @@ export const AttendanceWidget: React.FC<AttendanceWidgetProps> = ({
         setSuccessMsg(`¡Salida registrada exitosamente ${userName ? `para ${userName}` : ''}!`);
       } else if (action === 'start-break') {
         const record = await attendanceRepo.startBreak(note, userId);
-        const activeB = record.breaks ? record.breaks.find((b: any) => !b.endTime) : null;
+        const activeB = record.breaks ? record.breaks.find((b) => !b.endTime) : null;
         setStatusData({
           hasActiveShift: true,
           status: 'on_break',
@@ -113,8 +113,8 @@ export const AttendanceWidget: React.FC<AttendanceWidgetProps> = ({
       }
 
       if (onStatusChange) onStatusChange();
-    } catch (err: any) {
-      setErrorMsg(err.message || 'Error al procesar la acción de asistencia');
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : 'Error al procesar la acción de asistencia');
       await loadTodayStatus();
     } finally {
       setIsActionLoading(false);
@@ -142,19 +142,8 @@ export const AttendanceWidget: React.FC<AttendanceWidgetProps> = ({
   const renderStatusBadge = () => {
     if (isWorking) {
       return (
-        <span style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: '6px',
-          padding: '4px 12px',
-          borderRadius: '9999px',
-          background: '#dcfce7',
-          color: '#166534',
-          fontSize: '13px',
-          fontWeight: '600',
-          border: '1px solid #bbf7d0'
-        }}>
-          <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#22c55e' }} />
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-success/15 border border-success/30 text-success text-xs font-semibold">
+          <span className="w-2 h-2 rounded-full bg-success animate-pulse" />
           En Turno Laboral
         </span>
       );
@@ -162,19 +151,8 @@ export const AttendanceWidget: React.FC<AttendanceWidgetProps> = ({
 
     if (isOnBreak) {
       return (
-        <span style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: '6px',
-          padding: '4px 12px',
-          borderRadius: '9999px',
-          background: '#fef3c7',
-          color: '#92400e',
-          fontSize: '13px',
-          fontWeight: '600',
-          border: '1px solid #fde68a'
-        }}>
-          <Icon name="Coffee" size="xs" color="#92400e" />
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-warning/15 border border-warning/30 text-warning text-xs font-semibold">
+          <Icon name="Coffee" size="xs" />
           En Descanso / Comida
         </span>
       );
@@ -182,38 +160,16 @@ export const AttendanceWidget: React.FC<AttendanceWidgetProps> = ({
 
     if (isCompleted) {
       return (
-        <span style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: '6px',
-          padding: '4px 12px',
-          borderRadius: '9999px',
-          background: '#dbeafe',
-          color: '#1e40af',
-          fontSize: '13px',
-          fontWeight: '600',
-          border: '1px solid #bfdbfe'
-        }}>
-          <Icon name="CheckCircle2" size="xs" color="#1e40af" />
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-info/15 border border-info/30 text-info text-xs font-semibold">
+          <Icon name="CheckCircle2" size="xs" />
           Jornada Completada
         </span>
       );
     }
 
     return (
-      <span style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: '6px',
-        padding: '4px 12px',
-        borderRadius: '9999px',
-        background: '#f1f5f9',
-        color: '#475569',
-        fontSize: '13px',
-        fontWeight: '600',
-        border: '1px solid #e2e8f0'
-      }}>
-        <Icon name="Clock" size="xs" color="#475569" />
+      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-base-200 border border-base-300 text-base-content/70 text-xs font-semibold">
+        <Icon name="Clock" size="xs" />
         Sin Iniciar Turno Hoy
       </span>
     );
@@ -222,29 +178,18 @@ export const AttendanceWidget: React.FC<AttendanceWidgetProps> = ({
   const displayName = userName || 'Colaborador';
 
   return (
-    <div style={{ background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', padding: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+    <div className="bg-base-100 rounded-xl border border-base-300 p-5 shadow-xs">
       {/* Employee Name & Status Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', paddingBottom: '16px', marginBottom: '16px', borderBottom: '1px solid #e2e8f0' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{
-            width: '40px',
-            height: '40px',
-            borderRadius: '50%',
-            background: '#855300',
-            color: 'white',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontWeight: '700',
-            fontSize: '16px'
-          }}>
+      <div className="flex justify-between items-center flex-wrap gap-3 pb-4 mb-4 border-b border-base-300">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-primary/20 text-primary border border-primary/30 flex items-center justify-center font-bold text-base">
             {displayName.charAt(0).toUpperCase()}
           </div>
           <div>
-            <h3 style={{ fontSize: '17px', fontWeight: '700', color: '#091426', margin: 0 }}>
+            <h3 className="text-base font-bold text-base-content m-0">
               {displayName}
             </h3>
-            {userRole && <span style={{ fontSize: '12px', color: '#64748b' }}>{userRole}</span>}
+            {userRole && <span className="text-xs text-base-content/60">{userRole}</span>}
           </div>
         </div>
 
@@ -255,55 +200,55 @@ export const AttendanceWidget: React.FC<AttendanceWidgetProps> = ({
 
       {/* Messages */}
       {errorMsg && (
-        <div style={{ padding: '10px 14px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', color: '#991b1b', fontSize: '13px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Icon name="AlertCircle" size="sm" color="#dc2626" />
+        <div className="p-3 bg-error/10 border border-error/20 rounded-lg text-error text-xs mb-4 flex items-center gap-2">
+          <Icon name="AlertCircle" size="sm" />
           <span>{errorMsg}</span>
         </div>
       )}
 
       {successMsg && (
-        <div style={{ padding: '10px 14px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', color: '#166534', fontSize: '13px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Icon name="CheckCircle2" size="sm" color="#16a34a" />
+        <div className="p-3 bg-success/10 border border-success/20 rounded-lg text-success text-xs mb-4 flex items-center gap-2">
+          <Icon name="CheckCircle2" size="sm" />
           <span>{successMsg}</span>
         </div>
       )}
 
       {/* Loading state */}
       {isInitialLoading ? (
-        <div style={{ padding: '24px', textAlign: 'center', color: '#64748b', fontSize: '13px' }}>Cargando estado...</div>
+        <div className="p-6 text-center text-base-content/60 text-xs">Cargando estado...</div>
       ) : (
         <>
           {/* Work metrics grid matching screenshot */}
-          <div style={{ display: 'grid', gridTemplateColumns: `repeat(auto-fit, minmax(140px, 1fr))`, gap: '12px', marginBottom: '16px' }}>
-            <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-              <span style={{ fontSize: '11px', color: '#64748b', display: 'block', marginBottom: '4px' }}>Hora de Entrada</span>
-              <span style={{ fontSize: '15px', fontWeight: '700', color: '#0f172a', fontFamily: 'monospace' }}>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+            <div className="bg-base-200 p-3 rounded-lg border border-base-300">
+              <span className="text-[11px] text-base-content/60 block mb-1 font-medium">Hora de Entrada</span>
+              <span className="text-sm font-bold text-base-content font-mono">
                 {activeRecord?.clockIn
                   ? new Date(activeRecord.clockIn).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })
                   : '--:--'}
               </span>
             </div>
 
-            <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-              <span style={{ fontSize: '11px', color: '#64748b', display: 'block', marginBottom: '4px' }}>Hora de Salida</span>
-              <span style={{ fontSize: '15px', fontWeight: '700', color: '#0f172a', fontFamily: 'monospace' }}>
+            <div className="bg-base-200 p-3 rounded-lg border border-base-300">
+              <span className="text-[11px] text-base-content/60 block mb-1 font-medium">Hora de Salida</span>
+              <span className="text-sm font-bold text-base-content font-mono">
                 {activeRecord?.clockOut
                   ? new Date(activeRecord.clockOut).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })
                   : '--:--'}
               </span>
             </div>
 
-            <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-              <span style={{ fontSize: '11px', color: '#64748b', display: 'block', marginBottom: '4px' }}>Tiempo de Comida</span>
-              <span style={{ fontSize: '15px', fontWeight: '700', color: '#d97706', fontFamily: 'monospace' }}>
+            <div className="bg-base-200 p-3 rounded-lg border border-base-300">
+              <span className="text-[11px] text-base-content/60 block mb-1 font-medium">Tiempo de Comida</span>
+              <span className="text-sm font-bold text-warning font-mono">
                 {formatMinutesToHHMM(statusData?.totalBreakMinutes || activeRecord?.totalBreakMinutes || 0)}
               </span>
             </div>
 
             {showWorkHours && (
-              <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                <span style={{ fontSize: '11px', color: '#64748b', display: 'block', marginBottom: '4px' }}>Horas Trabajadas (Neto)</span>
-                <span style={{ fontSize: '15px', fontWeight: '700', color: '#16a34a', fontFamily: 'monospace' }}>
+              <div className="bg-base-200 p-3 rounded-lg border border-base-300">
+                <span className="text-[11px] text-base-content/60 block mb-1 font-medium">Horas Trabajadas (Neto)</span>
+                <span className="text-sm font-bold text-success font-mono">
                   {formatMinutesToHHMM(statusData?.netWorkMinutes || activeRecord?.netWorkMinutes || 0)}
                 </span>
               </div>
@@ -312,14 +257,14 @@ export const AttendanceWidget: React.FC<AttendanceWidgetProps> = ({
 
           {/* Active Break Banner */}
           {isOnBreak && statusData?.activeBreak && (
-            <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '8px', padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '16px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1 }}>
-                <div style={{ width: '32px', height: '32px', borderRadius: '6px', background: '#fef3c7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Icon name="Coffee" size="sm" color="#d97706" />
+            <div className="bg-warning/10 border border-warning/30 rounded-lg p-3 sm:p-4 flex items-center justify-between gap-3 mb-4">
+              <div className="flex items-center gap-2.5 flex-1">
+                <div className="w-8 h-8 rounded-md bg-warning/20 flex items-center justify-center text-warning shrink-0">
+                  <Icon name="Coffee" size="sm" />
                 </div>
                 <div>
-                  <h4 style={{ fontSize: '13px', fontWeight: '700', color: '#92400e', margin: 0 }}>Descanso / Comida Activo</h4>
-                  <p style={{ fontSize: '11px', color: '#b45309', margin: 0 }}>
+                  <h4 className="text-xs font-bold text-warning m-0">Descanso / Comida Activo</h4>
+                  <p className="text-[11px] text-warning/80 m-0">
                     Inicio: {new Date(statusData.activeBreak.startTime).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}
                     {statusData.activeBreak.note ? ` • Nota: ${statusData.activeBreak.note}` : ''}
                   </p>
@@ -329,19 +274,7 @@ export const AttendanceWidget: React.FC<AttendanceWidgetProps> = ({
               <button
                 onClick={() => handleExecuteAction('end-break')}
                 disabled={isActionLoading}
-                style={{
-                  background: '#d97706',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '6px',
-                  padding: '6px 12px',
-                  fontSize: '13px',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px'
-                }}
+                className="btn btn-warning btn-sm text-white font-semibold flex items-center gap-1.5"
               >
                 <Icon name="Check" size="xs" />
                 Terminar Comida
@@ -351,53 +284,28 @@ export const AttendanceWidget: React.FC<AttendanceWidgetProps> = ({
 
           {/* Inline Note Prompt */}
           {showNoteInput && (
-            <div style={{ background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '14px', marginBottom: '16px' }}>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>
+            <div className="bg-base-200 border border-base-300 rounded-lg p-3.5 mb-4">
+              <label className="block text-xs font-semibold text-base-content mb-1.5">
                 Nota opcional para {pendingAction === 'clock-in' ? 'Entrada' : pendingAction === 'clock-out' ? 'Salida' : 'Inicio de Comida'}:
               </label>
-              <div style={{ display: 'flex', gap: '8px' }}>
+              <div className="flex gap-2">
                 <input
                   type="text"
                   placeholder="Ej: Llegada a tiempo / Salida de turno"
                   value={noteText}
                   onChange={(e) => setNoteText(e.target.value)}
-                  style={{
-                    flex: 1,
-                    padding: '6px 10px',
-                    borderRadius: '6px',
-                    border: '1px solid #cbd5e1',
-                    fontSize: '13px',
-                    outline: 'none'
-                  }}
+                  className="input input-sm input-bordered flex-1 bg-base-100 border-base-300 text-base-content text-xs"
                 />
                 <button
                   onClick={() => pendingAction && handleExecuteAction(pendingAction, noteText)}
                   disabled={isActionLoading}
-                  style={{
-                    background: '#091426',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '6px',
-                    padding: '6px 14px',
-                    fontSize: '13px',
-                    fontWeight: '600',
-                    cursor: 'pointer'
-                  }}
+                  className="btn btn-primary btn-sm text-xs font-semibold"
                 >
                   Confirmar
                 </button>
                 <button
                   onClick={() => setShowNoteInput(false)}
-                  style={{
-                    background: 'white',
-                    color: '#64748b',
-                    border: '1px solid #cbd5e1',
-                    borderRadius: '6px',
-                    padding: '6px 14px',
-                    fontSize: '13px',
-                    fontWeight: '600',
-                    cursor: 'pointer'
-                  }}
+                  className="btn btn-ghost btn-sm border border-base-300 text-xs font-semibold text-base-content/70"
                 >
                   Cancelar
                 </button>
@@ -405,27 +313,17 @@ export const AttendanceWidget: React.FC<AttendanceWidgetProps> = ({
             </div>
           )}
 
-          {/* Action Buttons Matching Screenshot */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '10px' }}>
+          {/* Action Buttons */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
             {/* Clock In */}
             <button
               onClick={() => promptActionWithNote('clock-in')}
               disabled={isActionLoading || !canClockIn}
-              style={{
-                padding: '10px 14px',
-                borderRadius: '8px',
-                fontSize: '13px',
-                fontWeight: '600',
-                cursor: canClockIn ? 'pointer' : 'not-allowed',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '6px',
-                border: 'none',
-                background: canClockIn ? '#16a34a' : '#f1f5f9',
-                color: canClockIn ? 'white' : '#94a3b8',
-                transition: 'all 0.2s'
-              }}
+              className={`p-2.5 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 border transition-all ${
+                canClockIn
+                  ? 'bg-success hover:bg-success/90 text-white border-success cursor-pointer shadow-xs'
+                  : 'bg-base-200 text-base-content/30 border-base-300 cursor-not-allowed'
+              }`}
             >
               <Icon name="LogIn" size="xs" />
               Marcar Entrada
@@ -435,21 +333,11 @@ export const AttendanceWidget: React.FC<AttendanceWidgetProps> = ({
             <button
               onClick={() => promptActionWithNote('start-break')}
               disabled={isActionLoading || !isWorking}
-              style={{
-                padding: '10px 14px',
-                borderRadius: '8px',
-                fontSize: '13px',
-                fontWeight: '600',
-                cursor: isWorking ? 'pointer' : 'not-allowed',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '6px',
-                border: 'none',
-                background: isWorking ? '#d97706' : '#f1f5f9',
-                color: isWorking ? 'white' : '#94a3b8',
-                transition: 'all 0.2s'
-              }}
+              className={`p-2.5 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 border transition-all ${
+                isWorking
+                  ? 'bg-amber-600 hover:bg-amber-700 text-white border-amber-600 cursor-pointer shadow-xs'
+                  : 'bg-base-200 text-base-content/30 border-base-300 cursor-not-allowed'
+              }`}
             >
               <Icon name="Coffee" size="xs" />
               Iniciar Comida
@@ -459,21 +347,11 @@ export const AttendanceWidget: React.FC<AttendanceWidgetProps> = ({
             <button
               onClick={() => handleExecuteAction('end-break')}
               disabled={isActionLoading || !isOnBreak}
-              style={{
-                padding: '10px 14px',
-                borderRadius: '8px',
-                fontSize: '13px',
-                fontWeight: '600',
-                cursor: isOnBreak ? 'pointer' : 'not-allowed',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '6px',
-                border: 'none',
-                background: isOnBreak ? '#b45309' : '#f1f5f9',
-                color: isOnBreak ? 'white' : '#94a3b8',
-                transition: 'all 0.2s'
-              }}
+              className={`p-2.5 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 border transition-all ${
+                isOnBreak
+                  ? 'bg-amber-700 hover:bg-amber-800 text-white border-amber-700 cursor-pointer shadow-xs'
+                  : 'bg-base-200 text-base-content/30 border-base-300 cursor-not-allowed'
+              }`}
             >
               <Icon name="Check" size="xs" />
               Terminar Comida
@@ -483,21 +361,11 @@ export const AttendanceWidget: React.FC<AttendanceWidgetProps> = ({
             <button
               onClick={() => promptActionWithNote('clock-out')}
               disabled={isActionLoading || (!isWorking && !isOnBreak)}
-              style={{
-                padding: '10px 14px',
-                borderRadius: '8px',
-                fontSize: '13px',
-                fontWeight: '600',
-                cursor: (isWorking || isOnBreak) ? 'pointer' : 'not-allowed',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '6px',
-                border: 'none',
-                background: (isWorking || isOnBreak) ? '#dc2626' : '#f1f5f9',
-                color: (isWorking || isOnBreak) ? 'white' : '#94a3b8',
-                transition: 'all 0.2s'
-              }}
+              className={`p-2.5 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 border transition-all ${
+                (isWorking || isOnBreak)
+                  ? 'bg-error hover:bg-error/90 text-white border-error cursor-pointer shadow-xs'
+                  : 'bg-base-200 text-base-content/30 border-base-300 cursor-not-allowed'
+              }`}
             >
               <Icon name="LogOut" size="xs" />
               Marcar Salida

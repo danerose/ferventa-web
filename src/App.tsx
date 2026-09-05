@@ -1,23 +1,26 @@
 import React, { useEffect } from 'react';
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
-import { ClientPortalPage } from '@/app/presentation/pages/ClientPortalPage';
-import { LoginPage } from '@/app/presentation/pages/LoginPage';
-import { AdminDashboardPage } from '@/app/presentation/pages/AdminDashboardPage';
-import { MaintenanceManagementPage } from '@/app/presentation/pages/MaintenanceManagementPage';
-import { OperationsDashboardPage } from '@/app/presentation/pages/OperationsDashboardPage';
-import { POSPage } from '@/app/presentation/pages/POSPage';
-import { InventoryPage } from '@/app/presentation/pages/InventoryPage';
-import { UsersPage } from '@/app/presentation/pages/UsersPage';
-import { ScheduleSettingsPage } from '@/app/presentation/pages/ScheduleSettingsPage';
-import { SettingsPage } from '@/app/presentation/pages/SettingsPage';
-import { AttendancePage } from '@/app/presentation/pages/AttendancePage';
-import { useAuthStore } from '@/app/presentation/stores';
-import { useThemeStore } from '@/app/presentation/stores';
+import {
+  ClientPortalPage,
+  LoginPage,
+  AdminDashboardPage,
+  MaintenanceManagementPage,
+  OperationsDashboardPage,
+  POSPage,
+  InventoryPage,
+  UsersPage,
+  ScheduleSettingsPage,
+  SettingsPage,
+  AttendancePage,
+  SpecialOrdersPage,
+} from '@/app/presentation/pages';
+import { useAuthStore, useThemeStore } from '@/app/presentation/stores';
+import { APP_ROUTES } from '@/core/constants';
 
 // Protected Route Component
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated } = useAuthStore();
-  return isAuthenticated() ? <>{children}</> : <Navigate to="/login" replace />;
+  return isAuthenticated() ? <>{children}</> : <Navigate to={APP_ROUTES.LOGIN} replace />;
 };
 
 export function App() {
@@ -44,34 +47,34 @@ export function App() {
 
   const handleOpenAdmin = () => {
     if (isAuthenticated()) {
-      navigate('/admin/citas');
+      navigate(APP_ROUTES.ADMIN.CITAS);
     } else {
-      navigate('/login');
+      navigate(APP_ROUTES.LOGIN);
     }
   };
 
   const handleLogout = () => {
     clearAuth();
-    navigate('/');
+    navigate(APP_ROUTES.PORTAL);
   };
 
   return (
     <Routes>
-      <Route path="/" element={<ClientPortalPage onOpenAdmin={handleOpenAdmin} />} />
-      <Route path="/portal" element={<Navigate to="/" replace />} />
+      <Route path={APP_ROUTES.PORTAL} element={<ClientPortalPage onOpenAdmin={handleOpenAdmin} />} />
+      <Route path="/portal" element={<Navigate to={APP_ROUTES.PORTAL} replace />} />
       <Route
-        path="/login"
+        path={APP_ROUTES.LOGIN}
         element={
           isAuthenticated() ? (
-            <Navigate to="/admin/citas" replace />
+            <Navigate to={APP_ROUTES.ADMIN.CITAS} replace />
           ) : (
-            <LoginPage onLoginSuccess={() => navigate('/admin/citas')} />
+            <LoginPage onLoginSuccess={() => navigate(APP_ROUTES.ADMIN.CITAS)} />
           )
         }
       />
-      <Route path="/admin" element={<Navigate to="/admin/citas" replace />} />
+      <Route path={APP_ROUTES.ADMIN.ROOT} element={<Navigate to={APP_ROUTES.ADMIN.CITAS} replace />} />
       <Route
-        path="/admin/citas"
+        path={APP_ROUTES.ADMIN.CITAS}
         element={
           <ProtectedRoute>
             <AdminDashboardPage onLogout={handleLogout} />
@@ -79,7 +82,7 @@ export function App() {
         }
       />
       <Route
-        path="/admin/operaciones"
+        path={APP_ROUTES.ADMIN.OPERACIONES}
         element={
           <ProtectedRoute>
             <OperationsDashboardPage />
@@ -87,7 +90,7 @@ export function App() {
         }
       />
       <Route
-        path="/admin/pos"
+        path={APP_ROUTES.ADMIN.POS}
         element={
           <ProtectedRoute>
             <POSPage />
@@ -95,7 +98,7 @@ export function App() {
         }
       />
       <Route
-        path="/admin/inventario"
+        path={APP_ROUTES.ADMIN.INVENTARIO}
         element={
           <ProtectedRoute>
             <InventoryPage />
@@ -103,7 +106,7 @@ export function App() {
         }
       />
       <Route
-        path="/admin/usuarios"
+        path={APP_ROUTES.ADMIN.USUARIOS}
         element={
           <ProtectedRoute>
             <UsersPage />
@@ -111,7 +114,7 @@ export function App() {
         }
       />
       <Route
-        path="/admin/horarios"
+        path={APP_ROUTES.ADMIN.HORARIOS}
         element={
           <ProtectedRoute>
             <ScheduleSettingsPage />
@@ -119,7 +122,7 @@ export function App() {
         }
       />
       <Route
-        path="/admin/settings"
+        path={APP_ROUTES.ADMIN.SETTINGS}
         element={
           <ProtectedRoute>
             <SettingsPage />
@@ -127,7 +130,7 @@ export function App() {
         }
       />
       <Route
-        path="/admin/mantenimiento"
+        path={APP_ROUTES.ADMIN.MANTENIMIENTO}
         element={
           <ProtectedRoute>
             <MaintenanceManagementPage />
@@ -135,14 +138,23 @@ export function App() {
         }
       />
       <Route
-        path="/admin/asistencia"
+        path={APP_ROUTES.ADMIN.ASISTENCIA}
         element={
           <ProtectedRoute>
             <AttendancePage />
           </ProtectedRoute>
         }
       />
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route
+        path={APP_ROUTES.ADMIN.PEDIDOS}
+        element={
+          <ProtectedRoute>
+            <SpecialOrdersPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route path="/admin/orders" element={<Navigate to={APP_ROUTES.ADMIN.PEDIDOS} replace />} />
+      <Route path="*" element={<Navigate to={APP_ROUTES.PORTAL} replace />} />
     </Routes>
   );
 }

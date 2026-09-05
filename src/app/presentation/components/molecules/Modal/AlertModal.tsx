@@ -26,12 +26,12 @@ export const AlertModal: React.FC<AlertModalProps> = ({
       onConfirm={onClose}
       title={title}
       maxWidth="400px"
-      headerBackground={isError ? '#ef4444' : '#091426'}
+      headerVariant={isError ? 'error' : 'neutral'}
       footer={
         <>
           <PrimaryButton
             onClick={onClose}
-            style={isError ? { backgroundColor: '#ef4444', borderColor: '#ef4444' } : undefined}
+            color={isError ? 'error' : 'primary'}
           >
             {buttonText}
             <KbdBadge keys="Enter ↵" style={{ marginLeft: '6px' }} />

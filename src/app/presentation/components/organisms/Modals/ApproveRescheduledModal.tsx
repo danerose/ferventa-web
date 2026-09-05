@@ -13,7 +13,7 @@ export interface ApproveRescheduledModalProps {
   onFinalTimeChange: (val: string) => void;
   timeSlotOptions: string[];
   format12h: (t: string) => string;
-  occupiedSlots: any;
+  occupiedSlots: unknown;
   occupiedList: {
     dateStr: string;
     dayLabel: string;
@@ -70,7 +70,7 @@ export const ApproveRescheduledModal: React.FC<ApproveRescheduledModalProps> = (
       onClose={onClose}
       title={isApprovedMode ? 'Reagendar Cita Aprobada' : 'Confirmar y Aprobar Cita Reagendada'}
       footer={footer}
-      headerBackground={isApprovedMode ? '#091426' : '#8b5cf6'}
+      headerVariant={isApprovedMode ? 'neutral' : 'secondary'}
       maxWidth="600px"
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -131,7 +131,7 @@ export const ApproveRescheduledModal: React.FC<ApproveRescheduledModalProps> = (
         </div>
 
         {/* Visual aid panel (agenda items) inside approve modal */}
-        {occupiedSlots && (
+        {Boolean(occupiedSlots) && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
             <span style={{ fontSize: '11px', fontWeight: '700', color: '#64748b' }}>
               Agenda del día seleccionado ({finalDate}):

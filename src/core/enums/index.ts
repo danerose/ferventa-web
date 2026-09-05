@@ -3,4 +3,5 @@ export * from './status/ServiceStatus';
 export * from './methods/PaymentMethod';
 export * from './stage/MaintenanceStage';
 export * from './status/AttendanceStatus';
+export * from './status/SpecialOrderStatus';
 export * from './methods/ThemeMode';

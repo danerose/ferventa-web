@@ -60,7 +60,7 @@ export const CancelApprovedModal: React.FC<CancelApprovedModalProps> = ({
       onClose={onClose}
       title="Cancelar Cita Aprobada"
       footer={footer}
-      headerBackground="#dc2626"
+      headerVariant="error"
       maxWidth="500px"
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>

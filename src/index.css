@@ -2,47 +2,101 @@
 @import "tailwindcss";
 @plugin "daisyui";
 
-@theme {
+@custom-variant dark (&:where(.dark, .dark *, [data-theme="dark"], [data-theme="dark"] *));
+
+/* ==========================================================================
+   DAISYUI 5 DUAL THEME CONFIGURATION
+   ========================================================================== */
+
+/* Light Theme: Industrial Precision */
+@plugin "daisyui/theme" {
+  name: "light";
+  default: true;
+  prefersdark: false;
+  color-scheme: light;
+
+  --color-base-100: #f8f9ff;
+  --color-base-200: #e5eeff;
+  --color-base-300: #d3e4fe;
+  --color-base-content: #0b1c30;
+
   --color-primary: #091426;
-  --color-on-primary: #ffffff;
-  --color-primary-container: #1e293b;
-  --color-on-primary-container: #8590a6;
-  
+  --color-primary-content: #ffffff;
+
   --color-secondary: #855300;
-  --color-on-secondary: #ffffff;
-  --color-secondary-container: #fea619;
-  --color-on-secondary-container: #684000;
-  
-  --color-tertiary: #00190e;
-  --color-on-tertiary: #ffffff;
-  --color-tertiary-container: #00301e;
-  --color-on-tertiary-container: #00a472;
+  --color-secondary-content: #ffffff;
+
+  --color-accent: #fea619;
+  --color-accent-content: #684000;
+
+  --color-neutral: #1e293b;
+  --color-neutral-content: #ffffff;
+
+  --color-info: #1275e2;
+  --color-info-content: #ffffff;
+
+  --color-success: #00a472;
+  --color-success-content: #ffffff;
+
+  --color-warning: #fea619;
+  --color-warning-content: #684000;
 
   --color-error: #ba1a1a;
-  --color-on-error: #ffffff;
-  --color-error-container: #ffdad6;
-  --color-on-error-container: #93000a;
+  --color-error-content: #ffffff;
 
-  --color-background: #f8f9ff;
-  --color-on-background: #0b1c30;
-  
-  --color-surface: #f8f9ff;
-  --color-surface-dim: #cbdbf5;
-  --color-surface-bright: #f8f9ff;
-  --color-surface-container-lowest: #ffffff;
-  --color-surface-container-low: #eff4ff;
-  --color-surface-container: #e5eeff;
-  --color-surface-container-high: #dce9ff;
-  --color-surface-container-highest: #d3e4fe;
-  --color-on-surface: #0b1c30;
-  --color-on-surface-variant: #45474c;
-  --color-inverse-surface: #213145;
-  --color-inverse-on-surface: #eaf1ff;
-  --color-outline: #75777d;
-  --color-outline-variant: #c5c6cd;
-  --color-surface-tint: #545f73;
-  --color-surface-variant: #d3e4fe;
+  --radius-selector: 1rem;
+  --radius-field: 0.5rem;
+  --radius-box: 1rem;
+  --border: 1px;
+}
 
+/* Dark Theme: Interstellar Logic */
+@plugin "daisyui/theme" {
+  name: "dark";
+  default: false;
+  prefersdark: true;
+  color-scheme: dark;
+
+  --color-base-100: #10131a;
+  --color-base-200: #181c22;
+  --color-base-300: #272a31;
+  --color-base-content: #e0e2eb;
+
+  --color-primary: #aac7ff;
+  --color-primary-content: #002f64;
+
+  --color-secondary: #aec7f7;
+  --color-secondary-content: #143057;
+
+  --color-accent: #e3711f;
+  --color-accent-content: #ffffff;
+
+  --color-neutral: #272a31;
+  --color-neutral-content: #e0e2eb;
+
+  --color-info: #4090fe;
+  --color-info-content: #002958;
+
+  --color-success: #4edea3;
+  --color-success-content: #002113;
+
+  --color-warning: #ffb68c;
+  --color-warning-content: #481d00;
+
+  --color-error: #ffb4ab;
+  --color-error-content: #690005;
+
+  --radius-selector: 1rem;
+  --radius-field: 0.5rem;
+  --radius-box: 1rem;
+  --border: 1px;
+}
+
+/* ==========================================================================
+   TAILWIND CSS V4 THEME EXTENSIONS
+   ========================================================================== */
+
+@theme {
   --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
 
@@ -51,12 +105,6 @@
   --radius-md: 0.75rem; /* 12px */
   --radius-lg: 1rem; /* 16px */
   --radius-xl: 1.5rem; /* 24px */
-
-  --spacing-xs: 4px;
-  --spacing-sm: 8px;
-  --spacing-md: 16px;
-  --spacing-lg: 24px;
-  --spacing-xl: 40px;
 }
 
 @utility font-display-lg {
@@ -109,17 +157,17 @@
 @layer base {
   body {
     @apply antialiased min-h-screen;
-    background-color: var(--color-background);
-    color: var(--color-on-background);
+    background-color: var(--color-base-100);
+    color: var(--color-base-content);
     font-family: var(--font-sans);
   }
 }
 
 @media print {
-  /* === TICKET TÉRMICO 58mm === */
+  /* === TICKET TÉRMICO 58mm / 80mm === */
   @page ticketPage {
     margin: 0;
-    size: 58mm auto;
+    size: 80mm 250mm;
   }
 
   /* === DOCUMENTOS COMPLETOS === */
@@ -128,9 +176,7 @@
     size: auto;
   }
 
-  /* Eliminar completamente el alto de html/body para evitar hojas en blanco */
-  /* En modo ticket: colapsar html/body a 0 para eliminar páginas en blanco.
-     El ticket vive en position:fixed y no depende del flow del documento. */
+  /* En modo ticket: colapsar html/body a 0 para eliminar páginas en blanco. */
   body:not(.print-doc-mode) html,
   body:not(.print-doc-mode) {
     margin: 0 !important;
@@ -173,7 +219,6 @@
     color: #000000 !important;
     box-sizing: border-box !important;
     display: block !important;
-    /* Eliminar páginas en blanco al final */
     page-break-after: avoid !important;
     break-after: avoid !important;
     orphans: 0 !important;

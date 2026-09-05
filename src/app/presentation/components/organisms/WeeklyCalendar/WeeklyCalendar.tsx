@@ -14,22 +14,31 @@ export interface WeeklyCalendarProps {
 
 const TIMELINE_HOURS = ['8 AM', '9 AM', '10 AM', '11 AM', '12 PM', '1 PM', '2 PM', '3 PM', '4 PM', '5 PM'];
 
-const STATUS_ACCENT: Record<string, string> = {
-  pending: '#fbbf24',
-  approved: '#10b981',
-  rejected: '#ef4444',
-  cancelled: '#94a3b8',
-  completed: '#3b82f6',
-  rescheduled: '#8b5cf6',
-};
-
-const STATUS_STYLES: Record<string, { background: string; color: string; border: string }> = {
-  pending: { background: '#fffbeb', color: '#b45309', border: '1px solid #fef3c7' },
-  approved: { background: '#f0fdf4', color: '#166534', border: '1px solid #dcfce7' },
-  rejected: { background: '#fef2f2', color: '#991b1b', border: '1px solid #fee2e2' },
-  cancelled: { background: '#f8fafc', color: '#475569', border: '1px solid #e2e8f0' },
-  completed: { background: '#eff6ff', color: '#1d4ed8', border: '1px solid #dbeafe' },
-  rescheduled: { background: '#f5f3ff', color: '#5b21b6', border: '1px solid #8b5cf630' },
+const STATUS_STYLES: Record<string, { className: string; accent: string }> = {
+  pending: {
+    className: 'bg-amber-500/15 border-amber-500/30 text-amber-600 dark:text-amber-400',
+    accent: '#f59e0b',
+  },
+  approved: {
+    className: 'bg-emerald-500/15 border-emerald-500/30 text-emerald-600 dark:text-emerald-400',
+    accent: '#10b981',
+  },
+  rejected: {
+    className: 'bg-rose-500/15 border-rose-500/30 text-rose-600 dark:text-rose-400',
+    accent: '#f43f5e',
+  },
+  cancelled: {
+    className: 'bg-slate-500/15 border-slate-500/30 text-slate-600 dark:text-slate-400',
+    accent: '#64748b',
+  },
+  completed: {
+    className: 'bg-blue-500/15 border-blue-500/30 text-blue-600 dark:text-blue-400',
+    accent: '#3b82f6',
+  },
+  rescheduled: {
+    className: 'bg-purple-500/15 border-purple-500/30 text-purple-600 dark:text-purple-400',
+    accent: '#a855f7',
+  },
 };
 
 export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
@@ -61,14 +70,14 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
     return days;
   }, [monday]);
 
-  const formatWeekRange = useCallback((monday: Date) => {
-    const saturday = new Date(monday);
-    saturday.setUTCDate(monday.getUTCDate() + 5);
+  const formatWeekRange = useCallback((mon: Date) => {
+    const saturday = new Date(mon);
+    saturday.setUTCDate(mon.getUTCDate() + 5);
 
     const optionsShort: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short', timeZone: 'UTC' };
     const optionsYear: Intl.DateTimeFormatOptions = { year: 'numeric', timeZone: 'UTC' };
 
-    const startStr = monday.toLocaleDateString('es-MX', optionsShort);
+    const startStr = mon.toLocaleDateString('es-MX', optionsShort);
     const endStr = saturday.toLocaleDateString('es-MX', optionsShort);
     const yearStr = saturday.toLocaleDateString('es-MX', optionsYear);
 
@@ -99,139 +108,131 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
           (a.vehicle &&
             (a.vehicle.brand.toLowerCase().includes(q) ||
               a.vehicle.model.toLowerCase().includes(q) ||
-              a.vehicle.serialNumberLastFour.includes(q)))
+              a.vehicle.serialNumberLastFour.toLowerCase().includes(q)))
       );
     }
 
     return filtered;
   }, [timelineAppointments, branchFilter, searchValue]);
 
+  // Map appointments onto weekly columns with collision handling
   const positionedAppointments = useMemo(() => {
-    const list: PositionedAppointment[] = [];
-    const mondayTime = Date.UTC(monday.getUTCFullYear(), monday.getUTCMonth(), monday.getUTCDate());
+    const result: PositionedAppointment[] = [];
+    const pixelsPerHour = 80;
+    const startHour = 8;
+    const endHour = 18; // 6 PM
+    const totalHours = endHour - startHour;
 
-    // Group appointments by dayIndex (0 to 5)
-    const appointmentsByDay: Record<number, { appt: AdminAppointment; start: number; end: number }[]> = {
-      0: [], 1: [], 2: [], 3: [], 4: [], 5: []
-    };
+    weekDays.forEach((day, dayIndex) => {
+      const dayUTCStr = `${day.getUTCFullYear()}-${String(day.getUTCMonth() + 1).padStart(2, '0')}-${String(
+        day.getUTCDate()
+      ).padStart(2, '0')}`;
 
-    visibleTimelineAppointments.forEach((appt) => {
-      try {
-        const apptDate = new Date(appt.scheduledAt);
-        if (isNaN(apptDate.getTime())) return;
+      // Appointments for this UTC day
+      const dayAppts = visibleTimelineAppointments.filter((a) => {
+        const aDate = new Date(a.scheduledAt);
+        const aUTCStr = `${aDate.getUTCFullYear()}-${String(aDate.getUTCMonth() + 1).padStart(2, '0')}-${String(
+          aDate.getUTCDate()
+        ).padStart(2, '0')}`;
+        return aUTCStr === dayUTCStr;
+      });
 
-        const apptDay = apptDate.getUTCDay();
-        if (apptDay === 0) return; // Skip Sunday
-        const dayIndex = apptDay - 1; // 0 for Monday, 5 for Saturday
+      // Sort by start time
+      dayAppts.sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime());
 
-        const apptTime = Date.UTC(apptDate.getUTCFullYear(), apptDate.getUTCMonth(), apptDate.getUTCDate());
-        const diffDays = Math.round((apptTime - mondayTime) / (24 * 60 * 60 * 1000));
+      // Collision grouping algorithm
+      const clusters: { appt: AdminAppointment; startMin: number; endMin: number }[][] = [];
 
-        if (diffDays < 0 || diffDays > 5) return;
-
-        const hours = apptDate.getUTCHours();
-        const minutes = apptDate.getUTCMinutes();
-        const start = hours * 60 + minutes;
+      dayAppts.forEach((appt) => {
+        const aDate = new Date(appt.scheduledAt);
+        const apptHour = aDate.getUTCHours();
+        const apptMin = aDate.getUTCMinutes();
+        const startMin = (apptHour - startHour) * 60 + apptMin;
         const duration = appt.duration || 60;
-        const end = start + duration;
+        const endMin = startMin + duration;
 
-        appointmentsByDay[dayIndex].push({ appt, start, end });
-      } catch (e) {
-        // ignore
-      }
-    });
+        // Skip if entirely outside [8am, 6pm]
+        if (endMin <= 0 || startMin >= totalHours * 60) return;
 
-    // For each day, solve the overlap positioning
-    for (let dayIndex = 0; dayIndex < 6; dayIndex++) {
-      const dayAppts = appointmentsByDay[dayIndex];
-      if (dayAppts.length === 0) continue;
-
-      // Sort by start time, then by end time desc
-      dayAppts.sort((a, b) => a.start - b.start || b.end - a.end);
-
-      // Group overlapping appointments
-      const groups: { appt: AdminAppointment; start: number; end: number }[][] = [];
-      let currentGroup: { appt: AdminAppointment; start: number; end: number }[] = [];
-      let groupEnd = -1;
-
-      dayAppts.forEach((item) => {
-        if (item.start >= groupEnd) {
-          if (currentGroup.length > 0) {
-            groups.push(currentGroup);
-          }
-          currentGroup = [item];
-          groupEnd = item.end;
-        } else {
-          currentGroup.push(item);
-          if (item.end > groupEnd) {
-            groupEnd = item.end;
+        let placedInCluster = false;
+        for (const cluster of clusters) {
+          const hasOverlap = cluster.some((c) => startMin < c.endMin && endMin > c.startMin);
+          if (hasOverlap) {
+            cluster.push({ appt, startMin, endMin });
+            placedInCluster = true;
+            break;
           }
         }
+
+        if (!placedInCluster) {
+          clusters.push([{ appt, startMin, endMin }]);
+        }
       });
-      if (currentGroup.length > 0) {
-        groups.push(currentGroup);
-      }
 
-      // Position each group
-      groups.forEach((group) => {
-        const columns: { appt: AdminAppointment; start: number; end: number }[][] = [];
+      // Position each item in clusters
+      clusters.forEach((cluster) => {
+        const columns: { appt: AdminAppointment; startMin: number; endMin: number }[][] = [];
 
-        group.forEach((item) => {
-          let placed = false;
+        cluster.forEach((item) => {
+          let placedInCol = false;
           for (let colIdx = 0; colIdx < columns.length; colIdx++) {
-            const col = columns[colIdx];
-            const lastItem = col[col.length - 1];
-            if (item.start >= lastItem.end) {
-              col.push(item);
-              placed = true;
+            const lastInCol = columns[colIdx][columns[colIdx].length - 1];
+            if (item.startMin >= lastInCol.endMin) {
+              columns[colIdx].push(item);
+              placedInCol = true;
               break;
             }
           }
-          if (!placed) {
+          if (!placedInCol) {
             columns.push([item]);
           }
         });
 
         const totalCols = columns.length;
+        const colWidthPct = 100 / totalCols;
 
-        columns.forEach((col, colIdx) => {
-          col.forEach((item) => {
-            const startMinutes = 8 * 60; // 8:00 AM
-            const diffMinutes = item.start - startMinutes;
-            const top = 64 + (diffMinutes / 60) * 80;
-            const height = ((item.end - item.start) / 60) * 80;
+        // Base column coordinates: 80px label + (dayIndex * 1fr of remaining width)
+        const dayColLeftOffset = `calc(80px + ${dayIndex} * ((100% - 80px) / 6))`;
+        const dayColWidth = `calc((100% - 80px) / 6)`;
 
-            const left = `calc(80px + ${dayIndex} * (100% - 80px) / 6 + ${colIdx} * (100% - 80px) / (6 * ${totalCols}))`;
-            const width = `calc((100% - 80px) / (6 * ${totalCols}) - 4px)`;
+        columns.forEach((colItems, colIdx) => {
+          colItems.forEach((c) => {
+            const clampedStart = Math.max(0, c.startMin);
+            const clampedEnd = Math.min(totalHours * 60, c.endMin);
+            const topPx = (clampedStart / 60) * pixelsPerHour + 64; // +64px for header
+            const heightPx = Math.max(30, ((clampedEnd - clampedStart) / 60) * pixelsPerHour);
 
-            list.push({
-              appt: item.appt,
-              top,
-              height,
+            const left = `calc(${dayColLeftOffset} + (${dayColWidth} * ${colIdx / totalCols}))`;
+            const width = `calc(${dayColWidth} * ${colWidthPct / 100} - 4px)`;
+
+            result.push({
+              appt: c.appt,
+              top: topPx,
+              height: heightPx,
               left,
-              width
+              width,
             });
           });
         });
       });
-    }
+    });
 
-    return list;
-  }, [visibleTimelineAppointments, monday]);
+    return result;
+  }, [visibleTimelineAppointments, weekDays]);
 
   const handlePrevWeek = useCallback(() => {
     onWeekRefDateChange((prev) => {
-      const d = new Date(prev);
-      d.setDate(d.getDate() - 7);
-      return d;
+      const next = new Date(prev);
+      next.setDate(next.getDate() - 7);
+      return next;
     });
   }, [onWeekRefDateChange]);
 
   const handleNextWeek = useCallback(() => {
     onWeekRefDateChange((prev) => {
-      const d = new Date(prev);
-      d.setDate(d.getDate() + 7);
-      return d;
+      const next = new Date(prev);
+      next.setDate(next.getDate() + 7);
+      return next;
     });
   }, [onWeekRefDateChange]);
 
@@ -240,141 +241,49 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
   }, [onWeekRefDateChange]);
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        background: 'white',
-        border: '1px solid #e2e8f0',
-        borderRadius: '12px',
-        boxShadow: '0 2px 8px rgba(9, 20, 38, 0.04)',
-        overflow: 'hidden',
-      }}
-    >
+    <div className="flex flex-col bg-base-100 border border-base-300 rounded-xl shadow-xs overflow-hidden">
       {/* Navigation Toolbar */}
-      <div
-        style={{
-          padding: '16px 24px',
-          borderBottom: '1px solid #cbd5e1',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '12px',
-          background: '#f8fafc',
-        }}
-      >
-        <div style={{ display: 'flex', gap: '4px' }}>
+      <div className="px-5 py-3.5 border-b border-base-300 flex items-center gap-3 bg-base-200/50">
+        <div className="flex items-center gap-1">
           <button
+            type="button"
             onClick={handlePrevWeek}
-            style={{
-              padding: '8px 12px',
-              borderRadius: '6px',
-              border: '1px solid #cbd5e1',
-              background: 'white',
-              cursor: 'pointer',
-              color: '#091426',
-              display: 'flex',
-              alignItems: 'center',
-              transition: 'background 0.15s',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = '#f1f5f9';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'white';
-            }}
+            aria-label="Semana anterior"
+            className="btn btn-sm btn-ghost border border-base-300 bg-base-100 hover:bg-base-200 text-base-content p-2"
           >
             <Icon name="ChevronLeft" size="sm" />
           </button>
           <button
+            type="button"
             onClick={handleNextWeek}
-            style={{
-              padding: '8px 12px',
-              borderRadius: '6px',
-              border: '1px solid #cbd5e1',
-              background: 'white',
-              cursor: 'pointer',
-              color: '#091426',
-              display: 'flex',
-              alignItems: 'center',
-              transition: 'background 0.15s',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = '#f1f5f9';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'white';
-            }}
+            aria-label="Semana siguiente"
+            className="btn btn-sm btn-ghost border border-base-300 bg-base-100 hover:bg-base-200 text-base-content p-2"
           >
             <Icon name="ChevronRight" size="sm" />
           </button>
         </div>
 
         <button
+          type="button"
           onClick={handleTodayWeek}
-          style={{
-            padding: '8px 14px',
-            borderRadius: '6px',
-            border: '1px solid #cbd5e1',
-            background: 'white',
-            cursor: 'pointer',
-            fontSize: '13px',
-            fontWeight: '700',
-            color: '#091426',
-            transition: 'background 0.15s',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = '#f1f5f9';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'white';
-          }}
+          className="btn btn-sm btn-ghost border border-base-300 bg-base-100 hover:bg-base-200 text-base-content font-bold px-3.5"
         >
           Hoy
         </button>
 
-        <div
-          style={{
-            fontSize: '14px',
-            fontWeight: '700',
-            color: '#091426',
-            marginLeft: '8px',
-          }}
-        >
+        <div className="text-sm font-bold text-base-content ml-2">
           {formatWeekRange(monday)}
         </div>
       </div>
 
       {/* Scroll Container */}
-      <div
-        style={{
-          overflowX: 'auto',
-          overflowY: 'auto',
-          maxHeight: '620px',
-          position: 'relative',
-        }}
-      >
+      <div className="overflow-x-auto overflow-y-auto max-h-[620px] relative">
         <div
-          style={{
-            minWidth: '950px',
-            position: 'relative',
-            display: 'grid',
-            gridTemplateColumns: '80px repeat(6, 1fr)',
-            background: 'white',
-          }}
+          className="min-w-[950px] relative grid bg-base-100"
+          style={{ gridTemplateColumns: '80px repeat(6, 1fr)' }}
         >
           {/* Sticky Header Spacer */}
-          <div
-            style={{
-              position: 'sticky',
-              top: 0,
-              left: 0,
-              zIndex: 30,
-              background: '#f1f5f9',
-              borderBottom: '1px solid #cbd5e1',
-              borderRight: '1px solid #cbd5e1',
-              height: '64px',
-            }}
-          />
+          <div className="sticky top-0 left-0 z-30 bg-base-200 border-b border-r border-base-300 h-16" />
 
           {/* Day Headers */}
           {weekDays.map((day, index) => {
@@ -396,37 +305,21 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
             return (
               <div
                 key={index}
-                style={{
-                  position: 'sticky',
-                  top: 0,
-                  zIndex: 20,
-                  background: isToday ? '#eff6ff' : '#f1f5f9',
-                  borderBottom: '1px solid #cbd5e1',
-                  borderRight: '1px solid #cbd5e1',
-                  height: '64px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
+                className={`sticky top-0 z-20 h-16 border-b border-r border-base-300 flex flex-col items-center justify-center transition-colors ${
+                  isToday ? 'bg-primary/10' : 'bg-base-200/70'
+                }`}
               >
                 <span
-                  style={{
-                    fontSize: '11px',
-                    fontWeight: '700',
-                    color: isToday ? '#1d4ed8' : '#64748b',
-                    letterSpacing: '0.05em',
-                  }}
+                  className={`text-[11px] font-bold tracking-wider ${
+                    isToday ? 'text-primary' : 'text-base-content/60'
+                  }`}
                 >
                   {dayName}
                 </span>
                 <span
-                  style={{
-                    fontSize: '20px',
-                    fontWeight: '800',
-                    color: isToday ? '#1d4ed8' : '#091426',
-                    lineHeight: '1.2',
-                  }}
+                  className={`text-xl font-black leading-tight ${
+                    isToday ? 'text-primary' : 'text-base-content'
+                  }`}
                 >
                   {dayNum}
                 </span>
@@ -439,25 +332,7 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
             return (
               <React.Fragment key={hourIndex}>
                 {/* Time label column */}
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'start',
-                    justifyContent: 'end',
-                    paddingRight: '12px',
-                    paddingTop: '8px',
-                    fontSize: '11px',
-                    fontWeight: '700',
-                    color: '#64748b',
-                    borderRight: '1px solid #cbd5e1',
-                    borderBottom: '1px solid rgba(226,232,240,0.5)',
-                    background: 'white',
-                    position: 'sticky',
-                    left: 0,
-                    zIndex: 10,
-                    height: '80px',
-                  }}
-                >
+                <div className="flex items-start justify-end pr-3 pt-2 text-[11px] font-bold text-base-content/60 border-r border-b border-base-300 bg-base-100 sticky left-0 z-10 h-20">
                   {hour}
                 </div>
                 {/* Days Grid Cells */}
@@ -474,12 +349,9 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
                   return (
                     <div
                       key={dayIndex}
-                      style={{
-                        borderBottom: '1px solid rgba(226,232,240,0.4)',
-                        borderRight: '1px solid rgba(226,232,240,0.4)',
-                        height: '80px',
-                        background: isToday ? 'rgba(59, 130, 246, 0.03)' : 'transparent',
-                      }}
+                      className={`border-b border-r border-base-300/60 h-20 transition-colors ${
+                        isToday ? 'bg-primary/[0.03]' : ''
+                      }`}
                     />
                   );
                 })}
@@ -489,25 +361,11 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
 
           {/* Absolute Positioned Appointment Cards */}
           {timelineLoading ? (
-            <div
-              style={{
-                position: 'absolute',
-                inset: 0,
-                background: 'rgba(255,255,255,0.75)',
-                zIndex: 25,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '14px',
-                fontWeight: '600',
-                color: '#091426',
-              }}
-            >
+            <div className="absolute inset-0 bg-base-100/70 backdrop-blur-xs z-25 flex items-center justify-center text-sm font-semibold text-base-content">
               Cargando citas del calendario...
             </div>
           ) : positionedAppointments.length === 0 ? null : (
             positionedAppointments.map(({ appt, top, height, left, width }) => {
-              const accent = STATUS_ACCENT[appt.status] || '#cbd5e1';
               const statusStyle = STATUS_STYLES[appt.status] || STATUS_STYLES.pending;
 
               // Calculate Time Range string
@@ -521,7 +379,6 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
 
               const timeRangeStr = `${String(startH).padStart(2, '0')}:${startM} - ${String(endH).padStart(2, '0')}:${endM}`;
 
-              // Render inline single-row format
               return (
                 <div
                   key={appt.id}
@@ -537,53 +394,14 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
                 >
                   <div
                     onClick={() => onAppointmentClick(appt)}
-                    style={{
-                      width: '100%',
-                      height: '100%',
-                      background: statusStyle.background,
-                      color: statusStyle.color,
-                      border: `1px solid ${accent}30`,
-                      borderLeft: `4px solid ${accent}`,
-                      borderRadius: '8px',
-                      padding: '4px 8px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      cursor: 'pointer',
-                      boxShadow: '0 2px 5px rgba(9, 20, 38, 0.05)',
-                      transition: 'transform 0.15s, box-shadow 0.15s',
-                      overflow: 'hidden',
-                      userSelect: 'none',
-                    }}
-                    onMouseEnter={(e) => {
-                      (e.currentTarget as HTMLDivElement).style.transform = 'scale(0.985)';
-                      (e.currentTarget as HTMLDivElement).style.boxShadow = '0 4px 10px rgba(9, 20, 38, 0.08)';
-                    }}
-                    onMouseLeave={(e) => {
-                      (e.currentTarget as HTMLDivElement).style.transform = 'none';
-                      (e.currentTarget as HTMLDivElement).style.boxShadow = '0 2px 5px rgba(9, 20, 38, 0.05)';
-                    }}
+                    className={`w-full h-full rounded-lg px-2 py-1 flex items-center cursor-pointer select-none transition-transform hover:scale-[0.985] shadow-xs overflow-hidden border ${statusStyle.className}`}
+                    style={{ borderLeftWidth: '4px', borderLeftColor: statusStyle.accent }}
                   >
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        width: '100%',
-                        minWidth: 0,
-                      }}
-                    >
-                      <span style={{ fontSize: '10px', fontWeight: '700', opacity: 0.85, whiteSpace: 'nowrap', flexShrink: 0 }}>
+                    <div className="flex items-center gap-1.5 w-full min-w-0">
+                      <span className="text-[10px] font-bold opacity-80 shrink-0 font-mono">
                         {timeRangeStr}
                       </span>
-                      <span
-                        style={{
-                          fontSize: '11px',
-                          fontWeight: '700',
-                          whiteSpace: 'nowrap',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                        }}
-                      >
+                      <span className="text-[11px] font-bold truncate">
                         {appt.customerName}
                       </span>
                     </div>

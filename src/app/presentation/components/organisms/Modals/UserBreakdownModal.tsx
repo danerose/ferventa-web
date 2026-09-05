@@ -59,8 +59,8 @@ export const UserBreakdownModal: React.FC<UserBreakdownModalProps> = ({
     try {
       const data = await attendanceRepo.getUserBreakdown(userId, s || undefined, e || undefined);
       setBreakdown(data);
-    } catch (err: any) {
-      setErrorMsg(err.message || 'Error al obtener el desglose del usuario');
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : 'Error al obtener el desglose del usuario');
     } finally {
       setIsLoading(false);
     }
@@ -290,7 +290,7 @@ export const UserBreakdownModal: React.FC<UserBreakdownModalProps> = ({
                   </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                    {recordsList.map((record) => {
+                    {recordsList.map((record, index) => {
                       const isRecordWorking = record.status === 'working';
                       const isRecordOnBreak = record.status === 'on_break';
                       const isRecordCompleted = record.status === 'completed' || !!record.clockOut;
@@ -309,7 +309,7 @@ export const UserBreakdownModal: React.FC<UserBreakdownModalProps> = ({
 
                       return (
                         <div
-                          key={record._id || record.id || Math.random()}
+                          key={record._id || record.id || `record-${index}`}
                           style={{ background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '10px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}
                         >
                           {/* Card Header Section */}

@@ -50,7 +50,7 @@ export const RejectAppointmentModal: React.FC<RejectAppointmentModalProps> = ({
       onClose={onClose}
       title="Rechazar Cita"
       footer={footer}
-      headerBackground="#991b1b"
+      headerVariant="error"
       maxWidth="600px"
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>

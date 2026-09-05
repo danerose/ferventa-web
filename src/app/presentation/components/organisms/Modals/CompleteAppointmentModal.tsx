@@ -42,7 +42,7 @@ export const CompleteAppointmentModal: React.FC<CompleteAppointmentModalProps> =
       onClose={onClose}
       title="Completar Cita"
       footer={footer}
-      headerBackground="#166534"
+      headerVariant="success"
       maxWidth="500px"
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>

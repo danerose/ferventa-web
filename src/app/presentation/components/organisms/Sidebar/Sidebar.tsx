@@ -18,14 +18,15 @@ export interface SidebarProps {
 const COMMON_NAV_ITEMS = [
   { icon: 'LayoutDashboard', label: 'Dashboard', path: '/admin/operaciones' },
   { icon: 'CalendarCheck', label: 'Citas', path: '/admin/citas' },
+  { icon: 'Wrench', label: 'Mantenimiento', path: '/admin/mantenimiento' },
   { icon: 'ShoppingCart', label: 'Punto de Venta', path: '/admin/pos' },
+  { icon: 'PackageOpen', label: 'Pedidos', path: '/admin/pedidos' },
   { icon: 'Package', label: 'Inventario', path: '/admin/inventario' },
   { icon: 'Clock', label: 'Asistencia', path: '/admin/asistencia' },
 ];
 
 // Nav items visible ONLY to admin
 const ADMIN_ONLY_NAV_ITEMS = [
-  { icon: 'Wrench', label: 'Mantenimiento', path: '/admin/mantenimiento' },
   { icon: 'Users', label: 'Usuarios', path: '/admin/usuarios' },
 ];
 
@@ -35,28 +36,28 @@ const ADMIN_ONLY_BOTTOM_ITEMS = [
   { icon: 'Settings', label: 'Ajustes', path: '/admin/settings' },
 ];
 
-function isAdminUser(user: any): boolean {
+function isAdminUser(user: { role?: unknown } | null | undefined): boolean {
   if (!user) return false;
   const roleVal = user.role;
   if (typeof roleVal === 'string') {
     const r = roleVal.toLowerCase();
     return r === 'admin' || r === 'administrator';
   }
-  if (roleVal && typeof roleVal === 'object' && roleVal.name) {
-    const r = String(roleVal.name).toLowerCase();
+  if (roleVal && typeof roleVal === 'object' && 'name' in roleVal) {
+    const r = String((roleVal as { name?: unknown }).name || '').toLowerCase();
     return r === 'admin' || r === 'administrator';
   }
   return false;
 }
 
-function getRoleLabel(user: any): string {
+function getRoleLabel(user: { role?: unknown } | null | undefined): string {
   if (!user) return 'Usuario';
   const roleVal = user.role;
   let roleName = '';
   if (typeof roleVal === 'string') {
     roleName = roleVal;
-  } else if (roleVal && typeof roleVal === 'object' && roleVal.name) {
-    roleName = String(roleVal.name);
+  } else if (roleVal && typeof roleVal === 'object' && 'name' in roleVal) {
+    roleName = String((roleVal as { name?: unknown }).name || '');
   }
   const ROLE_LABELS: Record<string, string> = {
     admin: 'Administrador',
@@ -91,14 +92,18 @@ export const Sidebar: React.FC<SidebarProps> = ({ onLogout, userName }) => {
           setBranches(data);
           return;
         }
-      } catch (err) {}
+      } catch {
+        // ignore
+      }
 
       try {
         const publicData = await clientPortalRepo.getPublicBranches();
         if (publicData && publicData.length > 0) {
-          setBranches(publicData.map((b: any) => ({ ...b, id: b.id || b._id })));
+          setBranches(publicData.map((b) => ({ ...b, id: b.id })));
         }
-      } catch (err) {}
+      } catch {
+        // ignore
+      }
     };
 
     fetchBranches();
@@ -107,8 +112,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ onLogout, userName }) => {
   const availableBranches = React.useMemo(() => {
     if (branches.length === 0) return [];
     if (user?.branches && Array.isArray(user.branches) && user.branches.length > 0) {
-      const userBranchIds = user.branches.map((b: any) => (typeof b === 'object' ? b.id || b._id : b));
-      const filtered = branches.filter(b => userBranchIds.includes(b.id) || userBranchIds.includes((b as any)._id));
+      const userBranchIds = user.branches.map((b: unknown) =>
+        typeof b === 'object' && b !== null
+          ? ((b as { id?: string; _id?: string }).id || (b as { id?: string; _id?: string })._id || '')
+          : String(b)
+      );
+      const filtered = branches.filter(b => userBranchIds.includes(b.id));
       if (filtered.length > 0) return filtered;
     }
     return branches;

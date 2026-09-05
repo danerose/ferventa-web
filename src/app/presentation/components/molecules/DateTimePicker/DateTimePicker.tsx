@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import type { OccupiedSlots } from '@/app/domain';
-import { Box, Flex, Grid, Stack, Icon, PrimaryButton } from '@/app/presentation/components';
+import { Box, Flex, Grid, Stack, Icon, PrimaryButton, SecondaryButton } from '@/app/presentation/components';
 
 interface DateTimePickerProps {
   selectedDate: string;
@@ -294,39 +294,39 @@ export const DateTimePicker: React.FC<DateTimePickerProps> = ({
         <button
           type="button"
           onClick={() => setIsOpen(true)}
-          className="w-full text-left font-sans rounded border border-[#cbd5e1] text-[#0b1c30] bg-white pl-10 pr-4 py-2.5 outline-none hover:border-[#091426] transition-all flex items-center justify-between cursor-pointer select select-bordered"
+          className="select select-sm select-bordered w-full pl-10 pr-4 bg-base-100 text-base-content border-base-300 rounded-DEFAULT transition-colors flex items-center justify-between cursor-pointer font-normal"
         >
-          <span className={selectedDate ? 'text-[#0b1c30] font-semibold text-sm' : 'text-gray-400 text-sm'}>
+          <span className={selectedDate ? 'text-base-content font-medium text-xs truncate' : 'text-base-content/40 text-xs truncate'}>
             {triggerLabel}
           </span>
-          <Icon name="Calendar" size="sm" className="text-gray-400" />
+          <Icon name="Calendar" size="xs" className="text-base-content/50 shrink-0 ml-2" />
         </button>
-        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
-          <Icon name="Clock" size="sm" />
+        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-base-content/40 pointer-events-none">
+          <Icon name="Clock" size="xs" />
         </span>
       </div>
 
       {/* Modal Overlay */}
       {isOpen && (
         <div 
-          className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100] p-4 animate-in fade-in duration-200"
+          className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100] p-4 animate-in fade-in duration-200 backdrop-blur-xs"
           onClick={() => setIsOpen(false)}
         >
           {/* Modal Card */}
           <Box
-            className="bg-white rounded-xl shadow-2xl border border-outline-variant/60 w-full max-w-4xl max-h-[90vh] flex flex-col relative animate-in zoom-in-95 duration-200"
+            className="bg-base-100 rounded-xl shadow-2xl border border-base-300 w-full max-w-4xl max-h-[90vh] flex flex-col relative text-base-content animate-in zoom-in-95 duration-200"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
-            <Box p="lg" className="border-b border-[#e2e8f0] flex justify-between items-center">
+            <Box p="md" className="border-b border-base-300 flex justify-between items-center bg-base-200/50">
               <Flex align="center" gap="sm">
-                <Icon name="Calendar" className="text-[#855300]" />
-                <h3 className="font-headline-md text-on-surface font-bold">Seleccionar Fecha y Hora</h3>
+                <Icon name="Calendar" className="text-primary" />
+                <h3 className="text-base font-bold text-base-content m-0">Seleccionar Fecha y Hora</h3>
               </Flex>
               <button
                 type="button"
                 onClick={() => setIsOpen(false)}
-                className="text-gray-400 hover:text-gray-600 focus:outline-none p-1 rounded-full hover:bg-gray-100 transition-colors cursor-pointer"
+                className="text-base-content/60 hover:text-base-content p-1.5 rounded-lg hover:bg-base-200 transition-colors cursor-pointer"
               >
                 <Icon name="X" size="sm" />
               </button>
@@ -334,11 +334,11 @@ export const DateTimePicker: React.FC<DateTimePickerProps> = ({
 
             {/* Custom Calendar + Time slots side-by-side grid */}
             <div className="overflow-y-auto flex-1">
-              <Grid cols={{ base: 1, md: 12 }} gap="none" className="divide-y md:divide-y-0 md:divide-x divide-outline-variant/60">
+              <Grid cols={{ base: 1, md: 12 }} gap="none" className="divide-y md:divide-y-0 md:divide-x divide-base-300">
                 {/* Left Column: Calendar */}
                 <Box p="lg" className="md:col-span-7">
                   <Flex justify="between" align="center" className="mb-4">
-                    <span className="font-bold text-[#091426] text-lg">
+                    <span className="font-bold text-base-content text-base">
                       {MONTH_NAMES[currentMonth]} {currentYear}
                     </span>
                     <Flex gap="xs">
@@ -346,14 +346,14 @@ export const DateTimePicker: React.FC<DateTimePickerProps> = ({
                         type="button"
                         onClick={handlePrevMonth}
                         disabled={isPrevMonthDisabled}
-                        className="w-8 h-8 rounded-full border border-gray-200 hover:border-gray-400 disabled:opacity-30 disabled:hover:border-gray-200 transition-all flex items-center justify-center cursor-pointer"
+                        className="w-8 h-8 rounded-lg border border-base-300 bg-base-200 hover:bg-base-300 text-base-content disabled:opacity-30 disabled:hover:bg-base-200 transition-all flex items-center justify-center cursor-pointer"
                       >
                         <Icon name="ChevronLeft" size="sm" />
                       </button>
                       <button
                         type="button"
                         onClick={handleNextMonth}
-                        className="w-8 h-8 rounded-full border border-gray-200 hover:border-gray-400 transition-all flex items-center justify-center cursor-pointer"
+                        className="w-8 h-8 rounded-lg border border-base-300 bg-base-200 hover:bg-base-300 text-base-content transition-all flex items-center justify-center cursor-pointer"
                       >
                         <Icon name="ChevronRight" size="sm" />
                       </button>
@@ -363,7 +363,7 @@ export const DateTimePicker: React.FC<DateTimePickerProps> = ({
                   {/* Week Day Labels */}
                   <Grid cols={7} gap="xs" className="text-center mb-2">
                     {DAY_LABELS.map((label) => (
-                      <span key={label} className="text-xs font-semibold text-gray-400 uppercase">
+                      <span key={label} className="text-xs font-semibold text-base-content/50 uppercase">
                         {label}
                       </span>
                     ))}
@@ -378,7 +378,7 @@ export const DateTimePicker: React.FC<DateTimePickerProps> = ({
                         return (
                           <div
                             key={idx}
-                            className="aspect-square flex items-center justify-center text-slate-300 text-sm select-none"
+                            className="aspect-square flex items-center justify-center text-base-content/20 text-xs select-none"
                           >
                             {day.dayNumber}
                           </div>
@@ -390,11 +390,11 @@ export const DateTimePicker: React.FC<DateTimePickerProps> = ({
                           <div
                             key={idx}
                             title={day.reason}
-                            className="aspect-square flex items-center justify-center text-slate-300 text-sm select-none cursor-default font-normal relative group"
+                            className="aspect-square flex items-center justify-center text-base-content/25 text-xs select-none cursor-default font-normal relative group"
                           >
                             {day.dayNumber}
                             {day.reason && (
-                              <span className="hidden group-hover:block absolute bottom-full left-1/2 -translate-x-1/2 bg-slate-800 text-white text-[10px] px-1.5 py-0.5 rounded shadow-md pointer-events-none whitespace-nowrap z-50">
+                              <span className="hidden group-hover:block absolute bottom-full left-1/2 -translate-x-1/2 bg-base-300 text-base-content text-[10px] px-1.5 py-0.5 rounded shadow-md pointer-events-none whitespace-nowrap z-50">
                                 {day.reason}
                               </span>
                             )}
@@ -407,10 +407,10 @@ export const DateTimePicker: React.FC<DateTimePickerProps> = ({
                           key={idx}
                           type="button"
                           onClick={() => onChangeDate(day.dateString)}
-                          className={`aspect-square flex items-center justify-center rounded-lg text-sm transition-all focus:outline-none cursor-pointer ${
+                          className={`aspect-square flex items-center justify-center rounded-lg text-xs transition-all focus:outline-none cursor-pointer ${
                             isSelected
-                              ? 'bg-[#091426] text-white font-bold shadow-sm'
-                              : 'bg-[#f1f5f9]/50 text-[#091426] hover:bg-[#cbd5e1]/40 font-semibold border border-gray-200/50'
+                              ? 'bg-primary text-primary-content font-bold shadow-xs'
+                              : 'bg-base-200 text-base-content hover:bg-base-300 font-medium border border-base-300/40'
                           }`}
                         >
                           {day.dayNumber}
@@ -424,17 +424,17 @@ export const DateTimePicker: React.FC<DateTimePickerProps> = ({
                 <Box p="lg" className="md:col-span-5 flex flex-col min-h-[300px]">
                   {selectedDate ? (
                     <Stack gap="md" className="flex-1">
-                      <span className="font-bold text-[#091426] text-body-base pb-2 border-b border-gray-100 block">
+                      <span className="font-bold text-base-content text-sm pb-2 border-b border-base-300 block">
                         {formattedSelectedDate}
                       </span>
 
                       {occupiedSlotsLoading ? (
                         <div className="flex-1 flex items-center justify-center py-8">
-                          <span className="loading loading-spinner text-gray-400"></span>
+                          <span className="loading loading-spinner text-base-content/40"></span>
                         </div>
                       ) : dateMessage ? (
                         <div className="flex-1 flex items-center justify-center text-center p-4">
-                          <span className="text-sm font-semibold text-error">{dateMessage.text}</span>
+                          <span className="text-xs font-semibold text-error">{dateMessage.text}</span>
                         </div>
                       ) : availableTimes.length > 0 ? (
                         <div className="flex-1 overflow-y-auto pr-1 max-h-[250px] space-y-2">
@@ -445,10 +445,10 @@ export const DateTimePicker: React.FC<DateTimePickerProps> = ({
                                 key={time}
                                 type="button"
                                 onClick={() => onChangeTime(time)}
-                                className={`w-full py-2.5 px-4 text-center rounded border transition-all text-sm font-bold block cursor-pointer ${
+                                className={`w-full py-2 px-3 text-center rounded-DEFAULT border transition-all text-xs font-bold block cursor-pointer ${
                                   isTimeSelected
-                                    ? 'bg-[#091426] text-white border-transparent shadow-sm'
-                                    : 'bg-white text-[#091426] border-gray-200 hover:border-[#091426]'
+                                    ? 'bg-primary text-primary-content border-primary shadow-xs'
+                                    : 'bg-base-100 text-base-content border-base-300 hover:bg-base-200'
                                 }`}
                               >
                                 {format12h(time)}
@@ -457,14 +457,14 @@ export const DateTimePicker: React.FC<DateTimePickerProps> = ({
                           })}
                         </div>
                       ) : (
-                        <div className="flex-1 flex items-center justify-center text-center text-gray-400 text-sm py-8">
+                        <div className="flex-1 flex items-center justify-center text-center text-base-content/50 text-xs py-8">
                           No hay horarios disponibles para esta fecha.
                         </div>
                       )}
                     </Stack>
                   ) : (
-                    <div className="flex-1 flex flex-col items-center justify-center text-center text-gray-400 p-6">
-                      <Icon name="CalendarDays" size="lg" className="text-slate-300 mb-2" />
+                    <div className="flex-1 flex flex-col items-center justify-center text-center text-base-content/40 p-6">
+                      <Icon name="Calendar" size="lg" className="mb-2 opacity-50" />
                       <p className="text-xs font-semibold max-w-[180px] leading-relaxed">
                         Selecciona un día disponible en el calendario para ver los horarios.
                       </p>
@@ -475,19 +475,19 @@ export const DateTimePicker: React.FC<DateTimePickerProps> = ({
             </div>
 
             {/* Footer */}
-            <Box p="lg" className="border-t border-[#e2e8f0] flex justify-end gap-3 bg-slate-50 rounded-b-xl shrink-0">
-              <PrimaryButton
+            <Box p="md" className="border-t border-base-300 flex justify-end gap-2 bg-base-200/50 rounded-b-xl shrink-0">
+              <SecondaryButton
+                size="sm"
                 type="button"
                 onClick={() => setIsOpen(false)}
-                className="bg-white text-[#091426] border border-gray-200 hover:bg-gray-100 hover:text-[#091426] px-5"
               >
                 Cancelar
-              </PrimaryButton>
+              </SecondaryButton>
               <PrimaryButton
+                size="sm"
                 type="button"
                 disabled={!selectedDate || !selectedTime}
                 onClick={() => setIsOpen(false)}
-                className="bg-[#091426] hover:bg-[#1e293b] text-white px-5 border-none disabled:opacity-50"
               >
                 Confirmar
               </PrimaryButton>

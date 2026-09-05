@@ -1,193 +1,281 @@
 ---
 name: clean-code
-description: Enforces Clean Code, SOLID, KISS, DRY, strict TypeScript typing, and readable, maintainable React code. Use for any React + TypeScript project.
+description: Apply this skill when writing, refactoring, or reviewing any TypeScript/React code in the project (components, stores, entities, repositories, use cases, data sources, or utilities). Enforces Clean Architecture with constructor dependency injection, SOLID/KISS/DRY principles, zero hardcoded values (mandatory enums/types), prohibition of business logic or utility functions inside .tsx files, and strict single-responsibility limits per store.
 ---
 
-# React + TypeScript Clean Code
+# Clean Code — Clean Architecture + SOLID/KISS/DRY
 
-This skill defines the coding standards for every piece of React + TypeScript code generated. These aren't architecture rules — they're practices that keep code readable, testable, and easy to change later. Follow them unless the user explicitly asks for something else.
+## 0. When It Triggers
+- You are about to create or modify: an entity, a repository (interface or implementation), a use case, a data source, a Zustand store, or any `.tsx` file.
+- You are auditing existing code for violations (see Section 9, "Audit Patterns").
+- Before considering ANY code task complete in this project.
 
----
-
-## Core Principles
-
-Every solution should hold up against these:
-
-- **SOLID** — especially Single Responsibility: a function, component, or file should have one reason to change.
-- **DRY** — don't repeat the same logic in two places; extract and reuse instead.
-- **KISS** — the simplest solution that correctly solves the problem beats a clever one.
-- **Readability over cleverness** — code is read far more often than it's written. Optimize for the next person (or yourself in 6 months).
-- **Explicit over implicit** — types, names, and control flow should make intent obvious without needing to trace through the whole file.
-
-When there are multiple valid ways to solve something, prefer whichever is easier to understand, test, and extend, in that order. Don't optimize prematurely — clarity first, performance only when it's actually needed.
+If a task is solely pure styling/CSS without logic, consult the `atomic-design` skill instead.
 
 ---
 
-## Naming
-
-Names should say what a thing *is* or *does*. If you have to guess or open the definition to know what a variable holds, the name has failed.
-
-Bad: `data`, `temp`, `obj`, `value`, `helper`, `utils`
-Good: `authenticatedUser`, `shoppingCart`, `formattedPrice`, `isLoadingProducts`, `calculateDiscount`
-
-Booleans read as a question or state (`isLoading`, `hasError`, `canSubmit`). Functions read as verbs (`fetchUser`, `formatDate`, `validateEmail`).
-
----
-
-## Functions
-
-A function does one thing. If its name needs "and" to describe it, split it:
+## 1. The 4 Layers and Dependency Direction
 
 ```
-Bad:  fetchDataAndTransformAndValidateAndSave()
-Good: fetchUser() → validateUser() → mapUser() → saveUser()
+Component (.tsx)
+     │ uses (Zustand hook)
+     ▼
+Store (Zustand)
+     │ calls
+     ▼
+UseCase (domain/usecases)
+     │ depends on (interface)
+     ▼
+IRepository (domain/repository)
+     ▲ implements
+Repository (data/repositories)
+     │ calls
+     ▼
+DataSource Local | Remote (data/datasources)
 ```
 
-- Keep functions short — if you're scrolling to see the whole thing, it probably wants to be broken up.
-- Prefer early returns over nested `if` statements; deep nesting hides the actual logic.
-- A function's parameters and return type should make its contract obvious without reading the body.
+Dependencies **must always point inward** (toward domain). Nothing in `domain/` has any awareness of React, Zustand, `fetch`, `localStorage`, or external libraries.
+
+| Layer | May Import From | MUST NEVER Import From |
+|---|---|---|
+| `presentation/components` (.tsx) | Other components, store hooks, `core/types`, `core/utils` | `usecases`, `repository`, `datasources`, or `entities` directly |
+| `presentation/stores` | `domain/usecases`, `domain/entities`, `core/utils` | `data/repositories`, `data/datasources`, `data/model` |
+| `domain/usecases` | `domain/entities`, `domain/repository` (interfaces) | `data/*`, React, Zustand |
+| `domain/repository` (interfaces) | `domain/entities` | Any concrete implementation |
+| `data/repositories` | `domain/repository` (implements), `data/datasources`, `data/model` | `presentation/*`, `domain/usecases` |
+| `data/datasources` | `core/services` (e.g. `NetworkService`), `data/model` | `domain/*`, `presentation/*` |
+
+When a component needs data, the path is always:
+`Component (.tsx) → Store (Zustand) → UseCase → Repository Interface → Repository Implementation → DataSource`.
+Skipping any step (e.g. a store calling a `Repository` directly, or a page calling `new APIRepository()`) is an architectural violation.
+
+### Strict Presentation Rules:
+1. **Pages (.tsx) MUST ONLY consume Stores**:
+   - Never instantiate a repository (`new APISalesRepository()`) inside a `.tsx` file or call repositories directly.
+   - All data fetching, caching, search debouncing, and business state mutations live inside the feature's dedicated Zustand store.
+2. **Every Feature MUST Have Its Own Store**:
+   - Avoid using `useState` or `useEffect` for business logic (such as debounce timers `setTimeout`, toast array management, or paginated lists).
+   - In `.tsx` components, `useState` is strictly reserved for ephemeral UI state (e.g., `isModalOpen`, `activeDropdownTab`).
+3. **Grouped and Hierarchical Imports**:
+   - Never write multiple separate import lines from the same package path (e.g. 5 consecutive lines of `import { ... } from '@/app/data'`).
+   - Group them into a single import statement and order by layer hierarchy: External libs → Core → Data/Domain → Presentation.
+4. **Core Hooks Barrel**:
+   - Hooks must be imported through `@/core/hooks`, never through direct file paths like `@/core/hooks/useBarcodeScanner`.
 
 ---
 
-## Components
+## 2. Dependency Injection Without Heavy Containers
 
-Treat components as the "view" of your logic, not the place logic lives.
+Heavy DI containers (like `inversify` or `tsyringe`) are not required — they introduce unnecessary complexity. Instead, the mandatory pattern is: **every class receives its dependencies via constructor parameters**. Classes never instantiate their own dependencies or import global singletons internally.
 
-A component is for:
-- rendering TSX
-- receiving props
-- calling hooks
-- wiring up callbacks
+```ts
+// domain/usecases/auth/AuthUseCases.ts
+export class AuthUseCases {
+  constructor(private readonly authRepository: IAuthRepository) {}
 
-A component is **not** the place for:
-- data transformation, formatting, or validation logic
-- building API request payloads
-- non-trivial calculations
+  login(credentials: LoginCredentials): Promise<User> {
+    return this.authRepository.login(credentials);
+  }
+}
+```
 
-This isn't about enforcing a folder structure — it's about testability. A component full of inline logic can only be tested by rendering it and simulating interactions; a component that just calls `useCart()` and `formatPrice()` can be tested trivially, and those functions can be tested on their own without React at all.
+```ts
+// data/repositories/Auth/AuthRepository.ts
+export class AuthRepository implements IAuthRepository {
+  constructor(
+    private readonly remote: AuthRemoteDataSource,
+    private readonly local: AuthLocalDataSource,
+  ) {}
+
+  async login(credentials: LoginCredentials): Promise<User> {
+    const model = await this.remote.login(credentials);
+    await this.local.saveSession(model);
+    return model.toEntity();
+  }
+}
+```
+
+All wiring ("who instantiates whom") is centralized in **a single composition root**, `core/di/container.ts`. Nowhere else in the project should `new` be used on a Repository, DataSource, or UseCase:
+
+```ts
+// core/di/container.ts
+const authRemoteDataSource = new AuthRemoteDataSource(networkService);
+const authLocalDataSource = new AuthLocalDataSource();
+const authRepository = new AuthRepository(authRemoteDataSource, authLocalDataSource);
+
+export const authUseCases = new AuthUseCases(authRepository);
+```
+
+Stores import pre-wired instances like `authUseCases` directly from `core/di/container.ts`. Stores never instantiate dependencies and never import `AuthRepository` or `AuthRemoteDataSource`.
+
+---
+
+## 3. Zero Hardcoded Values
+
+Comparing against raw strings or numbers scattered across code is prohibited. Every state, role, status, or category must be defined once as an `enum`, a `type` with `as const`, or encapsulated as an entity getter.
+
+```ts
+// ❌ WRONG
+if (user.role === 'admin') { ... }
+if (service.status === 'pending' || service.status === 'in_progress') { ... }
+```
+
+```ts
+// ✅ RIGHT — core/enums/UserRole/UserRole.ts
+export enum UserRole {
+  Admin = 'admin',
+  Client = 'client',
+  Driver = 'driver',
+}
+
+// Usage
+if (user.role === UserRole.Admin) { ... }
+```
+
+When a check represents a **recurrent business rule** (rather than an isolated check), that logic belongs inside an entity getter rather than being re-implemented across the codebase:
+
+```ts
+// domain/entities/User/User.ts
+export class User {
+  constructor(public readonly role: UserRole /* ... */) {}
+
+  get isAdmin(): boolean {
+    return this.role === UserRole.Admin;
+  }
+}
+
+// Usage
+if (user.isAdmin) { ... }
+```
+
+The same applies to magic numbers (`if (items.length > 10)`), routes (`'/dashboard'`), API endpoints, and any literals representing business logic — place them in `core/constants` or `core/enums`.
+
+---
+
+## 4. A `.tsx` File Declares Neither Functions Nor Business Logic
+
+A `.tsx` component file may ONLY contain:
+- JSX rendering.
+- Props destructuring and selector/action subscriptions from stores.
+- `useState` **strictly** for transient, local UI state that does not need to survive unmounting and is not consumed elsewhere (e.g. modal open/closed, active tab index, hover, focus).
+
+A `.tsx` file MUST **NEVER** contain:
+- Named helper functions or `const fn = () => {}` that calculate, parse, format, or transform data.
+- `useEffect` hooks that call APIs, trigger domain logic, or mutate business data — those belong in store actions (which invoke use cases).
+- Inline data formatting (dates, currency, strings, etc.).
+
+Mental checklist for state location:
+1. **Does it survive re-renders or do other components need it?** → **Store**.
+2. **Does it involve business logic or async I/O?** → **Store + UseCase**.
+3. **Is it purely ephemeral UI state that dies when unmounted?** → `useState` is permitted.
 
 ```tsx
-// Avoid: logic buried inside the component
-function Cart({ items }: CartProps) {
-  const total = items.reduce((sum, i) => sum + i.price * i.qty, 0);
-  const formatted = `$${total.toFixed(2)}`;
-  return <p>Total: {formatted}</p>;
+// ❌ WRONG
+function ServiceCard({ service }: Props) {
+  const [loading, setLoading] = useState(false);
+
+  const formattedDate = new Date(service.createdAt).toLocaleDateString('es-MX');
+
+  const handleCancel = async () => {
+    setLoading(true);
+    await fetch(`/api/services/${service.id}/cancel`, { method: 'POST' });
+    setLoading(false);
+  };
+
+  return <div>{formattedDate}...</div>;
 }
+```
 
-// Prefer: component stays declarative, logic is reusable and testable on its own
-function Cart({ items }: CartProps) {
-  const total = calculateCartTotal(items);
-  return <p>Total: {formatCurrency(total)}</p>;
+```tsx
+// ✅ RIGHT
+function ServiceCard({ service }: Props) {
+  const { cancelService, isCancelling } = useServiceStore();
+  const formattedDate = formatDate(service.createdAt);
+
+  return <div>{formattedDate}...</div>;
 }
 ```
 
-If a component is pushing past ~200 lines, that's usually a sign a chunk of JSX or logic wants to become its own component or hook — not because of a rule, but because past that size it stops being skimmable.
+---
+
+## 5. Utilities and Helpers Belong in `core/utils`
+
+No utility function (`formatDate`, `formatCurrency`, `capitalize`, validators, parsers) may be declared inside a component, store, or use case. They reside in `core/utils/{topic}/{name}.util.ts` as pure functions (no `useState`, no network calls, no `this`) and are imported where needed.
 
 ---
 
-## State (hooks / stores)
+## 6. Single Responsibility per Store
 
-Same idea as components: state containers hold *state*, not logic.
+Each store handles **strictly** the scope defined by its domain.
+
+| A Store CAN | A Store CAN NEVER |
+|---|---|
+| Maintain state for its specific domain | Import a `Repository` or `DataSource` directly |
+| Expose actions that call use cases of its domain | Define unrelated utility functions (e.g., `capitalizeName` inside `auth.store.ts`) |
+| Expose selectors derived from its state | Execute inline business logic that belongs in a use case |
+| Trigger browser APIs through use cases | Call `localStorage` or `fetch` **directly** — that flows through UseCase → Repository → DataSource |
 
 ```ts
-// Avoid: store/hook doing formatting work
-const formatted = user.name.trim().toUpperCase();
-store.setUser({ ...user, name: formatted });
+// ❌ WRONG — auth.store.ts doing work outside its responsibility
+import { authRepository } from '@/data/repositories/Auth';
 
-// Prefer: formatting lives in its own function, store just stores
-const formatted = formatUserName(user.name);
-store.setUser({ ...user, name: formatted });
+export const useAuthStore = create<AuthState>((set) => ({
+  login: async (credentials) => {
+    const user = await authRepository.login(credentials); // ❌ store bypassing use case to call repository
+    localStorage.setItem('user', JSON.stringify(user));    // ❌ store touching browser storage directly
+    set({ user, displayName: capitalizeName(user.name) });  // ❌ utility declared/used inline
+  },
+}));
+
+function capitalizeName(name: string) { /* ... */ } // ❌ utility living in store file
 ```
-
-This keeps state predictable — if a bug shows up in how something's formatted, there's exactly one function to check, not five places across components and stores that each format it slightly differently.
-
----
-
-## Types
-
-Never use inline literal unions for anything reused more than once — name it.
 
 ```ts
-// Avoid
-color: 'primary' | 'secondary'
+// ✅ RIGHT
+import { authUseCases } from '@/core/di/container';
+import { capitalize } from '@/core/utils/string/string.util';
 
-// Prefer
-type ButtonColor = 'primary' | 'secondary';
-color: ButtonColor;
+export const useAuthStore = create<AuthState>((set) => ({
+  login: async (credentials) => {
+    const user = await authUseCases.login(credentials);
+    set({ user, displayName: capitalize(user.name) });
+  },
+}));
 ```
-
-Prefer union types over `enum` unless you specifically need enum interop.
-
-Avoid `any`. Reach for `unknown`, generics, or a discriminated union instead — `any` silently disables the type checker exactly where it'd catch a bug. Type props, parameters, return values, and state explicitly; don't rely on inference for anything public-facing (exported functions, component props).
 
 ---
 
-## Constants & Magic Values
+## 7. SOLID / KISS / DRY — Applied Cheat Sheet
 
-If a number, string, or literal shows up more than once — or represents something meaningful (a role, a route, a threshold) — give it a name instead of repeating the raw value.
-
-```ts
-// Avoid
-if (retries > 3) { ... }
-margin: 17
-
-// Prefer
-if (retries > MAX_RETRIES) { ... }
-margin: DEFAULT_MARGIN
-```
-
-Same goes for user-facing strings — pulling them into one place makes copy changes and future localization far less painful than hunting through JSX.
+| Principle | Applied Meaning in This Stack |
+|---|---|
+| **S**ingle Responsibility | One store = one domain. One use case = one business operation. One utility = one pure transformation. |
+| **O**pen/Closed | Add new behaviors by implementing `IRepository` or new entities, not by nesting cascading `if/else` checks in existing use cases. |
+| **L**iskov Substitution | Any implementation of `IAuthRepository` must seamlessly substitute another without breaking `AuthUseCases` (essential for test mocks). |
+| **I**nterface Segregation | Keep repository interfaces lean and domain-focused (`IAuthRepository`, `IClientRepository`), not a bloated monolithic interface. |
+| **D**ependency Inversion | Use cases depend on `IRepository` interfaces, never directly on concrete `Repository` classes. |
+| **KISS** | Avoid unneeded patterns (factories, heavy DI frameworks, observers). Simple constructor injection solves 95% of use cases cleanly. |
+| **DRY** | When a check, calculation, or format is used 2+ times, extract it to a utility, enum, or entity getter. Do not copy/paste. |
 
 ---
 
-## Comments
+## 8. Final Checklist Before Completing a Task
 
-Comments should explain **why**, not **what** — the code should already say what it does.
-
-```ts
-// Avoid: restates the code
-i++; // increment i
-
-// Prefer: explains a non-obvious reason
-i++; // backend indexes rows starting at 1, not 0
-```
-
-If you find yourself writing a comment to explain *what* a block does, that's usually a sign the block should be a well-named function instead.
+- [ ] Are all repeated strings/numbers extracted into `enum`, `const`, or an entity getter?
+- [ ] Are all `.tsx` files free of inline utility functions, calculations, or data formatting?
+- [ ] Are `useState` and `useEffect` used solely for ephemeral, local UI states rather than domain logic?
+- [ ] Does every store communicate through use cases rather than importing repositories/datasources directly?
+- [ ] Are stores free of internal helper utility functions?
+- [ ] Do classes (`UseCases`, `Repository`) receive their dependencies via constructor injection?
+- [ ] Are instances created with `new` restricted strictly to `core/di/container.ts`?
 
 ---
 
-## Error Handling
+## 9. Audit Patterns for Existing Code
 
-Never swallow an error silently (empty `catch`, ignored rejected promise). At minimum:
-- log it with enough context to debug later
-- surface a meaningful result to the caller (don't just return `undefined` and hope)
-- prefer typed errors over generic `throw new Error(string)` when the caller needs to branch on the failure
-
----
-
-## File Organization
-
-One responsibility per file — this is about keeping things findable, not about mandating a specific folder taxonomy. A reusable piece of logic (a formatter, a validator, a calculation) gets its own small file with a name that matches what it does:
-
-```
-formatDate.ts
-validateEmail.ts
-calculateDiscount.ts
-```
-
-Avoid dumping unrelated functions into a single `utils.ts` or `helpers.ts` — it becomes a junk drawer that's hard to search and invites merge conflicts. Beyond that, organize files however makes sense for the project; this skill isn't prescribing a specific architecture.
-
----
-
-## Before returning code, check
-
-- [ ] SOLID / DRY / KISS held up
-- [ ] No formatting, validation, or calculation logic buried inside a component
-- [ ] No formatting/business logic buried inside a store or hook
-- [ ] No inline literal unions for reused values — named types instead
-- [ ] No repeated magic numbers or strings — extracted to named constants
-- [ ] No `any` without a real reason
-- [ ] Errors are handled, not swallowed
-- [ ] Names are clear enough that a reader doesn't need to guess
-
-If something here is off, fix it before returning the code rather than shipping it with a caveat.
+- `useState(` in `.tsx` — verify against Section 4 whether it is purely ephemeral UI state.
+- `useEffect(` in `.tsx` — almost always belongs as a store action.
+- `=== '` or `== "` — literal string comparison, prime candidate for an enum.
+- `function ` or `const .* = (.*) =>` inside `.tsx` (other than the exported component itself).
+- `import.*Repository` or `import.*DataSource` inside `stores/`.
+- `new AuthRepository(`, `new .*UseCases(` outside `core/di/container.ts`.

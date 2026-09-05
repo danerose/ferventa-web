@@ -1,5 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Icon } from '@/app/presentation/components';
+import { cn } from '@/core/utils/cn';
+import type { Size } from '@/core/types';
 
 interface Option {
   id: string;
@@ -10,11 +12,21 @@ interface SearchableSelectProps {
   options: Option[];
   value: string;
   onChange: (id: string) => void;
-  onCreateNew?: (name: string) => Promise<void>;
+  onCreateNew?: (name: string) => Promise<string | void>;
   placeholder?: string;
   disabled?: boolean;
   error?: boolean;
+  size?: Size;
+  className?: string;
 }
+
+const sizeStyles: Record<Size, string> = {
+  xs: 'select-xs text-xs h-7 min-h-7 px-2.5',
+  sm: 'select-sm text-xs h-8 min-h-8 px-3',
+  md: 'select-md text-sm h-10 min-h-10 px-3.5',
+  lg: 'select-lg text-base h-12 min-h-12 px-4',
+  xl: 'select-lg text-lg h-14 min-h-14 px-4',
+};
 
 export const SearchableSelect: React.FC<SearchableSelectProps> = ({
   options,
@@ -24,6 +36,8 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
   placeholder = 'Seleccionar...',
   disabled = false,
   error = false,
+  size = 'sm',
+  className,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -56,36 +70,41 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
     if (!onCreateNew || !searchTerm.trim()) return;
     setIsCreating(true);
     try {
-      await onCreateNew(searchTerm.trim());
+      const newId = await onCreateNew(searchTerm.trim());
+      if (newId) onChange(newId);
       setIsOpen(false);
-    } catch (error) {
-      console.error('Error creating new item:', error);
+    } catch (err) {
+      console.error('Error creating new item:', err);
     } finally {
       setIsCreating(false);
     }
   };
 
   return (
-    <div className="relative w-full" ref={containerRef}>
-      <div
-        className={`flex items-center justify-between w-full p-[10px_14px] rounded-lg border bg-white cursor-pointer ${
-          error ? 'border-[#ba1a1a] bg-[#ba1a1a]/5 text-[#ba1a1a]' : 'border-slate-300'
-        } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+    <div className={cn('relative w-full', className)} ref={containerRef}>
+      <button
+        type="button"
+        disabled={disabled}
         onClick={() => !disabled && setIsOpen(!isOpen)}
+        className={cn(
+          'select select-bordered rounded-DEFAULT w-full bg-base-100 text-base-content border-base-300 transition-colors focus:border-primary focus:outline-none flex items-center justify-between font-normal text-left cursor-pointer select-none',
+          sizeStyles[size],
+          error && 'select-error border-error text-error',
+          disabled && 'opacity-50 cursor-not-allowed bg-base-200'
+        )}
       >
-        <span className={selectedOption ? 'text-slate-900' : 'text-slate-400'}>
+        <span className={cn('truncate', selectedOption ? 'text-base-content font-medium' : 'text-base-content/40')}>
           {selectedOption ? selectedOption.name : placeholder}
         </span>
-        <Icon name="ChevronDown" size="sm" className="text-slate-400" />
-      </div>
+        <Icon name="ChevronDown" size="xs" className="text-base-content/50 shrink-0 ml-2" />
+      </button>
 
       {isOpen && (
-        <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-          <div className="sticky top-0 bg-white p-2 border-b border-slate-100">
+        <div className="absolute z-50 w-full mt-1 bg-base-100 border border-base-300 rounded-DEFAULT shadow-xl max-h-60 overflow-y-auto text-base-content">
+          <div className="sticky top-0 bg-base-100 p-2 border-b border-base-300 z-10">
             <input
               type="text"
-              className="w-full p-2 text-sm border border-slate-200 rounded outline-none focus:border-blue-500"
-              style={{ color: '#0f172a', background: '#ffffff' }}
+              className="input input-xs input-bordered w-full bg-base-200 text-base-content border-base-300 rounded-DEFAULT focus:border-primary focus:outline-none text-xs"
               placeholder="Buscar..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -99,17 +118,21 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
               filteredOptions.map((opt) => (
                 <div
                   key={opt.id}
-                  className="px-4 py-2 text-sm cursor-pointer hover:bg-slate-50 text-slate-700"
+                  className={cn(
+                    'px-3.5 py-2 text-xs cursor-pointer hover:bg-base-200 text-base-content transition-colors flex items-center justify-between',
+                    opt.id === value && 'bg-base-200 font-bold text-primary'
+                  )}
                   onClick={() => {
                     onChange(opt.id);
                     setIsOpen(false);
                   }}
                 >
-                  {opt.name}
+                  <span className="truncate">{opt.name}</span>
+                  {opt.id === value && <Icon name="Check" size="xs" className="text-primary shrink-0" />}
                 </div>
               ))
             ) : (
-              <div className="px-4 py-2 text-sm text-slate-500 text-center">
+              <div className="px-3.5 py-3 text-xs text-base-content/50 text-center">
                 No se encontraron resultados
               </div>
             )}
@@ -117,14 +140,14 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
 
           {searchTerm && !filteredOptions.some((opt) => opt.name.toLowerCase() === searchTerm.toLowerCase()) && onCreateNew && (
             <div
-              className="sticky bottom-0 bg-slate-50 p-2 border-t border-slate-100 cursor-pointer hover:bg-slate-100 flex items-center justify-center gap-2 text-blue-600 text-sm font-medium"
+              className="sticky bottom-0 bg-base-200 p-2.5 border-t border-base-300 cursor-pointer hover:bg-base-300 flex items-center justify-center gap-1.5 text-primary text-xs font-semibold transition-colors"
               onClick={handleCreateNew}
             >
               {isCreating ? (
                 'Creando...'
               ) : (
                 <>
-                  <Icon name="Plus" size="sm" />
+                  <Icon name="Plus" size="xs" />
                   Crear "{searchTerm}"
                 </>
               )}
@@ -135,3 +158,4 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
     </div>
   );
 };
+
