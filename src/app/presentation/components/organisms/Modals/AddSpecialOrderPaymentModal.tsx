@@ -12,6 +12,7 @@ import {
   SecondaryButton,
   Badge,
   Icon,
+  KbdBadge,
 } from '@/app/presentation/components';
 import type { SpecialOrder, AddSpecialOrderPaymentPayload } from '@/app/domain';
 import { formatCurrency } from '@/core/utils';
@@ -90,7 +91,7 @@ export const AddSpecialOrderPaymentModal: React.FC<AddSpecialOrderPaymentModalPr
       footer={
         <Flex justify="between" align="center" className="w-full">
           <SecondaryButton type="button" onClick={onClose} disabled={isSubmitting}>
-            Cancelar
+            Cancelar <KbdBadge keys="Esc" className="ml-1.5" />
           </SecondaryButton>
           <PrimaryButton
             type="submit"
@@ -105,7 +106,7 @@ export const AddSpecialOrderPaymentModal: React.FC<AddSpecialOrderPaymentModalPr
             )}
             {willFullyPay
               ? `Liquidar Pedido (${formatCurrency(numAmount)})`
-              : `Registrar Abono (${formatCurrency(numAmount)})`}
+              : `Registrar Abono (${formatCurrency(numAmount)})`} <KbdBadge keys="Enter ↵" className="ml-1.5" />
           </PrimaryButton>
         </Flex>
       }

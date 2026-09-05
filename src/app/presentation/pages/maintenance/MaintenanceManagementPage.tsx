@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/app/presentation/stores';
+import { useMaintenanceStore, type MaintenanceScope } from '@/app/presentation/stores/maintenance/maintenance.store';
 import { adminRepository, userRepository } from '@/core/di/container';
 import type { AdminMaintenanceOrder, User } from '@/app/domain';
 import {
@@ -10,7 +10,9 @@ import {
   SecondaryButton,
   TertiaryButton,
   DirectReceptionModal,
-  Modal,
+  MaintenanceDetailDrawer,
+  NotifyMaintenanceModal,
+  LinkSaleModal,
   Box,
   Flex,
   Grid,
@@ -20,6 +22,7 @@ import {
   Badge,
   Select,
   TextInput,
+  KbdBadge,
 } from '@/app/presentation/components';
 import {
   ServiceStatus,
@@ -35,32 +38,48 @@ const STATUS_OPTIONS = [
   { value: ServiceStatus.Delivered, label: SERVICE_STATUS_LABELS[ServiceStatus.Delivered] },
 ];
 
-const EVIDENCE_STAGE_OPTIONS = [
-  { value: 'reception', label: 'Recepción' },
-  { value: 'disassembly', label: 'Desarmado' },
-  { value: 'maintenance', label: 'Reparación' },
-  { value: 'completed', label: 'Finalizado' },
+const SCOPE_TABS: { id: MaintenanceScope; label: string; icon: 'Wrench' | 'Clock' | 'Archive' }[] = [
+  { id: 'active', label: 'En Taller / Activos', icon: 'Wrench' },
+  { id: 'delivered_recent', label: 'Entregados Esta Semana', icon: 'Clock' },
+  { id: 'history', label: 'Historial Completo', icon: 'Archive' },
+];
+
+const DATE_FIELD_OPTIONS = [
+  { value: 'receptionDate', label: 'Fecha de Recepción' },
+  { value: 'completedAt', label: 'Fecha de Terminado' },
+  { value: 'deliveredAt', label: 'Fecha de Entrega' },
+  { value: 'createdAt', label: 'Fecha de Creación' },
 ];
 
 export const MaintenanceManagementPage: React.FC = () => {
-  const { user, accessToken, clearAuth } = useAuthStore();
-  const [maintenances, setMaintenances] = useState<AdminMaintenanceOrder[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [searchValue, setSearchValue] = useState('');
-  const [updatingId, setUpdatingId] = useState<string | null>(null);
-
-  // Evidence modal state
-  const [activeEvidenceOrder, setActiveEvidenceOrder] = useState<AdminMaintenanceOrder | null>(null);
-  const [evidenceStage, setEvidenceStage] = useState<'reception' | 'disassembly' | 'maintenance' | 'completed'>('reception');
-  const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null);
-  const [uploadingEvidence, setUploadingEvidence] = useState(false);
-  const [toasts, setToasts] = useState<{ id: number; type: 'success' | 'error'; message: string }[]>([]);
+  const { user, accessToken } = useAuthStore();
+  const {
+    maintenances,
+    selectedOrder,
+    activeScope,
+    filters,
+    loading,
+    updatingId,
+    error,
+    setActiveScope,
+    setSelectedOrder,
+    setFilter,
+    resetFilters,
+    fetchMaintenances,
+    updateMaintenanceStatus,
+    updateMaintenanceLaborCost,
+    addDiagnosticNote,
+    notifyCustomer,
+    linkMaintenanceSale,
+    unlinkMaintenanceSale,
+  } = useMaintenanceStore();
 
   const [usersList, setUsersList] = useState<User[]>([]);
   const [isDirectReceptionOpen, setIsDirectReceptionOpen] = useState(false);
+  const [orderToNotify, setOrderToNotify] = useState<AdminMaintenanceOrder | null>(null);
+  const [orderToLinkSale, setOrderToLinkSale] = useState<AdminMaintenanceOrder | null>(null);
+  const [toasts, setToasts] = useState<{ id: number; type: 'success' | 'error'; message: string }[]>([]);
 
-  const navigate = useNavigate();
   const toastIdCounter = useRef(0);
   const addToast = useCallback((type: 'success' | 'error', message: string) => {
     toastIdCounter.current += 1;
@@ -69,42 +88,42 @@ export const MaintenanceManagementPage: React.FC = () => {
     setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 3500);
   }, []);
 
+  // Load initial data and users
+  useEffect(() => {
+    if (!accessToken) return;
+    fetchMaintenances(accessToken, activeScope);
+    userRepository.getUsers(accessToken).then(setUsersList).catch(() => {});
+  }, [accessToken, activeScope, fetchMaintenances]);
+
+  // Debounced search / filter reload
+  useEffect(() => {
+    if (!accessToken) return;
+    const timer = setTimeout(() => {
+      fetchMaintenances(accessToken, activeScope);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [accessToken, activeScope, filters.search, filters.status, filters.from, filters.to, filters.dateField, fetchMaintenances]);
+
+  // Global Keyboard shortcuts: Alt+W (Direct Reception), Alt+R (Refresh)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.altKey && (e.key === 'w' || e.key === 'W')) {
+        e.preventDefault();
+        setIsDirectReceptionOpen(true);
+      } else if (e.altKey && (e.key === 'r' || e.key === 'R')) {
+        e.preventDefault();
+        if (accessToken) fetchMaintenances(accessToken);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [accessToken, fetchMaintenances]);
+
   const handleDirectReceptionSuccess = (order: AdminMaintenanceOrder) => {
     addToast('success', `Vehículo recibido: ${order.vehicle.brand} ${order.vehicle.model}. Orden activa en taller.`);
-    fetchMaintenances();
+    if (accessToken) fetchMaintenances(accessToken);
   };
-
-  const handleUnauthorized = () => {
-    clearAuth();
-    navigate('/login');
-  };
-
-  const fetchMaintenances = async () => {
-    if (!accessToken) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await adminRepository.getMaintenances(accessToken);
-      setMaintenances(data);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Error al cargar mantenimientos';
-      if (msg === 'UNAUTHORIZED') {
-        handleUnauthorized();
-        return;
-      }
-      setError(msg);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchMaintenances();
-    if (accessToken) {
-      userRepository.getUsers(accessToken).then(setUsersList).catch(() => {});
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accessToken]);
 
   const assignableUsers = useMemo(() => {
     const mechs: { value: string; label: string }[] = [];
@@ -135,12 +154,8 @@ export const MaintenanceManagementPage: React.FC = () => {
       await adminRepository.updateMaintenance(accessToken, orderId, {
         assignedMechanic: mechanicId || undefined,
       });
-      setMaintenances((prev) =>
-        prev.map((item) =>
-          item.id === orderId ? { ...item, assignedMechanic: mechanicId || undefined } : item
-        )
-      );
       addToast('success', 'Mecánico asignado correctamente.');
+      fetchMaintenances(accessToken);
     } catch (err) {
       addToast('error', err instanceof Error ? err.message : 'Error al asignar mecánico.');
     }
@@ -148,64 +163,72 @@ export const MaintenanceManagementPage: React.FC = () => {
 
   const handleStatusChange = async (id: string, newStatus: AdminMaintenanceOrder['status']) => {
     if (!accessToken) return;
-    setUpdatingId(id);
-    try {
-      await adminRepository.updateMaintenance(accessToken, id, { status: newStatus });
-      setMaintenances((prev) =>
-        prev.map((item) => (item.id === id ? { ...item, status: newStatus } : item))
-      );
+    const ok = await updateMaintenanceStatus(accessToken, id, newStatus);
+    if (ok) {
       addToast('success', 'Estado de mantenimiento actualizado.');
-    } catch (err) {
-      addToast('error', err instanceof Error ? err.message : 'Error al actualizar estado.');
-    } finally {
-      setUpdatingId(null);
-    }
-  };
-
-  const handleUploadEvidence = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!accessToken || !activeEvidenceOrder || !selectedFiles || selectedFiles.length === 0) return;
-
-    setUploadingEvidence(true);
-    try {
-      const filesArray = Array.from(selectedFiles);
-      await adminRepository.uploadMaintenanceEvidence(accessToken, activeEvidenceOrder.id, evidenceStage, filesArray);
-
-      addToast('success', 'Evidencia subida correctamente.');
-      setSelectedFiles(null);
-
-      // Reload order details to refresh evidence list
-      const updatedOrder = await adminRepository.getMaintenances(accessToken);
-      setMaintenances(updatedOrder);
-
-      // Find and update active order in state
-      const refreshedActive = updatedOrder.find((o) => o.id === activeEvidenceOrder.id);
-      if (refreshedActive) {
-        setActiveEvidenceOrder(refreshedActive);
+      if (newStatus === ServiceStatus.Completed) {
+        // Auto-open drawer for quick review and client notification
+        const currentOrder = maintenances.find((m) => m.id === id);
+        if (currentOrder) {
+          setSelectedOrder({ ...currentOrder, status: ServiceStatus.Completed });
+        }
       }
-    } catch (err) {
-      addToast('error', err instanceof Error ? err.message : 'Error al subir la evidencia.');
-    } finally {
-      setUploadingEvidence(false);
+    } else {
+      addToast('error', 'Error al actualizar estado.');
     }
   };
 
-  // Filtered maintenance list
-  const filteredMaintenances = useMemo(() => {
-    let list = maintenances.filter((m) => m.status !== 'awaiting_appointment');
-
-    if (searchValue.trim()) {
-      const q = searchValue.toLowerCase();
-      list = list.filter(
-        (m) =>
-          m.customer.name.toLowerCase().includes(q) ||
-          m.vehicle.brand.toLowerCase().includes(q) ||
-          m.vehicle.model.toLowerCase().includes(q) ||
-          m.vehicle.serialNumberLastFour.includes(q)
-      );
+  const handleUpdateLaborCost = async (id: string, newCost: number) => {
+    if (!accessToken) return;
+    const ok = await updateMaintenanceLaborCost(accessToken, id, newCost);
+    if (ok) {
+      addToast('success', 'Costo de mano de obra actualizado correctamente.');
+    } else {
+      addToast('error', 'Error al actualizar costo de mano de obra.');
     }
-    return list;
-  }, [maintenances, searchValue]);
+  };
+
+  const handleAddDiagnosticNote = async (id: string, noteText: string) => {
+    if (!accessToken) return;
+    const ok = await addDiagnosticNote(accessToken, id, noteText);
+    if (ok) {
+      addToast('success', 'Comentario agregado correctamente.');
+    } else {
+      addToast('error', 'Error al agregar comentario.');
+    }
+  };
+
+  const handleConfirmNotify = async (customNotes?: string) => {
+    if (!accessToken || !orderToNotify) return;
+    const ok = await notifyCustomer(accessToken, orderToNotify.id, customNotes);
+    if (ok) {
+      addToast('success', 'Notificación registrada y cliente avisado.');
+      setOrderToNotify(null);
+    } else {
+      addToast('error', 'Error al notificar al cliente.');
+    }
+  };
+
+  const handleLinkSale = async (payload: { saleId?: string; folio?: string }) => {
+    if (!accessToken || !orderToLinkSale) return;
+    const ok = await linkMaintenanceSale(accessToken, orderToLinkSale.id, payload);
+    if (ok) {
+      addToast('success', 'Ticket de venta vinculado correctamente al mantenimiento.');
+      setOrderToLinkSale(null);
+    } else {
+      addToast('error', 'Error al vincular el ticket de venta.');
+    }
+  };
+
+  const handleUnlinkSale = async (id: string) => {
+    if (!accessToken) return;
+    const ok = await unlinkMaintenanceSale(accessToken, id);
+    if (ok) {
+      addToast('success', 'Ticket de venta desvinculado del mantenimiento.');
+    } else {
+      addToast('error', 'Error al desvincular ticket de venta.');
+    }
+  };
 
   // Status statistics calculation
   const stats = useMemo(() => {
@@ -215,16 +238,39 @@ export const MaintenanceManagementPage: React.FC = () => {
     const notStarted = active.filter((m) => m.status === ServiceStatus.NotStarted).length;
     const inProgress = active.filter((m) => m.status === ServiceStatus.InProgress).length;
     const completed = active.filter((m) => m.status === ServiceStatus.Completed).length;
+    const delivered = maintenances.filter((m) => m.status === ServiceStatus.Delivered).length;
 
     return {
       total: active.length,
       notStarted,
       inProgress,
       completed,
+      delivered,
     };
   }, [maintenances]);
 
-  // Formatter for creation dates
+  // Order workflow sorting: NotStarted -> InProgress -> Completed -> Delivered
+  const STATUS_WORKFLOW_ORDER: Record<string, number> = {
+    [ServiceStatus.NotStarted]: 1,
+    [ServiceStatus.InProgress]: 2,
+    [ServiceStatus.Completed]: 3,
+    [ServiceStatus.Delivered]: 4,
+  };
+
+  const sortedMaintenances = useMemo(() => {
+    return [...maintenances].sort((a, b) => {
+      const weightA = STATUS_WORKFLOW_ORDER[a.status] || 99;
+      const weightB = STATUS_WORKFLOW_ORDER[b.status] || 99;
+      if (weightA !== weightB) {
+        return weightA - weightB;
+      }
+      const timeA = new Date(a.receptionDate || a.createdAt || 0).getTime();
+      const timeB = new Date(b.receptionDate || b.createdAt || 0).getTime();
+      return timeB - timeA;
+    });
+  }, [maintenances]);
+
+  // Formatter for intake dates
   const formatIntakeDate = (dateStr?: string) => {
     if (!dateStr) return 'Reciente';
     try {
@@ -260,49 +306,52 @@ export const MaintenanceManagementPage: React.FC = () => {
 
   return (
     <PageLayout userName={user?.name || 'Admin'}>
-        {/* Topbar Search & Actions */}
-        <Flex
-          as="header"
-          align="center"
-          justify="between"
-          className="h-16 px-6 bg-base-100 border-b border-base-300 shrink-0 z-10"
-        >
-          <Box className="w-full max-w-md relative">
-            <Box className="absolute left-3 top-1/2 -translate-y-1/2 text-base-content/40 pointer-events-none z-10 flex items-center">
-              <Icon name="Search" size="sm" />
-            </Box>
-            <TextInput
-              value={searchValue}
-              onChange={(e) => setSearchValue(e.target.value)}
-              placeholder="Buscar por serie, marca o cliente..."
-              size="sm"
-              className="pl-9"
-            />
+      {/* Topbar Search & Actions */}
+      <Flex
+        as="header"
+        align="center"
+        justify="between"
+        className="h-16 px-6 bg-base-100 border-b border-base-300 shrink-0 z-10 gap-4"
+      >
+        <Box className="w-full max-w-md relative">
+          <Box className="absolute left-3 top-1/2 -translate-y-1/2 text-base-content/40 pointer-events-none z-10 flex items-center">
+            <Icon name="Search" size="sm" />
           </Box>
+          <TextInput
+            value={filters.search}
+            onChange={(e) => setFilter('search', e.target.value)}
+            placeholder="Buscar por serie, marca o cliente..."
+            size="sm"
+            className="pl-9"
+          />
+        </Box>
 
-          <Flex align="center" gap="sm">
-            <PrimaryButton
-              size="sm"
-              color="primary"
-              onClick={() => setIsDirectReceptionOpen(true)}
-              iconStart={<Icon name="Wrench" size="xs" />}
-            >
-              + Recibir Vehículo (Walk-in)
-            </PrimaryButton>
+        <Flex align="center" gap="sm">
+          <PrimaryButton
+            size="sm"
+            color="primary"
+            onClick={() => setIsDirectReceptionOpen(true)}
+            iconStart={<Icon name="Wrench" size="xs" />}
+            title="Recepción Directa en Taller [Alt+W]"
+          >
+            <span>+ Recibir Vehículo (Walk-in)</span>
+            <KbdBadge keys="Alt+W" className="ml-1 opacity-80" />
+          </PrimaryButton>
 
-            <TertiaryButton
-              size="sm"
-              onClick={fetchMaintenances}
-              title="Sincronizar órdenes"
-            >
-              <Icon name="RefreshCw" size="sm" className={loading ? 'animate-spin' : ''} />
-            </TertiaryButton>
-          </Flex>
+          <TertiaryButton
+            size="sm"
+            onClick={() => accessToken && fetchMaintenances(accessToken)}
+            title="Sincronizar órdenes"
+          >
+            <Icon name="RefreshCw" size="sm" className={loading ? 'animate-spin' : ''} />
+          </TertiaryButton>
         </Flex>
+      </Flex>
 
-        {/* Scrollable Page Body */}
-        <Box as="main" className="flex-1 overflow-y-auto p-6 space-y-6 max-w-7xl w-full mx-auto">
-          {/* Header */}
+      {/* Scrollable Page Body */}
+      <Box as="main" className="flex-1 overflow-y-auto p-6 space-y-6 max-w-7xl w-full mx-auto">
+        {/* Header & Scope Tabs */}
+        <Flex justify="between" align="end" className="flex-wrap gap-4">
           <Box>
             <Flex align="center" gap="sm" className="mb-1">
               <Box className={`w-8 h-8 rounded-DEFAULT ${moduleMeta.bgSoft} ${moduleMeta.text} flex items-center justify-center`}>
@@ -317,187 +366,342 @@ export const MaintenanceManagementPage: React.FC = () => {
             </Text>
           </Box>
 
-          {/* KPI Stats Grid */}
-          <Grid cols={{ base: 1, sm: 2, lg: 4 }} gap="md">
-            {/* Total Vehiculos */}
-            <Box bg="base-100" rounded="DEFAULT" className="border border-base-300 p-4 shadow-xs">
-              <Flex align="center" gap="md">
-                <Box className="w-11 h-11 rounded-DEFAULT bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                  <Icon name="Gauge" size="md" />
-                </Box>
-                <Box>
-                  <Text size="xs" weight="bold" variant="muted" className="uppercase tracking-wider">
-                    Vehículos Activos
-                  </Text>
-                  <Heading level={3} className="text-2xl font-black tracking-tight mt-0.5">
-                    {stats.total}
-                  </Heading>
-                </Box>
-              </Flex>
-            </Box>
+          {/* Scope Selector Tabs */}
+          <Box className="bg-base-200 p-1 rounded-lg flex gap-1 border border-base-300">
+            {SCOPE_TABS.map((tab) => {
+              const isActive = activeScope === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveScope(tab.id)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+                    isActive
+                      ? 'bg-base-100 text-primary shadow-xs'
+                      : 'text-base-content/70 hover:text-base-content hover:bg-base-100/50'
+                  }`}
+                >
+                  <Icon name={tab.icon} size="xs" />
+                  <span>{tab.label}</span>
+                </button>
+              );
+            })}
+          </Box>
+        </Flex>
 
-            {/* No Comenzado */}
-            <Box bg="base-100" rounded="DEFAULT" className="border border-base-300 p-4 shadow-xs">
-              <Flex align="center" gap="md">
-                <Box className="w-11 h-11 rounded-DEFAULT bg-base-200 text-base-content/70 flex items-center justify-center shrink-0">
-                  <Icon name="Pause" size="md" />
-                </Box>
-                <Box>
-                  <Text size="xs" weight="bold" variant="muted" className="uppercase tracking-wider">
-                    {SERVICE_STATUS_LABELS[ServiceStatus.NotStarted]}
-                  </Text>
-                  <Heading level={3} className="text-2xl font-black tracking-tight mt-0.5">
-                    {stats.notStarted}
-                  </Heading>
-                </Box>
-              </Flex>
-            </Box>
-
-            {/* En Proceso */}
-            <Box bg="base-100" rounded="DEFAULT" className="border border-base-300 p-4 shadow-xs">
-              <Flex align="center" gap="md">
-                <Box className="w-11 h-11 rounded-DEFAULT bg-warning/10 text-warning flex items-center justify-center shrink-0">
-                  <Icon name="Zap" size="md" />
-                </Box>
-                <Box>
-                  <Text size="xs" weight="bold" className="text-warning uppercase tracking-wider">
-                    {SERVICE_STATUS_LABELS[ServiceStatus.InProgress]}
-                  </Text>
-                  <Heading level={3} className="text-2xl font-black tracking-tight text-warning mt-0.5">
-                    {stats.inProgress}
-                  </Heading>
-                </Box>
-              </Flex>
-            </Box>
-
-            {/* Terminado */}
-            <Box bg="base-100" rounded="DEFAULT" className="border border-base-300 p-4 shadow-xs">
-              <Flex align="center" gap="md">
-                <Box className="w-11 h-11 rounded-DEFAULT bg-success/10 text-success flex items-center justify-center shrink-0">
-                  <Icon name="CheckCircle" size="md" />
-                </Box>
-                <Box>
-                  <Text size="xs" weight="bold" className="text-success uppercase tracking-wider">
-                    {SERVICE_STATUS_LABELS[ServiceStatus.Completed]}
-                  </Text>
-                  <Heading level={3} className="text-2xl font-black tracking-tight text-success mt-0.5">
-                    {stats.completed}
-                  </Heading>
-                </Box>
-              </Flex>
-            </Box>
-          </Grid>
-
-          {/* Service Cards Grid */}
-          {loading ? (
-            <Stack spacing="md">
-              <Box bg="base-100" rounded="DEFAULT" className="h-32 border border-base-300 skeleton" />
-              <Box bg="base-100" rounded="DEFAULT" className="h-32 border border-base-300 skeleton" />
-            </Stack>
-          ) : error ? (
-            <Box bg="base-100" rounded="DEFAULT" className="border border-error/30 p-6 shadow-xs">
-              <Flex align="center" justify="between" className="flex-wrap gap-3">
-                <Flex align="center" gap="sm">
-                  <Icon name="AlertTriangle" size="md" className="text-error" />
-                  <Box>
-                    <Heading level={4} className="text-error">
-                      Error al cargar datos
-                    </Heading>
-                    <Text size="sm" variant="muted">
-                      {error}
-                    </Text>
-                  </Box>
-                </Flex>
-                <PrimaryButton size="sm" color="error" onClick={fetchMaintenances}>
-                  Reintentar
-                </PrimaryButton>
-              </Flex>
-            </Box>
-          ) : filteredMaintenances.length === 0 ? (
-            <Box bg="base-100" rounded="DEFAULT" className="border border-base-300 p-12 text-center">
-              <Box className="w-14 h-14 rounded-full bg-base-200 flex items-center justify-center mx-auto mb-3 text-base-content/40">
-                <Icon name="Wrench" size="lg" />
+        {/* KPI Stats Grid - Interactive Filter Cards */}
+        <Grid cols={{ base: 1, sm: 2, lg: 4 }} gap="md">
+          {/* Total Vehiculos Activos */}
+          <Box
+            as="button"
+            type="button"
+            onClick={() => setFilter('status', 'all')}
+            className={`w-full text-left p-4 rounded-DEFAULT border transition-all cursor-pointer shadow-xs ${
+              filters.status === 'all' || !filters.status
+                ? 'bg-primary/5 border-primary ring-2 ring-primary/40 shadow-sm'
+                : 'bg-base-100 border-base-300 hover:border-primary/50 hover:bg-base-200/40'
+            }`}
+            title="Ver todos los vehículos activos"
+          >
+            <Flex align="center" gap="md">
+              <Box className="w-11 h-11 rounded-DEFAULT bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                <Icon name="Gauge" size="md" />
               </Box>
-              <Heading level={3} className="text-base font-bold mb-1">
-                Sin órdenes activas
-              </Heading>
-              <Text size="sm" variant="muted" className="max-w-sm mx-auto">
-                {searchValue
-                  ? `No se encontraron mantenimientos para "${searchValue}"`
-                  : 'No hay órdenes de mantenimiento activas en el taller.'}
-              </Text>
-            </Box>
-          ) : (
-            <Grid cols={{ base: 1, md: 2, lg: 3 }} gap="md">
-              {filteredMaintenances.map((order) => {
-                const sColor = SERVICE_STATUS_COLORS[order.status] || SERVICE_STATUS_COLORS[ServiceStatus.NotStarted];
-                const progress = getProgressDetails(order.status);
+              <Box>
+                <Text size="xs" weight="bold" variant="muted" className="uppercase tracking-wider">
+                  {activeScope === 'history' ? 'Todas las Órdenes' : 'Vehículos Activos'}
+                </Text>
+                <Heading level={3} className="text-2xl font-black tracking-tight mt-0.5">
+                  {activeScope === 'history' ? maintenances.length : stats.total}
+                </Heading>
+              </Box>
+            </Flex>
+          </Box>
 
-                return (
-                  <Box
-                    key={order.id}
-                    bg="base-100"
-                    rounded="DEFAULT"
-                    className="border border-base-300 p-5 shadow-xs flex flex-col justify-between transition-shadow hover:shadow-md"
-                  >
-                    <Box>
-                      {/* Status Badge */}
-                      <Flex justify="between" align="center" className="mb-3">
-                        <Badge
-                          variant="soft"
-                          color={sColor.badgeColor}
-                          size="sm"
-                          className="font-semibold"
-                        >
-                          {SERVICE_STATUS_LABELS[order.status] || order.status}
-                        </Badge>
-                        <Text size="xs" variant="mono" weight="semibold">
-                          SERIE: {order.vehicle.serialNumberLastFour}
+          {/* No Comenzado */}
+          <Box
+            as="button"
+            type="button"
+            onClick={() => setFilter('status', filters.status === ServiceStatus.NotStarted ? 'all' : ServiceStatus.NotStarted)}
+            className={`w-full text-left p-4 rounded-DEFAULT border transition-all cursor-pointer shadow-xs ${
+              filters.status === ServiceStatus.NotStarted
+                ? 'bg-base-200 border-base-content/50 ring-2 ring-base-content/30 shadow-sm'
+                : 'bg-base-100 border-base-300 hover:border-base-content/40 hover:bg-base-200/40'
+            }`}
+            title="Filtrar por No Comenzado"
+          >
+            <Flex align="center" gap="md">
+              <Box className="w-11 h-11 rounded-DEFAULT bg-base-200 text-base-content/70 flex items-center justify-center shrink-0">
+                <Icon name="Pause" size="md" />
+              </Box>
+              <Box>
+                <Text size="xs" weight="bold" variant="muted" className="uppercase tracking-wider">
+                  {SERVICE_STATUS_LABELS[ServiceStatus.NotStarted]}
+                </Text>
+                <Heading level={3} className="text-2xl font-black tracking-tight mt-0.5">
+                  {stats.notStarted}
+                </Heading>
+              </Box>
+            </Flex>
+          </Box>
+
+          {/* En Proceso */}
+          <Box
+            as="button"
+            type="button"
+            onClick={() => setFilter('status', filters.status === ServiceStatus.InProgress ? 'all' : ServiceStatus.InProgress)}
+            className={`w-full text-left p-4 rounded-DEFAULT border transition-all cursor-pointer shadow-xs ${
+              filters.status === ServiceStatus.InProgress
+                ? 'bg-warning/10 border-warning ring-2 ring-warning/40 shadow-sm'
+                : 'bg-base-100 border-base-300 hover:border-warning/50 hover:bg-warning/5'
+            }`}
+            title="Filtrar por En Proceso"
+          >
+            <Flex align="center" gap="md">
+              <Box className="w-11 h-11 rounded-DEFAULT bg-warning/10 text-warning flex items-center justify-center shrink-0">
+                <Icon name="Zap" size="md" />
+              </Box>
+              <Box>
+                <Text size="xs" weight="bold" className="text-warning uppercase tracking-wider">
+                  {SERVICE_STATUS_LABELS[ServiceStatus.InProgress]}
+                </Text>
+                <Heading level={3} className="text-2xl font-black tracking-tight text-warning mt-0.5">
+                  {stats.inProgress}
+                </Heading>
+              </Box>
+            </Flex>
+          </Box>
+
+          {/* Terminado / Listos */}
+          <Box
+            as="button"
+            type="button"
+            onClick={() => setFilter('status', filters.status === ServiceStatus.Completed ? 'all' : ServiceStatus.Completed)}
+            className={`w-full text-left p-4 rounded-DEFAULT border transition-all cursor-pointer shadow-xs ${
+              filters.status === ServiceStatus.Completed
+                ? 'bg-success/10 border-success ring-2 ring-success/40 shadow-sm'
+                : 'bg-base-100 border-base-300 hover:border-success/50 hover:bg-success/5'
+            }`}
+            title="Filtrar por Terminado / Listos para entrega"
+          >
+            <Flex align="center" gap="md">
+              <Box className="w-11 h-11 rounded-DEFAULT bg-success/10 text-success flex items-center justify-center shrink-0">
+                <Icon name="CheckCircle" size="md" />
+              </Box>
+              <Box>
+                <Text size="xs" weight="bold" className="text-success uppercase tracking-wider">
+                  {SERVICE_STATUS_LABELS[ServiceStatus.Completed]}
+                </Text>
+                <Heading level={3} className="text-2xl font-black tracking-tight text-success mt-0.5">
+                  {stats.completed}
+                </Heading>
+              </Box>
+            </Flex>
+          </Box>
+        </Grid>
+
+        {/* History Scope Advanced Filters */}
+        {activeScope === 'history' && (
+          <Box bg="base-100" rounded="DEFAULT" className="p-4 border border-base-300 shadow-xs space-y-3">
+            <Flex justify="between" align="center" className="flex-wrap gap-2">
+              <Flex align="center" gap="xs">
+                <Icon name="Filter" size="sm" className="text-primary" />
+                <Text size="xs" weight="bold" variant="muted" className="uppercase tracking-wider">
+                  Filtros de Búsqueda de Historial
+                </Text>
+              </Flex>
+              <TertiaryButton size="xs" onClick={resetFilters}>
+                Limpiar Filtros
+              </TertiaryButton>
+            </Flex>
+
+            <Grid cols={{ base: 1, sm: 2, md: 4 }} gap="sm">
+              <Box>
+                <Text as="label" size="xs" weight="semibold" variant="muted" className="block mb-1">
+                  Campo de Fecha
+                </Text>
+                <Select
+                  size="sm"
+                  value={filters.dateField}
+                  onChange={(e) => setFilter('dateField', e.target.value)}
+                  options={DATE_FIELD_OPTIONS}
+                />
+              </Box>
+
+              <Box>
+                <Text as="label" size="xs" weight="semibold" variant="muted" className="block mb-1">
+                  Desde (Fecha inicial)
+                </Text>
+                <TextInput
+                  type="date"
+                  size="sm"
+                  value={filters.from}
+                  onChange={(e) => setFilter('from', e.target.value)}
+                />
+              </Box>
+
+              <Box>
+                <Text as="label" size="xs" weight="semibold" variant="muted" className="block mb-1">
+                  Hasta (Fecha final)
+                </Text>
+                <TextInput
+                  type="date"
+                  size="sm"
+                  value={filters.to}
+                  onChange={(e) => setFilter('to', e.target.value)}
+                />
+              </Box>
+
+              <Box>
+                <Text as="label" size="xs" weight="semibold" variant="muted" className="block mb-1">
+                  Estado del Servicio
+                </Text>
+                <Select
+                  size="sm"
+                  value={filters.status}
+                  onChange={(e) => setFilter('status', e.target.value)}
+                  options={[
+                    { value: 'all', label: 'Todos los estados' },
+                    ...STATUS_OPTIONS,
+                  ]}
+                />
+              </Box>
+            </Grid>
+          </Box>
+        )}
+
+        {/* Service Cards Grid */}
+        {loading ? (
+          <Stack spacing="md">
+            <Box bg="base-100" rounded="DEFAULT" className="h-36 border border-base-300 skeleton" />
+            <Box bg="base-100" rounded="DEFAULT" className="h-36 border border-base-300 skeleton" />
+          </Stack>
+        ) : error ? (
+          <Box bg="base-100" rounded="DEFAULT" className="border border-error/30 p-6 shadow-xs">
+            <Flex align="center" justify="between" className="flex-wrap gap-3">
+              <Flex align="center" gap="sm">
+                <Icon name="AlertTriangle" size="md" className="text-error" />
+                <Box>
+                  <Heading level={4} className="text-error">
+                    Error al cargar datos
+                  </Heading>
+                  <Text size="sm" variant="muted">
+                    {error}
+                  </Text>
+                </Box>
+              </Flex>
+              <PrimaryButton size="sm" color="error" onClick={() => accessToken && fetchMaintenances(accessToken)}>
+                Reintentar
+              </PrimaryButton>
+            </Flex>
+          </Box>
+        ) : maintenances.length === 0 ? (
+          <Box bg="base-100" rounded="DEFAULT" className="border border-base-300 p-12 text-center">
+            <Box className="w-14 h-14 rounded-full bg-base-200 flex items-center justify-center mx-auto mb-3 text-base-content/40">
+              <Icon name="Wrench" size="lg" />
+            </Box>
+            <Heading level={3} className="text-base font-bold mb-1">
+              Sin órdenes en esta vista
+            </Heading>
+            <Text size="sm" variant="muted" className="max-w-sm mx-auto">
+              {filters.search
+                ? `No se encontraron mantenimientos para "${filters.search}"`
+                : activeScope === 'delivered_recent'
+                ? 'No hay vehículos entregados recientemente en esta semana.'
+                : activeScope === 'history'
+                ? 'No hay órdenes en el historial para los filtros seleccionados.'
+                : 'No hay órdenes de mantenimiento activas en el taller.'}
+            </Text>
+          </Box>
+        ) : (
+          <Grid cols={{ base: 1, md: 2, lg: 3 }} gap="md">
+            {sortedMaintenances.map((order) => {
+              const sColor = SERVICE_STATUS_COLORS[order.status] || SERVICE_STATUS_COLORS[ServiceStatus.NotStarted];
+              const progress = getProgressDetails(order.status);
+
+              return (
+                <Box
+                  key={order.id}
+                  bg="base-100"
+                  rounded="DEFAULT"
+                  className="border border-base-300 p-5 shadow-xs flex flex-col justify-between transition-all hover:shadow-md"
+                >
+                  <Box>
+                    {/* Status Badge & Actions */}
+                    <Flex justify="between" align="center" className="mb-3">
+                      <Badge
+                        variant="soft"
+                        color={sColor.badgeColor}
+                        size="sm"
+                        className="font-semibold"
+                      >
+                        {SERVICE_STATUS_LABELS[order.status] || order.status}
+                      </Badge>
+                      <Text size="xs" variant="mono" weight="semibold">
+                        SERIE: {order.vehicle.serialNumberLastFour}
+                      </Text>
+                    </Flex>
+
+                    {/* Vehicle Header */}
+                    <Heading level={3} className="text-lg font-bold mb-1">
+                      {order.vehicle.brand} {order.vehicle.model}
+                    </Heading>
+
+                    {/* Customer & Date info */}
+                    <Stack spacing="xs" className="my-3">
+                      <Flex align="center" gap="xs">
+                        <Icon name="User" size="xs" className="text-base-content/50" />
+                        <Text size="sm" weight="medium">
+                          {order.customer.name}
                         </Text>
                       </Flex>
+                      <Flex align="center" gap="xs">
+                        <Icon name="Calendar" size="xs" className="text-base-content/50" />
+                        <Text size="xs" variant="muted">
+                          Recepción: {formatIntakeDate(order.receptionDate || order.createdAt)}
+                        </Text>
+                      </Flex>
+                      <div className="mt-1">
+                        <div className="bg-primary/10 border border-primary/20 rounded-md px-2.5 py-1 inline-flex items-center gap-1.5 max-w-full">
+                          <Icon name="Wrench" size="xs" className="text-primary shrink-0" />
+                          <span className="text-xs font-bold text-primary truncate">
+                            {order.serviceRequested || 'Mantenimiento General'}
+                          </span>
+                        </div>
+                      </div>
+                    </Stack>
 
-                      {/* Vehicle Header */}
-                      <Heading level={3} className="text-lg font-bold mb-1">
-                        {order.vehicle.brand} {order.vehicle.model}
-                      </Heading>
-
-                      {/* Customer & Date info */}
-                      <Stack spacing="xs" className="my-3">
-                        <Flex align="center" gap="xs">
-                          <Icon name="User" size="xs" className="text-base-content/50" />
-                          <Text size="sm" weight="medium">
-                            {order.customer.name}
-                          </Text>
-                        </Flex>
-                        <Flex align="center" gap="xs">
-                          <Icon name="Calendar" size="xs" className="text-base-content/50" />
-                          <Text size="xs" variant="muted">
-                            Ingreso: {formatIntakeDate(order.createdAt)}
-                          </Text>
-                        </Flex>
-                      </Stack>
-
-                      {/* Progress Bar */}
-                      <Box className="pt-2 border-t border-base-200 my-3">
-                        <Flex justify="between" align="center" className="mb-1">
-                          <Text size="xs" variant="muted">
-                            Avance
-                          </Text>
-                          <Text size="xs" weight="semibold">
-                            {progress.label}
-                          </Text>
-                        </Flex>
-                        <Box className="w-full bg-base-200 h-2 rounded-full overflow-hidden">
-                          <Box
-                            className={`h-full transition-all duration-500 rounded-full ${progress.color}`}
-                            style={{ width: progress.width }}
-                          />
-                        </Box>
+                    {/* Progress Bar */}
+                    <Box className="pt-2 border-t border-base-200 my-3">
+                      <Flex justify="between" align="center" className="mb-1">
+                        <Text size="xs" variant="muted">
+                          Avance
+                        </Text>
+                        <Text size="xs" weight="semibold">
+                          {progress.label}
+                        </Text>
+                      </Flex>
+                      <Box className="w-full bg-base-200 h-2 rounded-full overflow-hidden">
+                        <Box
+                          className={`h-full transition-all duration-500 rounded-full ${progress.color}`}
+                          style={{ width: progress.width }}
+                        />
                       </Box>
                     </Box>
+                  </Box>
 
-                    {/* Actions */}
-                    <Flex gap="sm" align="center" className="pt-3 border-t border-base-200 mt-2">
+                  {/* Card Actions */}
+                  <Box className="pt-3 border-t border-base-200 mt-2 space-y-2">
+                    <SecondaryButton
+                      size="xs"
+                      onClick={() => setSelectedOrder(order)}
+                      className="w-full gap-1"
+                      iconStart={<Icon name="ClipboardList" size="xs" />}
+                    >
+                      Ver Detalle
+                    </SecondaryButton>
+
+                    {/* Selects: Mechanic & Status */}
+                    <Flex gap="sm" align="center">
                       <Box className="flex-1">
                         <Select
                           size="sm"
@@ -523,140 +727,45 @@ export const MaintenanceManagementPage: React.FC = () => {
                       </Box>
                     </Flex>
                   </Box>
-                );
-              })}
-            </Grid>
-          )}
-        </Box>
-
-      {/* Evidence Upload Modal */}
-      <Modal
-        isOpen={activeEvidenceOrder !== null}
-        onClose={() => {
-          setActiveEvidenceOrder(null);
-          setSelectedFiles(null);
-        }}
-        title="Evidencia Fotográfica"
-        maxWidth="650px"
-      >
-        {activeEvidenceOrder && (
-          <Stack spacing="md">
-            <Box>
-              <Heading level={4} className="font-bold">
-                {activeEvidenceOrder.vehicle.brand} {activeEvidenceOrder.vehicle.model}
-              </Heading>
-              <Text size="xs" variant="muted">
-                Cliente: {activeEvidenceOrder.customer.name} | Serie: {activeEvidenceOrder.vehicle.serialNumberLastFour}
-              </Text>
-            </Box>
-
-            {/* Existing Evidence List */}
-            <Box className="border-t border-base-300 pt-4">
-              <Text size="xs" weight="bold" variant="muted" className="uppercase tracking-wider mb-3">
-                Fotos Guardadas
-              </Text>
-
-              {!activeEvidenceOrder.evidence || activeEvidenceOrder.evidence.length === 0 ? (
-                <Box className="p-6 text-center bg-base-200 rounded-DEFAULT border border-dashed border-base-300">
-                  <Text size="xs" variant="muted">
-                    No hay fotos subidas para esta orden de servicio.
-                  </Text>
                 </Box>
-              ) : (
-                <Stack spacing="sm">
-                  {activeEvidenceOrder.evidence.map((ev, idx) => (
-                    <Box key={idx} bg="base-200" rounded="DEFAULT" className="p-3 border border-base-300">
-                      <Badge variant="soft" color="warning" size="xs" className="uppercase font-bold mb-2">
-                        Etapa: {ev.stage === 'reception' ? 'Recepción' : ev.stage === 'disassembly' ? 'Desarmado' : ev.stage === 'maintenance' ? 'Reparación' : 'Finalizado'}
-                      </Badge>
-                      <Grid cols={{ base: 2, sm: 3, md: 4 }} gap="xs">
-                        {ev.photoUrls.map((url, uidx) => (
-                          <Box
-                            key={uidx}
-                            as="a"
-                            href={`${adminRepository.login.name === 'mock' ? '' : import.meta.env.VITE_API_URL || 'http://localhost:3000'}${url}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="block rounded-DEFAULT overflow-hidden h-20 border border-base-300 hover:opacity-80 transition-opacity"
-                          >
-                            <Box
-                              as="img"
-                              src={`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}${url}`}
-                              alt="Evidencia"
-                              className="w-full h-full object-cover"
-                            />
-                          </Box>
-                        ))}
-                      </Grid>
-                    </Box>
-                  ))}
-                </Stack>
-              )}
-            </Box>
-
-            {/* Upload Form */}
-            <Box
-              as="form"
-              onSubmit={handleUploadEvidence}
-              className="border-t border-base-300 pt-4 space-y-4"
-            >
-              <Text size="xs" weight="bold" variant="muted" className="uppercase tracking-wider">
-                Subir Nueva Evidencia
-              </Text>
-
-              <Grid cols={{ base: 1, sm: 2 }} gap="md">
-                <Box>
-                  <Text as="label" size="xs" weight="semibold" variant="muted" className="block mb-1">
-                    Fase / Etapa
-                  </Text>
-                  <Select
-                    size="sm"
-                    value={evidenceStage}
-                    onChange={(e) => setEvidenceStage(e.target.value as typeof evidenceStage)}
-                    options={EVIDENCE_STAGE_OPTIONS}
-                  />
-                </Box>
-                <Box>
-                  <Text as="label" size="xs" weight="semibold" variant="muted" className="block mb-1">
-                    Archivos de Imagen (Máx. 5)
-                  </Text>
-                  <Box
-                    as="input"
-                    type="file"
-                    multiple
-                    accept="image/png, image/jpeg, image/jpg"
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSelectedFiles(e.target.files)}
-                    className="file-input file-input-bordered file-input-sm w-full bg-base-100 text-base-content border-base-300 rounded-DEFAULT"
-                  />
-                </Box>
-              </Grid>
-
-              <Flex justify="end" gap="sm" className="pt-2">
-                <SecondaryButton
-                  size="sm"
-                  type="button"
-                  disabled={uploadingEvidence}
-                  onClick={() => {
-                    setActiveEvidenceOrder(null);
-                    setSelectedFiles(null);
-                  }}
-                >
-                  Cerrar
-                </SecondaryButton>
-                <PrimaryButton
-                  size="sm"
-                  color="primary"
-                  type="submit"
-                  disabled={uploadingEvidence || !selectedFiles || selectedFiles.length === 0}
-                  loading={uploadingEvidence}
-                >
-                  Subir fotos
-                </PrimaryButton>
-              </Flex>
-            </Box>
-          </Stack>
+              );
+            })}
+          </Grid>
         )}
-      </Modal>
+      </Box>
+
+      {/* Maintenance Detail Drawer */}
+      <MaintenanceDetailDrawer
+        isOpen={selectedOrder !== null}
+        order={selectedOrder}
+        assignableUsers={assignableUsers}
+        onClose={() => setSelectedOrder(null)}
+        onStatusChange={handleStatusChange}
+        onAssignMechanic={handleAssignMechanic}
+        onAddDiagnosticNote={handleAddDiagnosticNote}
+        onNotifyCustomer={(order) => setOrderToNotify(order)}
+        onUpdateLaborCost={handleUpdateLaborCost}
+        onLinkSale={(order) => setOrderToLinkSale(order)}
+        onUnlinkSale={handleUnlinkSale}
+      />
+
+      {/* Notify Customer Modal */}
+      <NotifyMaintenanceModal
+        isOpen={orderToNotify !== null}
+        order={orderToNotify}
+        onClose={() => setOrderToNotify(null)}
+        onConfirm={handleConfirmNotify}
+        loading={loading}
+      />
+
+      {/* Link Sale POS Ticket Modal */}
+      <LinkSaleModal
+        isOpen={orderToLinkSale !== null}
+        order={orderToLinkSale}
+        onClose={() => setOrderToLinkSale(null)}
+        onLink={handleLinkSale}
+        loading={loading}
+      />
 
       <DirectReceptionModal
         isOpen={isDirectReceptionOpen}

@@ -4,6 +4,8 @@ import {
   Icon,
   PageLayout,
   SaleDetailDrawer,
+  DashboardQuickDetailDrawer,
+  type DashboardDrawerType,
   Box,
   Flex,
   Grid,
@@ -24,7 +26,7 @@ import {
   adminRepository as adminRepo,
   inventoryRepository as inventoryRepo,
 } from '@/core/di/container';
-import type { Sale, Branch, AdminMaintenanceOrder, Product } from '@/app/domain';
+import type { Sale, Branch, AdminMaintenanceOrder, Product, AdminAppointment } from '@/app/domain';
 import { MODULE_THEMES } from '@/core';
 import { cn } from '@/core/utils/cn';
 
@@ -338,6 +340,12 @@ export const OperationsDashboardPage: React.FC = () => {
   const [lowStockItems, setLowStockItems] = useState(0);
   const [dashLoading, setDashLoading] = useState(true);
 
+  // ── Quick Detail Drawer State ─────────────────────────────────────────────
+  const [activeDrawer, setActiveDrawer] = useState<DashboardDrawerType>(null);
+  const [lowStockProductsList, setLowStockProductsList] = useState<Product[]>([]);
+  const [activeWorkordersList, setActiveWorkordersList] = useState<AdminMaintenanceOrder[]>([]);
+  const [pendingAppointmentsList, setPendingAppointmentsList] = useState<AdminAppointment[]>([]);
+
   // ── Sales tab state ─────────────────────────────────────────────────────
   const [salesPeriod, setSalesPeriod] = useState<SalesPeriod>('week');
   const [salesBranchFilter, setSalesBranchFilter] = useState<string>(activeBranchId || 'active');
@@ -377,7 +385,7 @@ export const OperationsDashboardPage: React.FC = () => {
     setTodaySales(prev => prev.map(s => (s.id === saleId) ? { ...s, isCancelled: true, cancelReason: reason } : s));
   };
 
-  // ── Load sales, maintenances & inventory for Dashboard KPIs ──────────────────────
+  // ── Load sales, maintenances, inventory & appointments for Dashboard KPIs ─────────
   useEffect(() => {
     if (!accessToken) return;
     const loadDashboard = async () => {
@@ -388,11 +396,12 @@ export const OperationsDashboardPage: React.FC = () => {
         yd.setDate(yd.getDate() - 1);
         const yesterday = toDateString(yd);
 
-        const [todayData, ydData, maintenancesData, productsData] = await Promise.all([
+        const [todayData, ydData, maintenancesData, productsData, appointmentsData] = await Promise.all([
           salesRepo.getSales(accessToken, { startDate: today, endDate: today }).catch(() => []),
           salesRepo.getSales(accessToken, { startDate: yesterday, endDate: yesterday }).catch(() => []),
           adminRepo.getMaintenances(accessToken).catch(() => []),
           inventoryRepo.getProducts(accessToken).catch(() => []),
+          adminRepo.getAppointments(accessToken, { status: 'pending' }).catch(() => []),
         ]);
 
         const filterBranch = (sales: Sale[]) => {
@@ -415,8 +424,20 @@ export const OperationsDashboardPage: React.FC = () => {
           return true;
         });
         setActiveWorkorders(activeM.length);
+        setActiveWorkordersList(activeM);
 
-        const pendingAppts = (maintenancesData || []).filter((m: AdminMaintenanceOrder) => {
+        const pendingApptsList = (appointmentsData || []).filter((a: AdminAppointment) => {
+          if (activeBranchId && activeBranchId !== '000000000000000000000000') {
+            const aRecord = a as unknown as Record<string, unknown>;
+            const aBranchId = typeof aRecord.branch === 'string' 
+              ? aRecord.branch 
+              : (aRecord.branch && typeof aRecord.branch === 'object' && 'id' in aRecord.branch ? String((aRecord.branch as { id: string }).id) : '');
+            if (aBranchId && aBranchId !== activeBranchId) return false;
+          }
+          return a.status === 'pending';
+        });
+
+        const pendingApptsFromMaint = (maintenancesData || []).filter((m: AdminMaintenanceOrder) => {
           if (m.status !== 'awaiting_appointment') return false;
           if (activeBranchId && activeBranchId !== '000000000000000000000000') {
             const mBranchId = ('branch' in m && typeof (m as { branch?: unknown }).branch === 'string' ? String((m as { branch?: unknown }).branch) : '');
@@ -424,7 +445,24 @@ export const OperationsDashboardPage: React.FC = () => {
           }
           return true;
         });
-        setPendingAppointments(pendingAppts.length);
+
+        const finalPendingAppts: AdminAppointment[] = pendingApptsList.length > 0 
+          ? pendingApptsList 
+          : pendingApptsFromMaint.map((m: AdminMaintenanceOrder) => ({
+              id: m.id,
+              scheduledAt: m.createdAt || new Date().toISOString(),
+              timeSlot: '10:00 - 11:00',
+              status: 'pending' as const,
+              customerName: m.customer?.name || 'Cliente',
+              customerPhone: m.customer?.phone || '',
+              customerEmail: m.customer?.email || '',
+              serviceRequested: m.vehicle ? `${m.vehicle.brand} ${m.vehicle.model}` : 'Servicio de Taller',
+              notes: m.notes,
+              vehicle: m.vehicle,
+            } as AdminAppointment));
+
+        setPendingAppointments(finalPendingAppts.length);
+        setPendingAppointmentsList(finalPendingAppts);
 
         const lowStock = (productsData || []).filter((p: Product) => {
           if (activeBranchId && activeBranchId !== '000000000000000000000000') {
@@ -435,6 +473,7 @@ export const OperationsDashboardPage: React.FC = () => {
           return (p.stock || 0) <= minS;
         });
         setLowStockItems(lowStock.length);
+        setLowStockProductsList(lowStock);
 
       } catch (err) {
         if (err instanceof Error && err.message === 'UNAUTHORIZED') handleUnauthorized();
@@ -619,10 +658,16 @@ export const OperationsDashboardPage: React.FC = () => {
               <Grid cols={4} gap="md">
 
                 {/* Sales KPI */}
-                <Box className="bg-base-100 p-5 rounded-DEFAULT border border-base-300 flex flex-col gap-3">
+                <Box
+                  onClick={() => setActiveDrawer('sales')}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setActiveDrawer('sales'); }}
+                  className="bg-base-100 p-5 rounded-DEFAULT border border-base-300 flex flex-col gap-3 cursor-pointer transition-all duration-200 hover:border-primary/50 hover:shadow-md hover:scale-[1.01] group relative select-none"
+                >
                   <Flex justify="between" align="center">
-                    <Text size="xs" weight="bold" color="muted" className="uppercase tracking-wider">Ventas del Día</Text>
-                    <Flex align="center" justify="center" className="w-8 h-8 rounded-DEFAULT bg-primary/10 text-primary">
+                    <Text size="xs" weight="bold" color="muted" className="uppercase tracking-wider group-hover:text-primary transition-colors">Ventas del Día</Text>
+                    <Flex align="center" justify="center" className="w-8 h-8 rounded-DEFAULT bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-content transition-all duration-200">
                       <Icon name="DollarSign" size="sm" />
                     </Flex>
                   </Flex>
@@ -649,13 +694,23 @@ export const OperationsDashboardPage: React.FC = () => {
                       </>
                     )}
                   </Box>
+                  <Flex align="center" justify="between" className="pt-2 border-t border-base-200 text-xs text-base-content/60 group-hover:text-primary font-medium transition-colors">
+                    <span>Ver ventas de hoy</span>
+                    <Icon name="ChevronRight" size="xs" className="transition-transform group-hover:translate-x-0.5" />
+                  </Flex>
                 </Box>
 
                 {/* Appointments KPI */}
-                <Box className="bg-base-100 p-5 rounded-DEFAULT border border-base-300 flex flex-col gap-3">
+                <Box
+                  onClick={() => setActiveDrawer('appointments')}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setActiveDrawer('appointments'); }}
+                  className="bg-base-100 p-5 rounded-DEFAULT border border-base-300 flex flex-col gap-3 cursor-pointer transition-all duration-200 hover:border-warning/50 hover:shadow-md hover:scale-[1.01] group relative select-none"
+                >
                   <Flex justify="between" align="center">
-                    <Text size="xs" weight="bold" color="muted" className="uppercase tracking-wider">Citas Pendientes</Text>
-                    <Flex align="center" justify="center" className="w-8 h-8 rounded-DEFAULT bg-warning/10 text-warning">
+                    <Text size="xs" weight="bold" color="muted" className="uppercase tracking-wider group-hover:text-warning transition-colors">Citas Pendientes</Text>
+                    <Flex align="center" justify="center" className="w-8 h-8 rounded-DEFAULT bg-warning/10 text-warning group-hover:bg-warning group-hover:text-warning-content transition-all duration-200">
                       <Icon name="Calendar" size="sm" />
                     </Flex>
                   </Flex>
@@ -663,13 +718,23 @@ export const OperationsDashboardPage: React.FC = () => {
                     <Text weight="bold" className="text-2xl block">{pendingAppointments}</Text>
                     <Text size="xs" color="muted" className="mt-1">Requieren confirmación</Text>
                   </Box>
+                  <Flex align="center" justify="between" className="pt-2 border-t border-base-200 text-xs text-base-content/60 group-hover:text-warning font-medium transition-colors">
+                    <span>Ver citas pendientes</span>
+                    <Icon name="ChevronRight" size="xs" className="transition-transform group-hover:translate-x-0.5" />
+                  </Flex>
                 </Box>
 
                 {/* Work Orders KPI */}
-                <Box className="bg-base-100 p-5 rounded-DEFAULT border border-base-300 flex flex-col gap-3">
+                <Box
+                  onClick={() => setActiveDrawer('orders')}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setActiveDrawer('orders'); }}
+                  className="bg-base-100 p-5 rounded-DEFAULT border border-base-300 flex flex-col gap-3 cursor-pointer transition-all duration-200 hover:border-secondary/50 hover:shadow-md hover:scale-[1.01] group relative select-none"
+                >
                   <Flex justify="between" align="center">
-                    <Text size="xs" weight="bold" color="muted" className="uppercase tracking-wider">Órdenes Activas</Text>
-                    <Flex align="center" justify="center" className="w-8 h-8 rounded-DEFAULT bg-secondary/10 text-secondary">
+                    <Text size="xs" weight="bold" color="muted" className="uppercase tracking-wider group-hover:text-secondary transition-colors">Órdenes Activas</Text>
+                    <Flex align="center" justify="center" className="w-8 h-8 rounded-DEFAULT bg-secondary/10 text-secondary group-hover:bg-secondary group-hover:text-secondary-content transition-all duration-200">
                       <Icon name="Wrench" size="sm" />
                     </Flex>
                   </Flex>
@@ -677,13 +742,23 @@ export const OperationsDashboardPage: React.FC = () => {
                     <Text weight="bold" className="text-2xl block">{activeWorkorders}</Text>
                     <Text size="xs" color="muted" className="mt-1">Vehículos en taller</Text>
                   </Box>
+                  <Flex align="center" justify="between" className="pt-2 border-t border-base-200 text-xs text-base-content/60 group-hover:text-secondary font-medium transition-colors">
+                    <span>Ver órdenes activas</span>
+                    <Icon name="ChevronRight" size="xs" className="transition-transform group-hover:translate-x-0.5" />
+                  </Flex>
                 </Box>
 
                 {/* Low Stock KPI */}
-                <Box className="bg-base-100 p-5 rounded-DEFAULT border border-base-300 flex flex-col gap-3">
+                <Box
+                  onClick={() => setActiveDrawer('stock')}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setActiveDrawer('stock'); }}
+                  className="bg-base-100 p-5 rounded-DEFAULT border border-base-300 flex flex-col gap-3 cursor-pointer transition-all duration-200 hover:border-error/50 hover:shadow-md hover:scale-[1.01] group relative select-none"
+                >
                   <Flex justify="between" align="center">
-                    <Text size="xs" weight="bold" color="muted" className="uppercase tracking-wider">Stock Bajo</Text>
-                    <Flex align="center" justify="center" className="w-8 h-8 rounded-DEFAULT bg-error/10 text-error">
+                    <Text size="xs" weight="bold" color="muted" className="uppercase tracking-wider group-hover:text-error transition-colors">Stock Bajo</Text>
+                    <Flex align="center" justify="center" className="w-8 h-8 rounded-DEFAULT bg-error/10 text-error group-hover:bg-error group-hover:text-error-content transition-all duration-200">
                       <Icon name="AlertTriangle" size="sm" />
                     </Flex>
                   </Flex>
@@ -691,6 +766,10 @@ export const OperationsDashboardPage: React.FC = () => {
                     <Text weight="bold" className="text-2xl block">{lowStockItems}</Text>
                     <Text size="xs" color="muted" className="mt-1">Productos por reabastecer</Text>
                   </Box>
+                  <Flex align="center" justify="between" className="pt-2 border-t border-base-200 text-xs text-base-content/60 group-hover:text-error font-medium transition-colors">
+                    <span>Ver productos críticos</span>
+                    <Icon name="ChevronRight" size="xs" className="transition-transform group-hover:translate-x-0.5" />
+                  </Flex>
                 </Box>
               </Grid>
 
@@ -1119,6 +1198,18 @@ export const OperationsDashboardPage: React.FC = () => {
           )}
 
         </Box>
+
+      {/* Quick Detail Drawer Sidepanel */}
+      <DashboardQuickDetailDrawer
+        isOpen={activeDrawer !== null}
+        type={activeDrawer}
+        onClose={() => setActiveDrawer(null)}
+        lowStockProducts={lowStockProductsList}
+        activeWorkorders={activeWorkordersList}
+        pendingAppointments={pendingAppointmentsList}
+        todaySales={todaySales}
+        onOpenSaleDetail={handleSelectSale}
+      />
 
       {/* Sale Detail Drawer Sidepanel */}
       <SaleDetailDrawer

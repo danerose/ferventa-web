@@ -1,173 +1,157 @@
-# Master TODO — Protocolo de Auditoría Integral y Verificación Continua
+# Guía y Tareas para Frontend (TODO Frontend)
 
-Este documento establece la guía de instrucciones y el checklist paso a paso para auditar el proyecto **archivo por archivo, carpeta por carpeta y configuración por configuración**.
-
-El objetivo es garantizar el cumplimiento al 100% de las directivas estipuladas en [AGENT.md](file:///c:/Users/Alexis/Documents/Development/Ssvel/Ferventa/ferventa-web/AGENT.md) y en las 5 skills maestras:
-- [project-structure](file:///c:/Users/Alexis/Documents/Development/Ssvel/Ferventa/ferventa-web/.agents/skills/project/structure/SKILL.md)
-- [daisyui](file:///c:/Users/Alexis/Documents/Development/Ssvel/Ferventa/ferventa-web/.agents/skills/design/daisyui/SKILL.md)
-- [theme-palette](file:///c:/Users/Alexis/Documents/Development/Ssvel/Ferventa/ferventa-web/.agents/skills/design/theme-palette/SKILL.md)
-- [atomic-design](file:///c:/Users/Alexis/Documents/Development/Ssvel/Ferventa/ferventa-web/.agents/skills/design/atomic/SKILL.md)
-- [clean-code](file:///c:/Users/Alexis/Documents/Development/Ssvel/Ferventa/ferventa-web/.agents/skills/code/clean-code/SKILL.md)
+Este documento detalla los requerimientos, endpoints, modelos de datos y especificaciones de interfaz que el equipo de Frontend debe implementar:
+1. **Búsqueda Difusa (*Fuzzy Search*)** tolerante a errores tipográficos.
+2. **Ciclo de vida y auditoría de tiempos en Mantenimientos**.
+3. **Manejo de Notas en Citas y Recepción de Vehículos** (`notes` vs `receptionNotes`).
+4. **Bitácora de Diagnóstico y Registro de Fallas en Taller** (`diagnosticNotes`).
+5. **Vinculación de Ticket de Venta / POS al Mantenimiento** (`sale`).
 
 ---
 
-## ⚠️ Regla de Oro: Preservación del Contexto
+## 1. Búsqueda de Artículos y Catálogos (Fuzzy Search)
 
-> **Instrucción crítica:** Ante cada carácter, tipo, función o archivo modificado, debes volver a cotejar el cambio contra las 5 skills y `AGENT.md`. Nunca asumas que un cambio menor está exento de las reglas de arquitectura, diseño atómico o tematización dinámica.
+### ¿Qué cambió en el Backend?
+El backend cuenta con **búsqueda difusa (*Fuzzy Search*) tolerante a errores ortográficos y tipográficos**.
+* Si el usuario escribe `"Ballatas"` (con doble *l*), `"Valata"` (confusión b/v), `"Balatas"` (plural) o `"balta"`, el API automáticamente encontrará `"Balata"`.
+* Aplica en los endpoints de productos, marcas, categorías, proveedores, servicios, clientes, vehículos, citas y pedidos.
 
----
-
-## Fase 1: Auditoría de Configuraciones y Raíz del Proyecto
-
-Revisar minuciosamente cada archivo de configuración en la raíz:
-
-- [x] **`package.json`**:
-  - Verificar versiones y dependencias: React 19, TypeScript, DaisyUI 5, Tailwind CSS 4, Zustand 5.
-  - Comprobar que los scripts de validación (`build`, `lint`) se ejecuten limpiamente sin errores.
-- [x] **`tsconfig.json` / `tsconfig.app.json` / `tsconfig.node.json`**:
-  - Validar que el modo estricto (`strict: true`) esté habilitado.
-  - Validar alias de importación (`@/*` apuntando a `./src/*`).
-- [x] **`vite.config.ts`**:
-  - Confirmar integración correcta de `@tailwindcss/vite` y `@vitejs/plugin-react`.
-- [x] **`eslint.config.js`**:
-  - Confirmar que las reglas de hooks y TypeScript no tengan advertencias ignoradas.
-- [x] **`index.html`**:
-  - Confirmar inclusión de fuentes tipográficas modernas (`Inter`, `JetBrains Mono`), viewport y atributo de tema `data-theme` predeterminado de DaisyUI.
+### Tareas Frontend:
+- [ ] Enviar el término de búsqueda directamente en `search` o `q` (ej. `/inventory/products?search=Ballatas`) sin sanitizaciones agresivas que eliminen caracteres del usuario.
+- [ ] (Recomendado) Agregar un *debounce* (300ms a 500ms) en los inputs de búsqueda en tiempo real para optimizar las peticiones.
 
 ---
 
-## Fase 2: Alineación Obligatoria con `project-structure` ## 2. Complete Reference Tree
+## 2. Notas de Cita vs. Notas de Recepción del Vehículo
 
-> **DIRECTIVA MANDATORIA:** La estructura de carpetas y archivos de TODO el proyecto DEBE cumplir cabalmente con la referencia estipulada en [project-structure/SKILL.md ## 2. Complete Reference Tree](file:///c:/Users/Alexis/Documents/Development/Ssvel/Ferventa/ferventa-web/.agents/skills/project/structure/SKILL.md).
->
-> **Si hace falta crear services, clases, datasources, modelos o nuevos archivos para cumplir con este árbol, HAY QUE CREARLOS OBLIGATORIAMENTE.**
+Existen dos tipos de notas con propósitos distintos que deben reflejarse en los formularios correspondientes:
 
-### Checklist de Implementación Estructural del Árbol de Referencia:
+### A. Notas de la Cita (`notes`)
+* **Cuándo se captura**: Al momento de **agendar la cita** (tanto el cliente en el portal público como el recepcionista/vendedor en el panel administrativo).
+* **Propósito**: Describir el motivo de la cita, peticiones especiales del cliente o preferencias generales.
+* **Ejemplo**: *"El cliente prefiere aceite 100% sintético y pide revisar ruido en suspensión delantera"*.
+* **Campos**: `notes` en `POST /appointments` y `PATCH /appointments/{id}`.
 
-- [x] **Capa `src/core/`:**
-  - [x] **`constants/`:** Crear carpeta `src/core/constants/routes/routes.const.ts` y su barrel único `src/core/constants/index.ts`.
-  - [x] **`di/`:** Crear `src/core/di/container.ts` (Composition Root único donde vive `new` para instanciar repositorios, datasources y casos de uso).
-  - [x] **`services/`:** Crear `src/core/services/network/NetworkService.ts`, modularizar `ThermalPrintService` en su carpeta de unidad `src/core/services/print/ThermalPrintService.ts` y exportar todo mediante un único `src/core/services/index.ts`.
-  - [x] **Limpieza de `src/core/index.ts`:** Eliminar importaciones prohibidas/cíclicas desde `@/app/presentation/stores`. `core` jamás debe depender de `presentation`.
-- [x] **Capa `src/app/data/`:**
-  - [x] **`datasources/`:** Crear `src/app/data/datasources/` con subcarpetas `local/` y `remote/` para cada dominio (`Auth/`, `Admin/`, `ClientPortal/`, `Inventory/`, `POS/`, `SpecialOrders/`, etc.) y su único barrel `src/app/data/datasources/index.ts`.
-  - [x] **`model/`:** Crear `src/app/data/model/` con DTOs y mappers backend <-> entidad por dominio (`Auth/AuthSessionModel.ts`, etc.) y su único barrel `src/app/data/model/index.ts`.
-  - [x] **`repositories/`:** Migrar archivos sueltos (`APIAdminRepository.ts`, etc.) a carpetas de unidad por feature (`data/repositories/Admin/AdminRepository.ts`, `data/repositories/Auth/AuthRepository.ts`, etc.) con su único barrel `src/app/data/repositories/index.ts`.
-- [x] **Capa `src/app/domain/`:**
-  - [x] **`entities/`:** Organizar cada entidad en su carpeta de unidad (`domain/entities/Auth/AuthSession.ts`, `domain/entities/Client/Client.ts`, etc.) bajo el único barrel `domain/entities/index.ts`.
-  - [x] **`repository/`:** Unificar carpeta de contratos (eliminar duplicidad `domain/repositories` vs `domain/repository`), ubicando interfaces en `domain/repository/{Feature}/I{Feature}Repository.ts` con su único barrel `domain/repository/index.ts`.
-  - [x] **`usecases/`:** Migrar casos de uso sueltos a carpetas de unidad de feature (`domain/usecases/auth/AuthUseCases.ts`, `domain/usecases/appointment/AppointmentUseCases.ts`, etc.) con su único barrel `domain/usecases/index.ts`.
-- [x] **Regla de un solo `index.ts` por capa:**
-  - Auditar que **ninguna** carpeta de unidad (`User/`, `Auth/`, `Button/`, etc.) ni carpeta intermedia (`atoms/`, `local/`, `remote/`) contenga un archivo `index.ts`.
-- [x] **Nomenclatura obligatoria:**
-  - Entidades: `{Name}.ts` dentro de `domain/entities/{Name}/`
-  - Interfaces de repositorio: `I{Name}Repository.ts` dentro de `domain/repository/{Name}/`
-  - Casos de uso: `{Name}UseCases.ts` dentro de `domain/usecases/{name}/`
-  - Repositorios: `{Name}Repository.ts` dentro de `data/repositories/{Name}/`
-  - DataSources: `{Name}LocalDataSource.ts` y `{Name}RemoteDataSource.ts` dentro de `data/datasources/{local|remote}/{Name}/`
-  - Modelos/DTOs: `{Name}Model.ts` dentro de `data/model/{Name}/`
-  - Stores: `{name}.store.ts` dentro de `presentation/stores/{name}/`
-  - Páginas: `{Name}Page.tsx` dentro de `presentation/pages/{feature}/`
-  - Enums: `{Name}.ts` dentro de `core/enums/{Name}/`
-  - Utils: `{name}.util.ts` dentro de `core/utils/{topic}/`
+### B. Notas de Recepción del Vehículo (`receptionNotes`)
+* **Cuándo se captura**: Al momento de **recibir físicamente el vehículo** en la sucursal (mediante el botón/modal de **Check-in** o **Recepción Directa**).
+* **Propósito**: Registrar el inventario y estado físico del vehículo a su llegada a las instalaciones.
+* **Ejemplo**: *"Deja llaves, 1/2 tanque de gasolina, gato hidráulico en cajuela y leve rayón en puerta derecha"*.
+* **Endpoints**:
+  * Check-in de Cita:
+    ```http
+    PATCH /api/appointments/{id}/check-in
+    Content-Type: application/json
+
+    {
+      "receptionNotes": "Deja llaves, 1/2 tanque de gasolina, llanta de refacción incluida"
+    }
+    ```
+  * Recepción Directa: `POST /api/maintenance/direct-reception` (soporta `assignedMechanic`, `notes`, etc.).
+  * Creación y Edición de Mantenimiento:
+    * `POST /api/maintenance` (soporta `assignedMechanic`, `receptionNotes`, `notes`, `saleId`, etc.)
+    * `PATCH /api/maintenance/{id}` (soporta `assignedMechanic`, `receptionNotes`, `notes`, `laborCost`, `status`, `saleId`)
 
 ---
 
-## Fase 3: Auditoría de Clean Architecture y Código Limpio (`clean-code`)
+## 3. Bitácora de Fallas y Diagnósticos en Mantenimiento (`diagnosticNotes`)
 
-Auditar línea por línea el código fuente:
+Durante el trabajo de taller, el mecánico o asesor suele detectar fallas adicionales, desgastes o diagnósticos conforme se va revisando el auto.
 
-- [ ] **Flujo Unidireccional:**
-  - Verificar que ningún componente (`.tsx`) o store importe directamente repositorios, datasources o modelos de datos.
-  - Confirmar que el flujo sea: `Componente → Store → UseCase → IRepository → Repository → DataSource`.
-- [ ] **Inyección de Dependencias por Constructor:**
-  - Verificar que todas las clases `UseCases` y `Repository` reciban dependencias por parámetro de constructor.
-  - Confirmar que el operador `new` para estas clases viva **únicamente** en `src/core/di/container.ts`.
-- [ ] **Cero Hardcoding de Valores:**
-  - Ejecutar búsqueda de strings o números literales comparados (`=== 'admin'`, `=== 'pending'`, etc.).
-  - Migrar todo string/estado a un `enum` en `src/core/enums/` o getter en la entidad correspondiente.
-- [ ] **Archivos `.tsx` Libres de Lógica y Helpers:**
-  - Verificar que ningún archivo `.tsx` declare funciones nombradas (`function format...` o `const calculate... = () =>`).
-  - Mover toda lógica de cálculo, parseo y formateo a funciones puras en `src/core/utils/`.
-  - Asegurar que `useState` solo se use para UI efímera (menú abierto/cerrado, dropdown activo).
-  - Mover llamadas a API o dispatch de negocio de `useEffect` hacia acciones de Zustand y UseCases.
-- [ ] **Responsabilidad Única por Store:**
-  - Verificar que cada store controle únicamente su dominio.
-  - Eliminar acceso directo a `localStorage` o `fetch` desde stores (debe pasar por UseCase → Repository → DataSource).
+### Endpoint para Registrar Fallas / Diagnósticos:
+* **`POST /api/maintenance/{id}/notes`**
+```json
+{
+  "note": "Se detectó fuga de aceite en retén de cigüeñal"
+}
+```
+* **Respuesta (`201`)**: Devuelve la orden actualizada con la nueva nota anexada a `diagnosticNotes`.
 
 ---
 
-## Fase 4: Auditoría de Paleta de Temas (`theme-palette`) y DaisyUI 5 (`daisyui`)
+## 4. Vinculación de Ticket de Compra / POS (`Sale`)
 
-Auditar la consistencia visual y de diseño:
+Para no duplicar cobros ni inventarios, las refacciones y mano de obra se cobran desde el **POS** de forma normal (generando su respectivo ticket de venta, corte de caja y métodos de pago). Luego, ese ticket se vincula al mantenimiento.
 
-- [ ] **Configuración Dual en `src/index.css`:**
-  - Confirmar que `src/index.css` declara los plugins oficiales `@plugin "daisyui/theme"` para `light` (*Industrial Precision*) y `dark` (*Interstellar Logic*).
-  - Validar que `data-theme="light"` y `data-theme="dark"` apliquen los tokens exactos definidos en [theme-palette/SKILL.md](file:///c:/Users/Alexis/Documents/Development/Ssvel/Ferventa/ferventa-web/.agents/skills/design/theme-palette/SKILL.md).
-- [ ] **Erradicación de Colores Estáticos:**
-  - Eliminar clases estáticas: `bg-white`, `text-white`, `bg-black`, `text-black`, `bg-slate-100`, `text-gray-900`, `border-gray-200`, `#hex`.
-  - Usar tokens semánticos: `bg-base-100`, `bg-base-200`, `bg-base-300`, `text-base-content`, `text-base-content/70`, `bg-primary`, `text-primary-content`, `bg-secondary`, `bg-accent`, `border-base-300`.
-- [ ] **Tipografía Oficial:**
-  - Asegurar uso de `font-display-lg`, `font-headline-md`, `font-body-base`, `font-body-sm`.
-  - Asegurar que todo dato numérico crítico (precios, códigos SKU, VINs, cantidades) use `font-data-mono` (JetBrains Mono).
-- [ ] **Radios de Borde:**
-  - Botones e inputs: `0.5rem` (8px).
-  - Tarjetas y contenedores de panel: `1rem` (16px).
-  - Chips y badges de estado: `rounded-full` (pastilla).
+### ¿Cómo funciona en el API?
+Cada orden de mantenimiento (`Maintenance`) contiene la referencia populada del ticket de venta:
+```json
+{
+  "_id": "66d9b231901a87b801234567",
+  "status": "completed",
+  "sale": {
+    "_id": "66d9c123...",
+    "folio": "VEN-0045",
+    "total": 1850.0,
+    "paymentMethod": "card",
+    "paymentReference": "123456789",
+    "items": [
+      { "name": "Balatas Delanteras", "quantity": 1, "priceSnapshot": 850.0 },
+      { "name": "Servicio de Afinación", "quantity": 1, "priceSnapshot": 1000.0 }
+    ],
+    "seller": { "_id": "...", "name": "Carlos Vendedor" },
+    "createdAt": "2026-09-05T12:00:00.000Z"
+  }
+}
+```
 
----
+### Endpoints para Vincular / Desvincular Ticket:
+1. **Vincular Ticket**:
+   ```http
+   PATCH /api/maintenance/{id}/link-sale
+   Content-Type: application/json
 
-## Fase 5: Auditoría de Atomic Design (`atomic-design`)
-
-Auditar todos los archivos dentro de `src/app/presentation/components/` y `src/app/presentation/pages/`:
-
-- [ ] **Cero Tags Nativos Fuera de Atoms / Primitives:**
-  - Buscar tags como `<button>`, `<input>`, `<a>`, `<span>`, `<p>`, `<h1>`-`<h6>`, `<select>` fuera de `atoms/` y `primitives/`.
-  - Sustituirlos por sus respectivos átomos o crear el átomo faltante.
-- [ ] **Identidad Única por Átomo:**
-  - Verificar que ningún átomo use un `variantMap` con estilos o colores completamente dispares.
-  - Comprobar que cada átomo (`PrimaryButtonAtom`, `SecondaryButtonAtom`, etc.) tenga una sola identidad justificada en una frase.
-- [ ] **Tipado Estricto de Props:**
-  - Verificar que las props de los átomos utilicen tipos compartidos desde `src/core/types/` (ej. `Size`), sin uniones literales inline duplicadas (`size?: 'sm' | 'md' | 'lg'`).
-- [ ] **DaisyUI Confinado a Atoms:**
-  - Comprobar que las clases `btn`, `input`, `badge`, `card` de DaisyUI solo se declaren dentro de átomos.
-
----
-
-## Fase 6: Pruebas Automatizadas y Verificación sin Navegador (Headless)
-
-> **Instrucción de ejecución:** Para no demorar el flujo de desarrollo, todas las pruebas unitarias y e2e deben ejecutarse **en modo headless (sin abrir la interfaz gráfica del navegador)**.
-
-### Comandos de Verificación Requeridos
-
-1. **Chequeo de Tipos TypeScript (Strict):**
-   ```powershell
-   npm run build
-   # o alternativamente:
-   npx tsc -b --noEmit
+   {
+     "saleId": "66d9c123..."
+   }
    ```
-2. **Auditoría de Linter:**
-   ```powershell
-   npm run lint
-   ```
-3. **Pruebas Unitarias / Integración (Headless / Silent):**
-   ```powershell
-   npx vitest run --reporter=verbose
-   ```
-4. **Pruebas E2E en Modo Headless (sin abrir ventana de navegador):**
-   ```powershell
-   npx playwright test --headed=false
+   *(También soporta vincular por folio: `{ "folio": "VEN-0045" }`)*
+
+2. **Desvincular Ticket**:
+   ```http
+   PATCH /api/maintenance/{id}/unlink-sale
    ```
 
+### Tareas Frontend para Vinculación de Ticket:
+- [ ] En la vista de detalle de Mantenimiento (`DashboardQuickDetailDrawer`):
+  - **Si no tiene ticket vinculado (`sale == null`)**: Mostrar botón **"🔗 Vincular Ticket de Venta / POS"** que abra un modal/buscador de ventas recientes (por folio o cliente) para asociarlo.
+  - **Si ya tiene ticket vinculado (`sale != null`)**: Mostrar tarjeta resumen con:
+    - 🏷️ Folio: `#VEN-0045`
+    - 💰 Total Cobrado: `$1,850.00`
+    - 💳 Método de pago: `Tarjeta (Mercado Pago)`
+    - 👤 Vendedor / Cajero: `Carlos Vendedor`
+    - Botones para **"Ver Detalle / Reimprimir Ticket"** y **"Desvincular"**.
+
 ---
 
-## Fase 7: Checklist de Aprobación Final por Archivo
+## 5. Vistas y Filtros de Mantenimientos (`GET /api/maintenance`)
 
-Antes de cerrar la revisión de cualquier archivo:
-- [ ] ¿Cumple con la estructura de carpetas de `project-structure ## 2. Complete Reference Tree` y no tiene un `index.ts` propio dentro de su subcarpeta?
-- [ ] ¿Cumple con la dirección de dependencias de Clean Architecture?
-- [ ] ¿Está libre de strings, números o estados hardcodeados?
-- [ ] ¿No contiene funciones utilitarias declaradas dentro de un archivo `.tsx`?
-- [ ] ¿Es 100% Dark/Light Mode First usando tokens semánticos de DaisyUI según `theme-palette` sin clases estáticas?
-- [ ] ¿Pasó la compilación de TypeScript (`npm run build`) y el linter sin errores?
-- [ ] ¿Pasaron las pruebas automatizadas en modo headless?
+La pantalla de **Mantenimiento / Taller** se organiza en 3 pestañas principales:
+
+```
+[ 🚗 En Taller / Activos ]   [ ⏱️ Entregados Esta Semana ]   [ 📁 Historial Completo ]
+```
+
+### Pestaña 1: "En Taller / Activos"
+* **Endpoint**: `GET /api/maintenance?scope=active`
+* **Estados**: `not_started`, `in_progress`, `completed`.
+
+### Pestaña 2: "Entregados Esta Semana"
+* **Endpoint**: `GET /api/maintenance?scope=delivered_recent`
+* **Qué muestra**: Vehículos entregados en los últimos 7 días.
+
+### Pestaña 3: "Historial de Mantenimientos"
+* **Endpoint**: `GET /api/maintenance?scope=history`
+* **Filtros**:
+  * `from` y `to` (`YYYY-MM-DD`).
+  * `dateField` (`receptionDate`, `completedAt`, `deliveredAt`, `createdAt`).
+  * `status` (`all`, `delivered`, `completed`, `in_progress`, etc.).
+  * `search` (búsqueda difusa).
+
+---
+
+## 6. Dashboard de Métricas de Taller
+
+### Endpoint: `GET /api/reports/maintenance-metrics?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD`
+* `volume`: `totalReceived`, `totalCompleted`, `totalDelivered`, `pendingPickupCount`.
+* `averages`: `avgQueueHours`, `avgWorkHours`, `avgPickupDays`, `avgTotalStayDays`.
+* `pendingPickupVehicles`: Lista de autos terminados esperando recolección con días de retraso.

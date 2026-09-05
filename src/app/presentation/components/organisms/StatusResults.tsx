@@ -8,10 +8,10 @@ export const StatusResults: React.FC = () => {
 
   if (searchLoading) {
     return (
-      <Box p="lg" rounded="xl" className="bg-white border border-[#e2e8f0] text-center py-16 shadow-sm">
+      <Box p="lg" rounded="xl" className="bg-base-100 border border-base-300 text-center py-16 shadow-sm">
         <Stack gap="md" align="center">
-          <span className="loading loading-spinner loading-lg text-[#091426]"></span>
-          <p className="font-body-base text-on-surface-variant font-medium">Buscando registros...</p>
+          <span className="loading loading-spinner loading-lg text-primary"></span>
+          <p className="font-body-base text-base-content/70 font-medium">Buscando registros...</p>
         </Stack>
       </Box>
     );
@@ -19,22 +19,22 @@ export const StatusResults: React.FC = () => {
 
   if (searchError) {
     return (
-      <Box p="lg" rounded="xl" className="bg-white border border-[#e2e8f0] p-8 shadow-sm">
+      <Box p="lg" rounded="xl" className="bg-base-100 border border-base-300 p-8 shadow-sm">
         <Flex gap="sm" align="center" className="text-error mb-2">
           <Icon name="AlertCircle" />
-          <h3 className="font-headline-md font-semibold">Error en la búsqueda</h3>
+          <h3 className="font-headline-md font-semibold text-error">Error en la búsqueda</h3>
         </Flex>
-        <p className="font-body-sm text-on-surface-variant">{searchError}</p>
+        <p className="font-body-sm text-base-content/70">{searchError}</p>
       </Box>
     );
   }
 
   if (!hasSearched) {
     return (
-      <Box p="lg" rounded="xl" className="bg-white border border-[#e2e8f0] text-center py-16 shadow-sm">
-        <Stack gap="sm" align="center" className="text-gray-400">
-          <Icon name="Motorbike" size={48} className="text-slate-300" />
-          <p className="font-body-base text-on-surface-variant font-medium">
+      <Box p="lg" rounded="xl" className="bg-base-100 border border-base-300 text-center py-16 shadow-sm">
+        <Stack gap="sm" align="center">
+          <Icon name="Motorbike" size={48} className="text-base-content/30" />
+          <p className="font-body-base text-base-content/70 font-medium">
             Introduce tus datos de cita o número de serie a la izquierda para ver el estatus.
           </p>
         </Stack>
@@ -47,11 +47,11 @@ export const StatusResults: React.FC = () => {
 
   if (!hasAppointments && !hasMaintenance) {
     return (
-      <Box p="lg" rounded="xl" className="bg-white border border-[#e2e8f0] text-center py-16 shadow-sm">
+      <Box p="lg" rounded="xl" className="bg-base-100 border border-base-300 text-center py-16 shadow-sm">
         <Stack gap="sm" align="center">
-          <Icon name="SearchCode" size={48} className="text-slate-300 mb-2" />
-          <h3 className="font-headline-md text-on-background">No se encontraron registros</h3>
-          <p className="font-body-sm text-on-surface-variant max-w-sm">
+          <Icon name="SearchCode" size={48} className="text-base-content/30 mb-2" />
+          <h3 className="font-headline-md text-base-content font-bold">No se encontraron registros</h3>
+          <p className="font-body-sm text-base-content/70 max-w-sm">
             No encontramos citas ni órdenes de servicio activas asociadas a la búsqueda. Por favor verifica tus datos.
           </p>
         </Stack>
@@ -63,19 +63,19 @@ export const StatusResults: React.FC = () => {
   const getAppointmentBadge = (status: string) => {
     switch (status) {
       case 'pending':
-        return <span className="badge bg-[#ffddb8] text-[#653e00] font-semibold border-none px-3 py-1 rounded-full text-xs">Pendiente</span>;
+        return <span className="badge bg-warning/20 text-warning font-semibold border-none px-3 py-1 rounded-full text-xs">Pendiente</span>;
       case 'approved':
-        return <span className="badge bg-[#6ffbbe]/30 text-[#002113] border border-[#6ffbbe] font-semibold px-3 py-1 rounded-full text-xs">Aprobada</span>;
+        return <span className="badge bg-success/20 text-success font-semibold border-none px-3 py-1 rounded-full text-xs">Aprobada</span>;
       case 'rescheduled':
-        return <span className="badge bg-purple-100 text-[#5b21b6] font-semibold border-none px-3 py-1 rounded-full text-xs">Reagendada</span>;
+        return <span className="badge bg-purple-500/20 text-purple-400 font-semibold border-none px-3 py-1 rounded-full text-xs">Reagendada</span>;
       case 'rejected':
-        return <span className="badge bg-red-100 text-[#ba1a1a] font-semibold border-none px-3 py-1 rounded-full text-xs">Rechazada</span>;
+        return <span className="badge bg-error/20 text-error font-semibold border-none px-3 py-1 rounded-full text-xs">Rechazada</span>;
       case 'cancelled':
-        return <span className="badge bg-gray-100 text-gray-500 font-semibold border-none px-3 py-1 rounded-full text-xs">Cancelada</span>;
+        return <span className="badge bg-base-300 text-base-content/60 font-semibold border-none px-3 py-1 rounded-full text-xs">Cancelada</span>;
       case 'completed':
-        return <span className="badge bg-blue-100 text-blue-800 font-semibold border-none px-3 py-1 rounded-full text-xs">Terminada</span>;
+        return <span className="badge bg-info/20 text-info font-semibold border-none px-3 py-1 rounded-full text-xs">Terminada</span>;
       default:
-        return <span className="badge bg-gray-100 text-gray-800 font-semibold border-none px-3 py-1 rounded-full text-xs">{status}</span>;
+        return <span className="badge bg-base-300 text-base-content font-semibold border-none px-3 py-1 rounded-full text-xs">{status}</span>;
     }
   };
 
@@ -100,23 +100,23 @@ export const StatusResults: React.FC = () => {
     <Stack gap="lg">
       {/* 1. Maintenance Status Panel */}
       {hasMaintenance && (
-        <Box rounded="xl" className="bg-white border border-[#e2e8f0] shadow-sm overflow-hidden animate-in fade-in duration-300">
+        <Box rounded="xl" className="bg-base-100 border border-base-300 shadow-sm overflow-hidden animate-in fade-in duration-300">
           {/* Header */}
-          <Box p="lg" className="border-b border-[#e2e8f0] bg-surface-container-low">
+          <Box p="lg" className="border-b border-base-300 bg-base-200/50">
             <Flex wrap justify="between" align="start" gap="md">
               <div>
-                <h3 className="text-xl font-bold text-primary flex items-center gap-2">
+                <h3 className="text-xl font-bold text-base-content flex items-center gap-2">
                   <Icon name="Wrench" size="sm" className="text-secondary" />
                   {maintenanceTrack.vehicle.brand} {maintenanceTrack.vehicle.model} {maintenanceTrack.vehicle.year}
                 </h3>
-                <p className="font-data-mono text-on-surface-variant text-sm mt-1">
+                <p className="font-data-mono text-base-content/70 text-sm mt-1">
                   Orden: #{maintenanceTrack.orderNumber} | Serie (4 dígitos):{' '}
                   <span className="font-semibold text-primary">{maintenanceTrack.vehicle.serialNumberLastFour}</span>
                 </p>
               </div>
-              <div className="bg-[#cbd5e1]/40 px-3 py-1.5 rounded-full border border-gray-300 flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#855300] animate-pulse"></span>
-                <span className="text-on-background font-bold text-xs">
+              <div className="bg-base-300/70 px-3 py-1.5 rounded-full border border-base-300 flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-primary animate-pulse"></span>
+                <span className="text-base-content font-bold text-xs">
                   {maintenanceTrack.status === 'not_started' && 'Recibido'}
                   {maintenanceTrack.status === 'in_progress' && 'En Proceso'}
                   {maintenanceTrack.status === 'completed' && 'Terminado'}
@@ -129,21 +129,22 @@ export const StatusResults: React.FC = () => {
           <Box p="lg">
             {/* Timeline Progress */}
             <div className="relative mb-12 px-6 pt-4">
-              {/* Background grey line */}
-              <div className="absolute top-1/2 left-6 right-6 h-1 bg-gray-200 -translate-y-1/2 z-0"></div>
+              {/* Background track line */}
+              <div className="absolute top-1/2 left-6 right-6 h-1 bg-base-300 -translate-y-1/2 z-0"></div>
               {/* Colored active line */}
               <div
-                className={`absolute top-1/2 left-6 h-1 bg-[#091426] -translate-y-1/2 z-0 transition-all duration-1000 ${stepInfo.percent}`}
+                className={`absolute top-1/2 left-6 h-1 bg-primary -translate-y-1/2 z-0 transition-all duration-1000 ${stepInfo.percent}`}
               ></div>
 
               <div className="relative flex justify-between z-10">
                 {/* Step 1 */}
                 <div className="flex flex-col items-center gap-2">
                   <div
-                    className={`w-10 h-10 rounded-full flex items-center justify-center ring-4 ring-white border transition-all duration-500 ${stepInfo.active >= 1
-                      ? 'bg-[#091426] text-white border-none'
-                      : 'bg-white text-gray-400 border-gray-300'
-                      }`}
+                    className={`w-10 h-10 rounded-full flex items-center justify-center ring-4 ring-base-100 border transition-all duration-500 ${
+                      stepInfo.active >= 1
+                        ? 'bg-primary text-primary-content border-none'
+                        : 'bg-base-200 text-base-content/40 border-base-300'
+                    }`}
                   >
                     {stepInfo.active > 1 ? (
                       <Icon name="Check" size="sm" />
@@ -151,7 +152,7 @@ export const StatusResults: React.FC = () => {
                       <Icon name="ClipboardList" size="sm" />
                     )}
                   </div>
-                  <span className={`text-xs font-bold uppercase tracking-wider ${stepInfo.active >= 1 ? 'text-[#091426]' : 'text-gray-400'}`}>
+                  <span className={`text-xs font-bold uppercase tracking-wider ${stepInfo.active >= 1 ? 'text-primary' : 'text-base-content/40'}`}>
                     Recibido
                   </span>
                 </div>
@@ -159,10 +160,11 @@ export const StatusResults: React.FC = () => {
                 {/* Step 2 */}
                 <div className="flex flex-col items-center gap-2">
                   <div
-                    className={`w-10 h-10 rounded-full flex items-center justify-center ring-4 ring-white border transition-all duration-500 ${stepInfo.active >= 2
-                      ? 'bg-[#091426] text-white border-none'
-                      : 'bg-white text-gray-400 border-gray-300'
-                      }`}
+                    className={`w-10 h-10 rounded-full flex items-center justify-center ring-4 ring-base-100 border transition-all duration-500 ${
+                      stepInfo.active >= 2
+                        ? 'bg-primary text-primary-content border-none'
+                        : 'bg-base-200 text-base-content/40 border-base-300'
+                    }`}
                   >
                     {stepInfo.active > 2 ? (
                       <Icon name="Check" size="sm" />
@@ -170,7 +172,7 @@ export const StatusResults: React.FC = () => {
                       <Icon name="Hammer" size="sm" />
                     )}
                   </div>
-                  <span className={`text-xs font-bold uppercase tracking-wider ${stepInfo.active >= 2 ? 'text-[#091426]' : 'text-gray-400'}`}>
+                  <span className={`text-xs font-bold uppercase tracking-wider ${stepInfo.active >= 2 ? 'text-primary' : 'text-base-content/40'}`}>
                     En Taller
                   </span>
                 </div>
@@ -178,14 +180,15 @@ export const StatusResults: React.FC = () => {
                 {/* Step 3 */}
                 <div className="flex flex-col items-center gap-2">
                   <div
-                    className={`w-10 h-10 rounded-full flex items-center justify-center ring-4 ring-white border transition-all duration-500 ${stepInfo.active >= 3
-                      ? 'bg-[#091426] text-white border-none'
-                      : 'bg-white text-gray-400 border-gray-300'
-                      }`}
+                    className={`w-10 h-10 rounded-full flex items-center justify-center ring-4 ring-base-100 border transition-all duration-500 ${
+                      stepInfo.active >= 3
+                        ? 'bg-primary text-primary-content border-none'
+                        : 'bg-base-200 text-base-content/40 border-base-300'
+                    }`}
                   >
                     <Icon name="Award" size="sm" />
                   </div>
-                  <span className={`text-xs font-bold uppercase tracking-wider ${stepInfo.active >= 3 ? 'text-[#091426]' : 'text-gray-400'}`}>
+                  <span className={`text-xs font-bold uppercase tracking-wider ${stepInfo.active >= 3 ? 'text-primary' : 'text-base-content/40'}`}>
                     Terminado
                   </span>
                 </div>
@@ -194,22 +197,22 @@ export const StatusResults: React.FC = () => {
 
             {/* Notes Section */}
             {maintenanceTrack.notes && (
-              <Box p="md" rounded="lg" className="bg-[#eff4ff]/60 border-l-4 border-[#091426] mb-8">
-                <h4 className="font-semibold text-primary text-sm mb-1">Notas del Diagnóstico:</h4>
-                <p className="font-body-sm text-on-surface-variant leading-relaxed">{maintenanceTrack.notes}</p>
+              <Box p="md" rounded="lg" className="bg-info/10 border-l-4 border-info mb-8">
+                <h4 className="font-semibold text-info text-sm mb-1">Notas del Diagnóstico:</h4>
+                <p className="font-body-sm text-base-content/80 leading-relaxed">{maintenanceTrack.notes}</p>
               </Box>
             )}
 
             {/* Invoice Breakdown details */}
             {(maintenanceTrack.laborCost > 0 || maintenanceTrack.items.length > 0) && (
               <Box className="mb-8">
-                <h4 className="font-bold text-body-base text-primary mb-3 flex items-center gap-2">
+                <h4 className="font-bold text-body-base text-base-content mb-3 flex items-center gap-2">
                   <Icon name="Receipt" size="sm" className="text-secondary" />
                   Detalles del Servicio
                 </h4>
-                <div className="border border-[#e2e8f0] rounded-lg overflow-hidden font-sans">
-                  <table className="table w-full bg-white text-sm text-left">
-                    <thead className="bg-gray-50 text-gray-700 uppercase text-xs font-semibold">
+                <div className="border border-base-300 rounded-lg overflow-hidden font-sans">
+                  <table className="table w-full bg-base-100 text-sm text-left">
+                    <thead className="bg-base-200 text-base-content/70 uppercase text-xs font-semibold">
                       <tr>
                         <th className="px-4 py-3">Concepto / Refacción</th>
                         <th className="px-4 py-3 text-center">Cant.</th>
@@ -217,7 +220,7 @@ export const StatusResults: React.FC = () => {
                         <th className="px-4 py-3 text-right">Importe</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-100 text-[#0b1c30]">
+                    <tbody className="divide-y divide-base-200 text-base-content">
                       {maintenanceTrack.laborCost > 0 && (
                         <tr>
                           <td className="px-4 py-3 font-medium">Mano de Obra y Diagnóstico</td>
@@ -234,9 +237,9 @@ export const StatusResults: React.FC = () => {
                           <td className="px-4 py-3 text-right">${(item.quantity * item.price).toFixed(2)}</td>
                         </tr>
                       ))}
-                      <tr className="bg-gray-50/70 font-semibold">
+                      <tr className="bg-base-200/60 font-semibold">
                         <td colSpan={3} className="px-4 py-3 text-right">Total Estimado:</td>
-                        <td className="px-4 py-3 text-right text-primary">
+                        <td className="px-4 py-3 text-right text-primary font-bold">
                           $
                           {(
                             maintenanceTrack.laborCost +
@@ -252,7 +255,7 @@ export const StatusResults: React.FC = () => {
 
             {/* Evidence Gallery */}
             <div>
-              <h4 className="font-bold text-body-base text-primary mb-3 flex items-center gap-2">
+              <h4 className="font-bold text-body-base text-base-content mb-3 flex items-center gap-2">
                 <Icon name="Image" size="sm" className="text-secondary" />
                 Evidencia Fotográfica
               </h4>
@@ -262,7 +265,7 @@ export const StatusResults: React.FC = () => {
                     <Box
                       key={idx}
                       onClick={() => setSelectedPhoto({ url: pic.url, stage: pic.stage })}
-                      className="aspect-square rounded-lg overflow-hidden border border-gray-200 cursor-pointer relative group bg-gray-50 flex items-center justify-center shadow-sm"
+                      className="aspect-square rounded-lg overflow-hidden border border-base-300 cursor-pointer relative group bg-base-200 flex items-center justify-center shadow-sm"
                     >
                       <img
                         src={pic.url}
@@ -273,8 +276,8 @@ export const StatusResults: React.FC = () => {
                         }}
                       />
                       {/* Gradient overlay */}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-80 group-hover:opacity-90 transition-opacity"></div>
-                      <span className="absolute bottom-2.5 left-2.5 text-white text-[11px] font-semibold bg-[#091426]/70 px-2 py-0.5 rounded uppercase tracking-wider backdrop-blur-[2px]">
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-80 group-hover:opacity-90 transition-opacity"></div>
+                      <span className="absolute bottom-2.5 left-2.5 text-white text-[11px] font-semibold bg-black/60 px-2 py-0.5 rounded uppercase tracking-wider backdrop-blur-[2px]">
                         {pic.stage === 'reception' && 'Recepción'}
                         {pic.stage === 'disassembly' && 'Taller'}
                         {pic.stage === 'completed' && 'Completado'}
@@ -284,7 +287,7 @@ export const StatusResults: React.FC = () => {
                   ))}
                 </Grid>
               ) : (
-                <Box className="p-6 bg-gray-50 rounded-lg text-center text-gray-400 text-sm">
+                <Box className="p-6 bg-base-200 rounded-lg text-center text-base-content/50 text-sm">
                   Aún no se han subido fotografías de evidencia para este mantenimiento.
                 </Box>
               )}
@@ -295,9 +298,9 @@ export const StatusResults: React.FC = () => {
 
       {/* 2. Appointments List Panel */}
       {hasAppointments && (
-        <Box rounded="xl" p="lg" className="bg-white border border-[#e2e8f0] shadow-sm animate-in fade-in duration-300">
+        <Box rounded="xl" p="lg" className="bg-base-100 border border-base-300 shadow-sm animate-in fade-in duration-300">
           <Stack gap="sm">
-            <h3 className="font-headline-md text-primary flex items-center gap-2 mb-2">
+            <h3 className="font-headline-md text-base-content font-bold flex items-center gap-2 mb-2">
               <Icon name="CalendarDays" size="sm" className="text-secondary" />
               Citas Agendadas
             </h3>
@@ -307,12 +310,12 @@ export const StatusResults: React.FC = () => {
                   key={appt.id}
                   p="md"
                   rounded="lg"
-                  className="bg-[#f8f9ff] border border-outline-variant/40 hover:border-gray-300 transition-colors"
+                  className="bg-base-200/50 border border-base-300 hover:border-primary/40 transition-colors"
                 >
                   <Flex wrap justify="between" align="center" gap="md">
                     <Stack gap="xs">
-                      <span className="font-semibold text-primary">{appt.serviceRequested}</span>
-                      <span className="text-xs text-on-surface-variant font-data-mono">
+                      <span className="font-semibold text-base-content">{appt.serviceRequested}</span>
+                      <span className="text-xs text-base-content/70 font-data-mono">
                         {new Date(appt.scheduledAt).toLocaleString('es-MX', {
                           dateStyle: 'medium',
                           timeStyle: 'short',
@@ -320,12 +323,12 @@ export const StatusResults: React.FC = () => {
                         })}
                       </span>
                       {appt.vehicle && (
-                        <span className="text-xs text-gray-500 font-medium">
+                        <span className="text-xs text-base-content/60 font-medium">
                           Vehículo: {appt.vehicle.brand} {appt.vehicle.model} (Serie: {appt.vehicle.serialNumberLastFour})
                         </span>
                       )}
                       {appt.branchName && (
-                        <span className="text-xs text-gray-500 font-medium">
+                        <span className="text-xs text-base-content/60 font-medium">
                           Sucursal: {appt.branchName}
                         </span>
                       )}
@@ -346,24 +349,24 @@ export const StatusResults: React.FC = () => {
           onClick={() => setSelectedPhoto(null)}
         >
           <div
-            className="relative bg-[#091426] max-w-4xl max-h-[85vh] rounded-lg overflow-hidden border border-white/10 flex flex-col cursor-default"
+            className="relative bg-base-100 max-w-4xl max-h-[85vh] rounded-xl overflow-hidden border border-base-300 flex flex-col cursor-default shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Close Button */}
             <button
               onClick={() => setSelectedPhoto(null)}
-              className="absolute right-3.5 top-3.5 bg-black/60 hover:bg-black/80 text-white rounded-full p-2.5 transition-colors focus:outline-none"
+              className="absolute right-3.5 top-3.5 bg-black/60 hover:bg-black/80 text-white rounded-full p-2.5 transition-colors focus:outline-none z-10"
             >
               <Icon name="X" size="sm" />
             </button>
             <img
               src={selectedPhoto.url}
               alt="Evidencia Ampliada"
-              className="max-w-full max-h-[70vh] object-contain block"
+              className="max-w-full max-h-[70vh] object-contain block bg-black"
             />
-            <div className="bg-[#091426] p-4 text-white">
+            <div className="bg-base-100 p-4 text-base-content border-t border-base-300">
               <span className="font-label-caps text-secondary block text-xs mb-1">Etapa de Mantenimiento</span>
-              <h4 className="font-bold capitalize text-base">
+              <h4 className="font-bold capitalize text-base text-base-content">
                 {selectedPhoto.stage === 'reception' && 'Recepción inicial'}
                 {selectedPhoto.stage === 'disassembly' && 'Trabajos en Taller'}
                 {selectedPhoto.stage === 'completed' && 'Mantenimiento Terminado'}

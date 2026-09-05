@@ -14,14 +14,14 @@ export const StatusSearch: React.FC = () => {
   };
 
   return (
-    <Box p="lg" rounded="xl" className="bg-white border border-[#e2e8f0] shadow-sm">
+    <Box p="lg" rounded="xl" className="bg-base-100 border border-base-300 shadow-sm">
       <Stack gap="md">
         <Flex align="center" gap="sm">
-          <Icon name="Search" className="text-[#091426]" />
-          <h2 className="font-headline-md text-on-background">Consultar mi Vehículo</h2>
+          <Icon name="Search" className="text-primary" />
+          <h2 className="font-headline-md text-base-content font-bold">Consultar mi Vehículo</h2>
         </Flex>
         
-        <p className="font-body-sm text-on-surface-variant leading-relaxed">
+        <p className="font-body-sm text-base-content/70 leading-relaxed">
           Ingresa tu número de orden (Folio), el teléfono o los últimos 4 números de serie de tu vehículo para conocer el avance de tu servicio en tiempo real.
         </p>
 
@@ -34,7 +34,7 @@ export const StatusSearch: React.FC = () => {
               disabled={searchLoading}
               className="pl-10"
             />
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-base-content/40">
               <Icon name="Hash" size="sm" />
             </span>
           </div>
@@ -42,7 +42,7 @@ export const StatusSearch: React.FC = () => {
             type="submit"
             loading={searchLoading}
             disabled={!query.trim()}
-            className="w-full bg-[#855300] hover:bg-[#855300]/90 text-white border-none"
+            className="w-full"
           >
             Buscar
           </PrimaryButton>

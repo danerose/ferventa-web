@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { Appointment, MaintenanceTrack, OccupiedSlots, Branch } from '@/app/domain';
 import { clientPortalUseCases } from '@/core/di/container';
+import { cleanPhoneDigits } from '@/core/utils';
 
 interface ClientPortalState {
   // Booking States
@@ -64,7 +65,7 @@ export const useClientPortalStore = create<ClientPortalState>((set, get) => ({
   formModel: '',
   formYear: '',
   formSerialNumberLastFour: '',
-  formServiceRequested: 'Mantenimiento Preventivo',
+  formServiceRequested: 'Frenos y Suspensión',
   formSelectedDate: '',
   formSelectedTime: '',
   formNotes: '',
@@ -121,12 +122,8 @@ export const useClientPortalStore = create<ClientPortalState>((set, get) => ({
       set({ bookingLoading: false, formValidationError: 'El nombre completo es requerido.' });
       return;
     }
-    if (!formCustomerPhone.trim() || formCustomerPhone.length < 10) {
+    if (!formCustomerPhone.trim() || cleanPhoneDigits(formCustomerPhone).length < 10) {
       set({ bookingLoading: false, formValidationError: 'El teléfono es requerido (mínimo 10 dígitos).' });
-      return;
-    }
-    if (!formSerialNumberLastFour.trim() || formSerialNumberLastFour.trim().length !== 4 || isNaN(Number(formSerialNumberLastFour))) {
-      set({ bookingLoading: false, formValidationError: 'Se requieren los últimos 4 números del número de serie (exactamente 4 números).' });
       return;
     }
     if (!formSelectedDate || !formSelectedTime) {
@@ -142,6 +139,10 @@ export const useClientPortalStore = create<ClientPortalState>((set, get) => ({
       const scheduledAtStr = `${formSelectedDate}T${formSelectedTime}:00Z`;
       const selectedDateObj = new Date(scheduledAtStr);
 
+      const serialToSend = formSerialNumberLastFour?.trim()
+        ? formSerialNumberLastFour.trim().slice(0, 4).toUpperCase()
+        : 'N/A';
+
       await clientPortalUseCases.bookAppointment.execute({
         customerName: formCustomerName.trim(),
         customerPhone: formCustomerPhone.trim(),
@@ -150,7 +151,7 @@ export const useClientPortalStore = create<ClientPortalState>((set, get) => ({
           brand: formBrand.trim() || 'Genérica',
           model: formModel.trim() || 'Generico',
           year: formYear.trim() === '' ? 1900 : (parseInt(formYear) || 0),
-          serialNumberLastFour: formSerialNumberLastFour.trim(),
+          serialNumberLastFour: serialToSend,
         },
         serviceRequested: formServiceRequested,
         scheduledAt: selectedDateObj.toISOString(),
@@ -217,7 +218,7 @@ export const useClientPortalStore = create<ClientPortalState>((set, get) => ({
       formModel: '',
       formYear: '',
       formSerialNumberLastFour: '',
-      formServiceRequested: 'Mantenimiento Preventivo',
+      formServiceRequested: 'Frenos y Suspensión',
       formSelectedDate: '',
       formSelectedTime: '',
       formNotes: '',

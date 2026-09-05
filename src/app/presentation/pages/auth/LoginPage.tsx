@@ -152,63 +152,27 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
         </div>
 
         {/* Login Card */}
-        <div
-          style={{
-            background: 'white',
-            borderRadius: '20px',
-            padding: '36px 32px',
-            boxShadow: '0 32px 64px -12px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05)',
-          }}
-        >
-          <div style={{ marginBottom: '28px' }}>
-            <h1
-              style={{
-                fontSize: '22px',
-                fontWeight: '700',
-                color: '#091426',
-                marginBottom: '6px',
-                letterSpacing: '-0.01em',
-              }}
-            >
+        <div className="bg-base-100/95 dark:bg-base-100/80 backdrop-blur-xl border border-white/10 rounded-2xl p-8 shadow-2xl shadow-black/50">
+          <div className="mb-6">
+            <h1 className="text-2xl font-bold text-base-content mb-1 tracking-tight">
               Iniciar Sesión
             </h1>
-            <p style={{ fontSize: '14px', color: '#45474c', lineHeight: '1.5' }}>
+            <p className="text-sm text-base-content/60 leading-relaxed">
               Accede al panel de gestión del taller.
             </p>
           </div>
 
           {/* Error alert */}
           {error && (
-            <div
-              style={{
-                background: '#fff1f1',
-                border: '1px solid rgba(186,26,26,0.2)',
-                borderRadius: '10px',
-                padding: '12px 14px',
-                marginBottom: '20px',
-                display: 'flex',
-                gap: '10px',
-                alignItems: 'flex-start',
-              }}
-            >
-              <Icon name="AlertCircle" size="sm" className="text-error" style={{ flexShrink: 0, marginTop: '1px' }} />
-              <span style={{ fontSize: '14px', color: '#93000a', lineHeight: '1.4' }}>{error}</span>
+            <div className="bg-error/15 border border-error/30 rounded-xl p-3.5 mb-5 flex gap-2.5 items-start">
+              <Icon name="AlertCircle" size="sm" className="text-error shrink-0 mt-0.5" />
+              <span className="text-sm text-error leading-snug">{error}</span>
             </div>
           )}
 
-          <form onSubmit={handleSubmit} noValidate style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+          <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
             <div>
-              <label
-                style={{
-                  display: 'block',
-                  fontSize: '11.5px',
-                  fontWeight: '700',
-                  letterSpacing: '0.06em',
-                  textTransform: 'uppercase',
-                  color: '#45474c',
-                  marginBottom: '7px',
-                }}
-              >
+              <label className="block text-xs font-bold uppercase tracking-wider text-base-content/70 mb-1.5">
                 Usuario o Correo Electrónico
               </label>
               <TextInput
@@ -223,17 +187,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
             </div>
 
             <div>
-              <label
-                style={{
-                  display: 'block',
-                  fontSize: '11.5px',
-                  fontWeight: '700',
-                  letterSpacing: '0.06em',
-                  textTransform: 'uppercase',
-                  color: '#45474c',
-                  marginBottom: '7px',
-                }}
-              >
+              <label className="block text-xs font-bold uppercase tracking-wider text-base-content/70 mb-1.5">
                 Contraseña
               </label>
               <TextInput
@@ -250,7 +204,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
             <PrimaryButton
               type="submit"
               loading={loading}
-              className="w-full bg-[#091426] hover:bg-[#1e293b] text-white border-none mt-1"
+              className="w-full mt-2 font-semibold shadow-lg shadow-primary/20"
             >
               {loading ? 'Iniciando...' : 'Iniciar Sesión'}
             </PrimaryButton>

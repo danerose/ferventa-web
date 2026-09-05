@@ -13,11 +13,13 @@ import {
   SecondaryButton,
   Badge,
   Icon,
+  KbdBadge,
 } from '@/app/presentation/components';
 import { useAuthStore } from '@/app/presentation/stores';
 import { APIAdminRepository } from '@/app/data';
 import type { SpecialOrder, CreateSpecialOrderPayload } from '@/app/domain';
-import { formatCurrency, cn } from '@/core/utils';
+import { formatCurrency, cn, cleanPhoneDigits, formatPhoneInput } from '@/core/utils';
+
 
 const adminRepo = new APIAdminRepository();
 
@@ -85,8 +87,9 @@ export const CreateSpecialOrderModal: React.FC<CreateSpecialOrderModalProps> = (
 
   // Phone lookup with debounce
   const handlePhoneChange = (val: string) => {
-    const numericOnly = val.replace(/\D/g, '').slice(0, 10);
-    setCustomerPhone(numericOnly);
+    const formatted = formatPhoneInput(val);
+    const numericOnly = cleanPhoneDigits(val);
+    setCustomerPhone(formatted);
     setErrorMessage(null);
 
     if (debounceTimerRef.current) {
@@ -134,9 +137,10 @@ export const CreateSpecialOrderModal: React.FC<CreateSpecialOrderModalProps> = (
   const isFullyPaid = numSelling > 0 && numAdvance >= numSelling;
 
   // Validation
+  const rawDigits = cleanPhoneDigits(customerPhone);
   const canSubmit =
     customerName.trim().length > 0 &&
-    customerPhone.trim().length >= 7 &&
+    rawDigits.length === 10 &&
     itemDescription.trim().length > 0 &&
     numSelling > 0 &&
     numCost >= 0 &&
@@ -154,7 +158,7 @@ export const CreateSpecialOrderModal: React.FC<CreateSpecialOrderModalProps> = (
       await onSubmit({
         customerId: existingCustomerId,
         customerName: customerName.trim(),
-        customerPhone: customerPhone.trim(),
+        customerPhone: rawDigits,
         customerEmail: customerEmail.trim() || undefined,
         itemDescription: itemDescription.trim(),
         costPrice: numCost,
@@ -182,7 +186,7 @@ export const CreateSpecialOrderModal: React.FC<CreateSpecialOrderModalProps> = (
       footer={
         <Flex justify="between" align="center" className="w-full">
           <SecondaryButton type="button" onClick={onClose} disabled={isSubmitting}>
-            Cancelar
+            Cancelar <KbdBadge keys="Esc" className="ml-1.5" />
           </SecondaryButton>
           <PrimaryButton
             type="submit"
@@ -195,7 +199,7 @@ export const CreateSpecialOrderModal: React.FC<CreateSpecialOrderModalProps> = (
             ) : (
               <Icon name="PackagePlus" size="sm" />
             )}
-            Crear Pedido ({formatCurrency(numAdvance)})
+            Crear Pedido ({formatCurrency(numAdvance)}) <KbdBadge keys="Enter ↵" className="ml-1.5" />
           </PrimaryButton>
         </Flex>
       }
@@ -234,16 +238,16 @@ export const CreateSpecialOrderModal: React.FC<CreateSpecialOrderModalProps> = (
             <Grid cols={{ base: 1, md: 3 }} gap="md">
               <Box>
                 <Text size="xs" weight="medium" className="text-base-content/70 mb-1.5 block">
-                  Teléfono *
+                  Teléfono (10 dígitos) *
                 </Text>
                 <Box className="relative">
                   <TextInput
                     value={customerPhone}
                     onChange={(e) => handlePhoneChange(e.target.value)}
-                    placeholder="Ej. 8119876543"
+                    placeholder="99 1234 5678"
                     inputMode="tel"
-                    maxLength={10}
-                    className="w-full"
+                    maxLength={12}
+                    className="w-full font-mono"
                   />
                   {isSearchingPhone && (
                     <Box className="absolute right-3 top-2.5">
@@ -251,6 +255,11 @@ export const CreateSpecialOrderModal: React.FC<CreateSpecialOrderModalProps> = (
                     </Box>
                   )}
                 </Box>
+                {customerPhone && cleanPhoneDigits(customerPhone).length > 0 && cleanPhoneDigits(customerPhone).length < 10 && (
+                  <span className="text-[11px] text-error mt-1 block font-medium">
+                    Faltan {10 - cleanPhoneDigits(customerPhone).length} dígitos para los 10 requeridos.
+                  </span>
+                )}
               </Box>
 
               <Box>

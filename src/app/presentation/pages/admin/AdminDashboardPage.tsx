@@ -145,18 +145,19 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onLogout
 
   const handleCheckInClick = async (
     appt: AdminAppointment,
-    checkInData?: { serviceRequested?: string; laborCost?: number; notes?: string }
+    checkInData?: { serviceRequested?: string; laborCost?: number; receptionNotes?: string; notes?: string }
   ) => {
     if (!accessToken) return;
     setUpdatingId(appt.id);
     try {
-      const result = await adminRepo.checkInAppointment(accessToken, appt.id);
+      const result = await adminRepo.checkInAppointment(accessToken, appt.id, checkInData?.receptionNotes);
 
       if (checkInData) {
-        if (checkInData.serviceRequested || checkInData.notes) {
+        if (checkInData.serviceRequested || checkInData.notes || checkInData.receptionNotes) {
           await adminRepo.updateAppointment(accessToken, appt.id, {
             serviceRequested: checkInData.serviceRequested,
             notes: checkInData.notes,
+            receptionNotes: checkInData.receptionNotes,
           }).catch(() => {});
         }
         const maintId = result?.maintenance?.id;
@@ -164,6 +165,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onLogout
           await adminRepo.updateMaintenance(accessToken, maintId, {
             laborCost: checkInData.laborCost ?? 0,
             notes: checkInData.notes || checkInData.serviceRequested,
+            receptionNotes: checkInData.receptionNotes,
           }).catch(() => {});
         }
       }
@@ -172,6 +174,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onLogout
         status: 'completed',
         serviceRequested: checkInData?.serviceRequested ?? appt.serviceRequested,
         notes: checkInData?.notes ?? appt.notes,
+        receptionNotes: checkInData?.receptionNotes ?? appt.receptionNotes,
       });
       addToast('success', `Vehículo recibido en taller para ${appt.customerName}. Orden de mantenimiento activada.`);
       if (selectedTimelineAppt?.id === appt.id) {
@@ -225,8 +228,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onLogout
     if (viewType === 'list') {
       fetchAppointments(searchValue);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [statusFilter, viewType]);
+  }, [statusFilter, viewType, fetchAppointments, searchValue]);
 
   // Debounced search
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -282,6 +284,35 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onLogout
       fetchTimelineAppointments();
     }
   }, [viewType, currentWeekRefDate, fetchTimelineAppointments]);
+
+  // Global Keyboard shortcuts: Alt+W (Direct Reception), Alt+N (Add Appt), Alt+R (Refresh), Alt+1 (List), Alt+2 (Calendar)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.altKey && (e.key === 'w' || e.key === 'W')) {
+        e.preventDefault();
+        setIsDirectReceptionOpen(true);
+      } else if (e.altKey && (e.key === 'n' || e.key === 'N')) {
+        e.preventDefault();
+        setActiveModal('addAppointment');
+      } else if (e.altKey && (e.key === 'r' || e.key === 'R')) {
+        e.preventDefault();
+        if (viewType === 'list') {
+          fetchAppointments();
+        } else {
+          fetchTimelineAppointments();
+        }
+      } else if (e.altKey && e.key === '1') {
+        e.preventDefault();
+        setViewType('list');
+      } else if (e.altKey && e.key === '2') {
+        e.preventDefault();
+        setViewType('calendar');
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [viewType, fetchAppointments, fetchTimelineAppointments, setActiveModal]);
 
 
 
@@ -812,7 +843,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onLogout
                       onCancelClick={handleCancelClick}
                       onRescheduleApprovedClick={handleRescheduleApprovedClick}
                       onCompleteClick={handleCompleteClick}
-                      onCheckInClick={handleCheckInClick}
+                      onCheckInClick={(appointment) => setSelectedTimelineAppt(appointment)}
                       onCardClick={setSelectedTimelineAppt}
                       updating={updatingId === appt.id}
                     />

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Flex,
@@ -9,6 +9,7 @@ import {
   PrimaryButton,
   SecondaryButton,
   Icon,
+  KbdBadge,
 } from '@/app/presentation/components';
 import {
   SpecialOrderStatus,
@@ -36,6 +37,17 @@ export const SpecialOrderDetailDrawer: React.FC<SpecialOrderDetailDrawerProps> =
   onOpenCancelModal,
 }) => {
   const [copiedFolio, setCopiedFolio] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen || !order) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' || e.key === 'Esc') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, order, onClose]);
 
   if (!isOpen || !order) return null;
 
@@ -104,14 +116,17 @@ export const SpecialOrderDetailDrawer: React.FC<SpecialOrderDetailDrawerProps> =
                 {SPECIAL_ORDER_STATUS_LABELS[order.status] || order.status}
               </Badge>
 
-              <SecondaryButton
-                size="sm"
-                onClick={onClose}
-                className="bg-white/10 hover:bg-white/20 text-white border-none p-1.5 rounded-full"
-                title="Cerrar detalle"
-              >
-                <Icon name="X" size="sm" />
-              </SecondaryButton>
+              <Flex align="center" gap="xs">
+                <KbdBadge keys="Esc" className="bg-white/10 text-white/80 border-white/20 text-[10px]" />
+                <SecondaryButton
+                  size="sm"
+                  onClick={onClose}
+                  className="bg-white/10 hover:bg-white/20 text-white border-none p-1.5 rounded-full"
+                  title="Cerrar detalle (Esc)"
+                >
+                  <Icon name="X" size="sm" />
+                </SecondaryButton>
+              </Flex>
             </Flex>
           </Box>
 

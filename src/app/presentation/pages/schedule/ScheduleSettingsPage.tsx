@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Icon, PageLayout, PrimaryButton, SecondaryButton, TextInput, Modal, AlertModal, ConfirmModal } from '@/app/presentation/components';
+import { Icon, PageLayout, PrimaryButton, SecondaryButton, TextInput, Modal, AlertModal, ConfirmModal, KbdBadge } from '@/app/presentation/components';
 import { useAuthStore } from '@/app/presentation/stores';
 import { APIAdminRepository } from '@/app/data';
 import type { Schedule, Holiday } from '@/app/domain';
@@ -259,8 +259,12 @@ export const ScheduleSettingsPage: React.FC = () => {
         maxWidth="400px"
         footer={
           <>
-            <SecondaryButton onClick={closeHolidayModal} disabled={savingHoliday}>Cancelar</SecondaryButton>
-            <PrimaryButton onClick={handleSaveHoliday} loading={savingHoliday} disabled={savingHoliday}>Guardar</PrimaryButton>
+            <SecondaryButton onClick={closeHolidayModal} disabled={savingHoliday}>
+              Cancelar <KbdBadge keys="Esc" className="ml-1.5" />
+            </SecondaryButton>
+            <PrimaryButton onClick={handleSaveHoliday} loading={savingHoliday} disabled={savingHoliday}>
+              Guardar <KbdBadge keys="Enter ↵" className="ml-1.5" />
+            </PrimaryButton>
           </>
         }
       >

@@ -262,12 +262,16 @@ export const SaleDetailDrawer: React.FC<SaleDetailDrawerProps> = ({
             <p className="text-xs text-base-content/60 m-0 mt-1">{dateFmt}</p>
           </div>
 
-          <button
-            onClick={onClose}
-            className="btn btn-ghost btn-sm btn-circle text-base-content/60 hover:text-base-content"
-          >
-            <Icon name="X" size="md" />
-          </button>
+          <div className="flex items-center gap-2">
+            <KbdBadge keys="Esc" className="opacity-70 text-[10px]" />
+            <button
+              onClick={onClose}
+              className="btn btn-ghost btn-sm btn-circle text-base-content/60 hover:text-base-content"
+              title="Cerrar (Esc)"
+            >
+              <Icon name="X" size="md" />
+            </button>
+          </div>
         </div>
 
         {/* Drawer Content */}

@@ -308,11 +308,24 @@ export class APIAdminRepository {
 
   async getMaintenances(
     token: string,
-    filter: { customerId?: string; status?: string } = {}
+    filter: {
+      customerId?: string;
+      scope?: 'active' | 'delivered_recent' | 'history' | string;
+      status?: string;
+      search?: string;
+      from?: string;
+      to?: string;
+      dateField?: string;
+    } = {}
   ): Promise<AdminMaintenanceOrder[]> {
     const params = new URLSearchParams();
     if (filter.customerId) params.set('customerId', filter.customerId);
+    if (filter.scope) params.set('scope', filter.scope);
     if (filter.status && filter.status !== 'all') params.set('status', filter.status);
+    if (filter.search) params.set('search', filter.search);
+    if (filter.from) params.set('from', filter.from);
+    if (filter.to) params.set('to', filter.to);
+    if (filter.dateField) params.set('dateField', filter.dateField);
 
     const res = await this.fetchWithAuth(`${this.baseUrl}/maintenance?${params.toString()}`, {
       headers: { Authorization: `Bearer ${token}` },
@@ -324,35 +337,169 @@ export class APIAdminRepository {
     }
 
     const raw = Array.isArray(json.data) ? json.data : [];
-    return raw.map((item: AdminMaintenanceOrder & { _id?: string }) => ({
+    return raw.map((item: any) => this.mapRawMaintenance(item));
+  }
+
+  private mapRawMaintenance(item: any): AdminMaintenanceOrder {
+    if (!item) return {} as AdminMaintenanceOrder;
+    return {
       id: item.id || item._id || '',
       status: item.status,
-      laborCost: item.laborCost,
+      laborCost: item.laborCost || 0,
       notes: item.notes,
+      receptionNotes: item.receptionNotes,
+      serviceRequested: item.serviceRequested || item.notes || 'Servicio de mantenimiento',
+      diagnosticNotes: Array.isArray(item.diagnosticNotes) ? item.diagnosticNotes : [],
+      receptionDate: item.receptionDate || item.createdAt,
+      startedAt: item.startedAt,
+      completedAt: item.completedAt,
+      notifiedAt: item.notifiedAt,
+      deliveredAt: item.deliveredAt,
+      statusHistory: Array.isArray(item.statusHistory) ? item.statusHistory : [],
       appointment: item.appointment ? {
-        id: item.appointment.id || (item.appointment as { _id?: string })._id || '',
+        id: typeof item.appointment === 'string' ? item.appointment : item.appointment.id || item.appointment._id || '',
         scheduledAt: item.appointment.scheduledAt || '',
         status: item.appointment.status || '',
       } : null,
       customer: {
-        id: item.customer?.id || (item.customer as { _id?: string })?._id || '',
+        id: item.customer?.id || item.customer?._id || '',
         name: item.customer?.name || 'Sin nombre',
         phone: item.customer?.phone,
         email: item.customer?.email,
       },
       vehicle: {
-        id: item.vehicle?.id || (item.vehicle as { _id?: string })?._id || '',
+        id: item.vehicle?.id || item.vehicle?._id || '',
         brand: item.vehicle?.brand || 'Sin marca',
         model: item.vehicle?.model || 'Sin modelo',
         year: item.vehicle?.year || 0,
         serialNumberLastFour: item.vehicle?.serialNumberLastFour || '',
         color: item.vehicle?.color,
       },
+      sale: item.sale ? {
+        id: item.sale.id || item.sale._id,
+        _id: item.sale._id || item.sale.id,
+        folio: item.sale.folio,
+        total: item.sale.total,
+        paymentMethod: item.sale.paymentMethod,
+        paymentReference: item.sale.paymentReference,
+        items: Array.isArray(item.sale.items) ? item.sale.items : [],
+        seller: item.sale.seller,
+        createdAt: item.sale.createdAt,
+      } : null,
       evidence: item.evidence || [],
+      assignedMechanic: item.assignedMechanic,
+      mechanic: item.mechanic,
       createdAt: item.createdAt,
       updatedAt: item.updatedAt,
-    }));
+    };
   }
+
+  async addDiagnosticNote(
+    token: string,
+    id: string,
+    note: string
+  ): Promise<AdminMaintenanceOrder> {
+    const res = await this.fetchWithAuth(`${this.baseUrl}/maintenance/${id}/notes`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ note }),
+    });
+    const json = await res.json();
+    if (res.status === 401) throw new Error('UNAUTHORIZED');
+    if (!res.ok || !json.success) {
+      throw new Error(json.message || 'Error al agregar nota de diagnóstico');
+    }
+
+    return this.mapRawMaintenance(json.data);
+  }
+
+  async notifyMaintenance(
+    token: string,
+    id: string,
+    notes?: string
+  ): Promise<AdminMaintenanceOrder> {
+    const res = await this.fetchWithAuth(`${this.baseUrl}/maintenance/${id}/notify`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ notes }),
+    });
+    const json = await res.json();
+    if (res.status === 401) throw new Error('UNAUTHORIZED');
+    if (!res.ok || !json.success) {
+      throw new Error(json.message || 'Error al notificar al cliente');
+    }
+
+    return this.mapRawMaintenance(json.data);
+  }
+
+  async linkMaintenanceSale(
+    token: string,
+    id: string,
+    payload: { saleId?: string; folio?: string }
+  ): Promise<AdminMaintenanceOrder> {
+    const res = await this.fetchWithAuth(`${this.baseUrl}/maintenance/${id}/link-sale`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(payload),
+    });
+    const json = await res.json();
+    if (res.status === 401) throw new Error('UNAUTHORIZED');
+    if (!res.ok || !json.success) {
+      throw new Error(json.message || 'Error al vincular el ticket de venta');
+    }
+
+    return this.mapRawMaintenance(json.data);
+  }
+
+  async unlinkMaintenanceSale(
+    token: string,
+    id: string
+  ): Promise<AdminMaintenanceOrder> {
+    const res = await this.fetchWithAuth(`${this.baseUrl}/maintenance/${id}/unlink-sale`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    const json = await res.json();
+    if (res.status === 401) throw new Error('UNAUTHORIZED');
+    if (!res.ok || !json.success) {
+      throw new Error(json.message || 'Error al desvincular el ticket de venta');
+    }
+
+    return this.mapRawMaintenance(json.data);
+  }
+
+  async getMaintenanceMetrics(
+    token: string,
+    startDate?: string,
+    endDate?: string
+  ): Promise<any> {
+    const params = new URLSearchParams();
+    if (startDate) params.set('startDate', startDate);
+    if (endDate) params.set('endDate', endDate);
+
+    const res = await this.fetchWithAuth(`${this.baseUrl}/reports/maintenance-metrics?${params.toString()}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const json = await res.json();
+    if (res.status === 401) throw new Error('UNAUTHORIZED');
+    if (!res.ok || !json.success) {
+      throw new Error(json.message || 'Error al obtener métricas de mantenimiento');
+    }
+    return json.data;
+  }
+
 
   async updateMaintenance(
     token: string,
@@ -418,48 +565,21 @@ export class APIAdminRepository {
       throw new Error(json.message || 'Error al registrar recepción directa');
     }
 
-    const item = json.data;
-    return {
-      id: item.id || item._id || '',
-      status: item.status,
-      laborCost: item.laborCost,
-      notes: item.notes,
-      appointment: item.appointment
-        ? {
-            id: typeof item.appointment === 'string' ? item.appointment : item.appointment.id || item.appointment._id || '',
-            scheduledAt: item.appointment.scheduledAt || '',
-            status: item.appointment.status || '',
-          }
-        : null,
-      customer: {
-        id: item.customer?.id || item.customer?._id || '',
-        name: item.customer?.name || 'Sin nombre',
-        phone: item.customer?.phone,
-        email: item.customer?.email,
-      },
-      vehicle: {
-        id: item.vehicle?.id || item.vehicle?._id || '',
-        brand: item.vehicle?.brand || 'Sin marca',
-        model: item.vehicle?.model || 'Sin modelo',
-        year: item.vehicle?.year || 0,
-        serialNumberLastFour: item.vehicle?.serialNumberLastFour || '',
-        color: item.vehicle?.color,
-      },
-      evidence: item.evidence || [],
-      createdAt: item.createdAt,
-      updatedAt: item.updatedAt,
-    };
+    return this.mapRawMaintenance(json.data);
   }
 
   async checkInAppointment(
     token: string,
-    appointmentId: string
+    appointmentId: string,
+    receptionNotes?: string
   ): Promise<CheckInResult> {
     const res = await this.fetchWithAuth(`${this.baseUrl}/appointments/${appointmentId}/check-in`, {
       method: 'PATCH',
       headers: {
+        'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`,
       },
+      body: JSON.stringify({ receptionNotes }),
     });
     const json = await res.json();
     if (res.status === 401) throw new Error('UNAUTHORIZED');
@@ -479,36 +599,7 @@ export class APIAdminRepository {
         scheduledAt: appt.scheduledAt,
         serviceRequested: appt.serviceRequested,
       },
-      maintenance: {
-        id: maint.id || maint._id || '',
-        status: maint.status,
-        laborCost: maint.laborCost,
-        notes: maint.notes,
-        appointment: maint.appointment
-          ? {
-              id: typeof maint.appointment === 'string' ? maint.appointment : maint.appointment.id || maint.appointment._id || '',
-              scheduledAt: maint.appointment.scheduledAt || '',
-              status: maint.appointment.status || '',
-            }
-          : null,
-        customer: {
-          id: maint.customer?.id || maint.customer?._id || '',
-          name: maint.customer?.name || 'Sin nombre',
-          phone: maint.customer?.phone,
-          email: maint.customer?.email,
-        },
-        vehicle: {
-          id: maint.vehicle?.id || maint.vehicle?._id || '',
-          brand: maint.vehicle?.brand || 'Sin marca',
-          model: maint.vehicle?.model || 'Sin modelo',
-          year: maint.vehicle?.year || 0,
-          serialNumberLastFour: maint.vehicle?.serialNumberLastFour || '',
-          color: maint.vehicle?.color,
-        },
-        evidence: maint.evidence || [],
-        createdAt: maint.createdAt,
-        updatedAt: maint.updatedAt,
-      },
+      maintenance: this.mapRawMaintenance(maint),
     };
   }
 

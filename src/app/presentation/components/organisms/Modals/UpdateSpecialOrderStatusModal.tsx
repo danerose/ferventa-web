@@ -11,6 +11,7 @@ import {
   SecondaryButton,
   Badge,
   Icon,
+  KbdBadge,
 } from '@/app/presentation/components';
 import {
   SpecialOrderStatus,
@@ -99,7 +100,7 @@ export const UpdateSpecialOrderStatusModal: React.FC<UpdateSpecialOrderStatusMod
       footer={
         <Flex justify="between" align="center" className="w-full">
           <SecondaryButton type="button" onClick={onClose} disabled={isSubmitting}>
-            Cancelar
+            Cancelar <KbdBadge keys="Esc" className="ml-1.5" />
           </SecondaryButton>
           <PrimaryButton
             type="submit"
@@ -112,7 +113,7 @@ export const UpdateSpecialOrderStatusModal: React.FC<UpdateSpecialOrderStatusMod
             ) : (
               <Icon name="ArrowRight" size="sm" />
             )}
-            Actualizar Estatus
+            Actualizar Estatus <KbdBadge keys="Enter ↵" className="ml-1.5" />
           </PrimaryButton>
         </Flex>
       }

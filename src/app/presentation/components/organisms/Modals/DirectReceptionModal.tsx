@@ -12,11 +12,15 @@ import {
   Select,
   PrimaryButton,
   SecondaryButton,
-  Icon,
   Badge,
+  Icon,
+  KbdBadge,
 } from '@/app/presentation/components';
 import { useAuthStore } from '@/app/presentation/stores';
 import { APIAdminRepository, APIUserRepository } from '@/app/data';
+import { cleanPhoneDigits, formatPhoneInput } from '@/core/utils';
+
+
 import type {
   AdminMaintenanceOrder,
   CustomerLookupResult,
@@ -111,8 +115,9 @@ export const DirectReceptionModal: React.FC<DirectReceptionModalProps> = ({
 
   // Handle phone change with debounce search
   const handlePhoneChange = (val: string) => {
-    const numericOnly = val.replace(/\D/g, '').slice(0, 10);
-    setCustomerPhone(numericOnly);
+    const formatted = formatPhoneInput(val);
+    const numericOnly = cleanPhoneDigits(val);
+    setCustomerPhone(formatted);
     setErrorMessage(null);
 
     if (debounceTimerRef.current) {
@@ -172,8 +177,9 @@ export const DirectReceptionModal: React.FC<DirectReceptionModalProps> = ({
   };
 
   const handleSubmit = async () => {
-    if (!customerPhone.trim() || customerPhone.length < 10) {
-      setErrorMessage('Ingresa un teléfono válido de 10 dígitos.');
+    const rawPhoneDigits = cleanPhoneDigits(customerPhone);
+    if (!rawPhoneDigits || rawPhoneDigits.length < 10) {
+      setErrorMessage('Ingresa un teléfono celular válido de 10 dígitos.');
       return;
     }
     if (!customerName.trim()) {
@@ -204,7 +210,7 @@ export const DirectReceptionModal: React.FC<DirectReceptionModalProps> = ({
     try {
       const order = await adminRepo.directReception(accessToken, {
         customerName: customerName.trim(),
-        customerPhone: customerPhone.trim(),
+        customerPhone: rawPhoneDigits,
         customerEmail: customerEmail.trim() || undefined,
         customerId: existingCustomerId,
         vehicle: {
@@ -233,7 +239,7 @@ export const DirectReceptionModal: React.FC<DirectReceptionModalProps> = ({
   const modalFooter = (
     <Flex justify="between" align="center" className="w-full">
       <SecondaryButton onClick={onClose} disabled={submitting}>
-        Cancelar
+        Cancelar <KbdBadge keys="Esc" className="ml-1.5" />
       </SecondaryButton>
       <PrimaryButton onClick={handleSubmit} disabled={submitting} className="flex items-center gap-2">
         {submitting ? (
@@ -245,6 +251,7 @@ export const DirectReceptionModal: React.FC<DirectReceptionModalProps> = ({
           <>
             <Icon name="CheckCircle" size="xs" />
             <span>Recibir Vehículo y Abrir Orden</span>
+            <KbdBadge keys="Enter ↵" className="ml-1.5" />
           </>
         )}
       </PrimaryButton>
@@ -321,11 +328,16 @@ export const DirectReceptionModal: React.FC<DirectReceptionModalProps> = ({
               <TextInput
                 value={customerPhone}
                 onChange={(e) => handlePhoneChange(e.target.value)}
-                placeholder="Ej. 8119876543"
+                placeholder="99 1234 5678"
                 type="tel"
-                maxLength={10}
-                className="w-full"
+                maxLength={12}
+                className="w-full font-mono"
               />
+              {customerPhone && cleanPhoneDigits(customerPhone).length > 0 && cleanPhoneDigits(customerPhone).length < 10 && (
+                <span className="text-[11px] text-error mt-1 block font-medium">
+                  Faltan {10 - cleanPhoneDigits(customerPhone).length} dígitos para los 10 requeridos.
+                </span>
+              )}
             </Box>
 
             {/* Name */}
@@ -541,14 +553,17 @@ export const DirectReceptionModal: React.FC<DirectReceptionModalProps> = ({
 
               <Box>
                 <Text size="xs" weight="medium" className="text-base-content/70 mb-1.5 block">
-                  Notas de Recepción / Pertenencias
+                  Notas de Recepción / Inventario Físico y Pertenencias
                 </Text>
                 <TextInput
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Ej. Deja casco, tanque a 1/2, rechinido al frenar"
-                  className="w-full"
+                  placeholder="Ej. Deja llaves, 1/2 tanque de gasolina, gato hidráulico, rayón leve en puerta..."
+                  className="w-full text-xs"
                 />
+                <span className="text-[11px] text-base-content/50 mt-1 block">
+                  Registra pertenencias, inventario y estado físico del vehículo al recibirlo en taller.
+                </span>
               </Box>
             </Grid>
           </Stack>

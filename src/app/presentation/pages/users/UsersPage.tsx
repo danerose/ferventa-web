@@ -17,13 +17,15 @@ import {
   Heading,
   Text,
   Badge,
+  KbdBadge,
 } from '@/app/presentation/components';
 
 import { useAuthStore, useUserStore } from '@/app/presentation/stores';
 
-import { translateRole } from '@/core/utils/index';
+import { translateRole, cleanPhoneDigits, formatPhoneInput } from '@/core/utils/index';
 
 import type { CreateUserDto, UpdateUserDto, User } from '@/app/domain';
+
 
 import {
   MODULE_THEMES,
@@ -158,7 +160,8 @@ export const UsersPage: React.FC = () => {
   };
 
   const handlePhoneChange = (val: string) => {
-    setFormData((prev) => ({ ...prev, phone: val }));
+    const formatted = formatPhoneInput(val);
+    setFormData((prev) => ({ ...prev, phone: formatted }));
     setFieldErrors((e) => ({ ...e, phone: undefined }));
   };
 
@@ -167,6 +170,12 @@ export const UsersPage: React.FC = () => {
     if (!formData.name.trim()) errs.name = 'El nombre es obligatorio';
     if (!formData.email?.trim() && !formData.phone?.trim()) {
       errs.email = 'Debes ingresar un correo o un teléfono';
+    }
+    if (formData.phone?.trim()) {
+      const digits = cleanPhoneDigits(formData.phone);
+      if (digits.length > 0 && digits.length < 10) {
+        errs.phone = 'El teléfono debe tener 10 dígitos';
+      }
     }
     if (!formData.roleId) errs.roleId = 'Debes seleccionar un rol';
     if (formData.branches.length === 0) errs.branches = 'Debes asignar al menos una sucursal';
@@ -479,12 +488,13 @@ export const UsersPage: React.FC = () => {
             </Box>
             <Box>
               <Text as="label" size="xs" weight="semibold" variant="muted" className="block mb-1">
-                Teléfono
+                Teléfono (10 dígitos)
               </Text>
               <TextInput
-                placeholder="3312345678"
+                placeholder="99 1234 5678"
                 type="tel"
                 size="sm"
+                maxLength={12}
                 value={formData.phone}
                 onChange={(e) => handlePhoneChange(e.target.value)}
                 errorMessage={fieldErrors.phone}
@@ -553,7 +563,7 @@ export const UsersPage: React.FC = () => {
 
           <Flex justify="end" gap="sm" className="pt-3 border-t border-base-300">
             <SecondaryButton size="sm" onClick={() => setActiveModal(null)} disabled={isSubmitting}>
-              Cancelar
+              Cancelar <KbdBadge keys="Esc" className="ml-1.5" />
             </SecondaryButton>
             <PrimaryButton
               size="sm"
@@ -562,7 +572,7 @@ export const UsersPage: React.FC = () => {
               loading={isSubmitting}
               disabled={isSubmitting}
             >
-              Crear Usuario
+              Crear Usuario <KbdBadge keys="Enter ↵" className="ml-1.5" />
             </PrimaryButton>
           </Flex>
         </Stack>
@@ -613,14 +623,15 @@ export const UsersPage: React.FC = () => {
             </Box>
             <Box>
               <Text as="label" size="xs" weight="semibold" variant="muted" className="block mb-1">
-                Teléfono
+                Teléfono (10 dígitos)
               </Text>
               <TextInput
-                placeholder="Teléfono"
+                placeholder="99 1234 5678"
                 type="tel"
                 size="sm"
+                maxLength={12}
                 value={editForm.phone || ''}
-                onChange={(e) => setEditForm((p) => ({ ...p, phone: e.target.value }))}
+                onChange={(e) => setEditForm((p) => ({ ...p, phone: formatPhoneInput(e.target.value) }))}
               />
             </Box>
           </Grid>
@@ -685,7 +696,7 @@ export const UsersPage: React.FC = () => {
               }}
               disabled={isSubmitting}
             >
-              Cancelar
+              Cancelar <KbdBadge keys="Esc" className="ml-1.5" />
             </SecondaryButton>
             <PrimaryButton
               size="sm"
@@ -694,7 +705,7 @@ export const UsersPage: React.FC = () => {
               loading={isSubmitting}
               disabled={isSubmitting}
             >
-              Guardar Cambios
+              Guardar Cambios <KbdBadge keys="Enter ↵" className="ml-1.5" />
             </PrimaryButton>
           </Flex>
         </Stack>
@@ -732,7 +743,7 @@ export const UsersPage: React.FC = () => {
               disabled={isSubmitting}
               className="flex-1"
             >
-              Cancelar
+              Cancelar <KbdBadge keys="Esc" className="ml-1.5" />
             </SecondaryButton>
             <PrimaryButton
               size="sm"
@@ -742,7 +753,7 @@ export const UsersPage: React.FC = () => {
               disabled={isSubmitting}
               className="flex-1"
             >
-              Sí, Desactivar
+              Sí, Desactivar <KbdBadge keys="Enter ↵" className="ml-1.5" />
             </PrimaryButton>
           </Flex>
         </Stack>

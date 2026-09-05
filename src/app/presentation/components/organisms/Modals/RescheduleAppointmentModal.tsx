@@ -1,6 +1,5 @@
 import React from 'react';
-import { Modal, Textarea } from '@/app/presentation/components';
-import { PrimaryButton, SecondaryButton, TextInput, Icon } from '@/app/presentation/components';
+import { Modal, Textarea, PrimaryButton, SecondaryButton, TextInput, Icon, KbdBadge } from '@/app/presentation/components';
 import type { AdminAppointment } from '@/app/domain';
 
 export interface RescheduleAppointmentModalProps {
@@ -55,14 +54,14 @@ export const RescheduleAppointmentModal: React.FC<RescheduleAppointmentModalProp
   const footer = (
     <>
       <SecondaryButton onClick={onClose} disabled={updating}>
-        Cancelar
+        Cancelar <KbdBadge keys="Esc" className="ml-1.5" />
       </SecondaryButton>
       <PrimaryButton
         onClick={onConfirm}
         disabled={updating || suggestedSchedules.length === 0}
         loading={updating}
       >
-        Mandar Mensaje y Cambiar a Reagendada
+        Mandar Mensaje y Cambiar a Reagendada <KbdBadge keys="Enter ↵" className="ml-1.5" />
       </PrimaryButton>
     </>
   );

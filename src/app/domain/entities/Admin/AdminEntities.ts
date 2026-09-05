@@ -12,6 +12,7 @@ export interface AdminVehicle {
   model: string;
   year: number | string;
   serialNumberLastFour: string;
+  licensePlate?: string;
   color?: string;
 }
 
@@ -25,6 +26,7 @@ export interface AdminAppointment {
   scheduledAt: string;
   status: 'pending' | 'approved' | 'rejected' | 'cancelled' | 'completed' | 'rescheduled';
   notes?: string;
+  receptionNotes?: string;
   duration?: number;
   assignedMechanic?: string;
   branchName?: string;
@@ -32,11 +34,62 @@ export interface AdminAppointment {
   endTime?: string;
 }
 
+export interface DiagnosticNote {
+  note: string;
+  createdAt: string;
+  createdBy?: {
+    _id?: string;
+    id?: string;
+    name?: string;
+  };
+}
+
+export interface MaintenanceStatusHistoryItem {
+  status: string;
+  changedAt: string;
+  changedBy?: {
+    _id?: string;
+    id?: string;
+    name?: string;
+  };
+  notes?: string;
+}
+
+export interface AdminMaintenanceSaleInfo {
+  id?: string;
+  _id?: string;
+  folio?: string;
+  total?: number;
+  paymentMethod?: string;
+  paymentReference?: string;
+  items?: {
+    name: string;
+    quantity: number;
+    priceSnapshot: number;
+  }[];
+  seller?: {
+    id?: string;
+    _id?: string;
+    name?: string;
+  } | string;
+  createdAt?: string;
+}
+
 export interface AdminMaintenanceOrder {
   id: string;
   status: 'awaiting_appointment' | 'not_started' | 'in_progress' | 'completed' | 'delivered';
   laborCost: number;
+  laborPrice?: number;
   notes?: string;
+  receptionNotes?: string;
+  serviceRequested?: string;
+  diagnosticNotes?: DiagnosticNote[];
+  receptionDate?: string;
+  startedAt?: string;
+  completedAt?: string;
+  notifiedAt?: string;
+  deliveredAt?: string;
+  statusHistory?: MaintenanceStatusHistoryItem[];
   appointment?: {
     id: string;
     scheduledAt: string;
@@ -54,17 +107,50 @@ export interface AdminMaintenanceOrder {
     model: string;
     year: number;
     serialNumberLastFour: string;
+    licensePlate?: string;
     color?: string;
   };
   evidence?: {
     stage: string;
     photoUrls: string[];
   }[];
+  sale?: AdminMaintenanceSaleInfo | null;
   assignedMechanic?: string | { id?: string; _id?: string; name?: string } | null;
   mechanic?: string | { id?: string; _id?: string; name?: string } | null;
   createdAt?: string;
   updatedAt?: string;
 }
+
+export interface MaintenanceMetricsData {
+  volume: {
+    totalReceived: number;
+    totalCompleted: number;
+    totalDelivered: number;
+    pendingPickupCount: number;
+  };
+  averages: {
+    avgQueueHours: number;
+    avgQueueDays: number;
+    avgWorkHours: number;
+    avgWorkDays: number;
+    avgPickupHours: number;
+    avgPickupDays: number;
+    avgTotalStayHours: number;
+    avgTotalStayDays: number;
+  };
+  pendingPickupVehicles: Array<{
+    _id: string;
+    customerName: string;
+    customerPhone: string;
+    vehicle: string;
+    completedAt: string;
+    notifiedAt?: string;
+    daysWaiting: number;
+    daysSinceNotified?: number;
+    notes?: string;
+  }>;
+}
+
 
 export interface Branch {
   id: string;

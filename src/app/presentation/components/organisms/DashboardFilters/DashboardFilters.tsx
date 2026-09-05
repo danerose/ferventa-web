@@ -1,5 +1,5 @@
 import React from 'react';
-import { Icon, TextInput, PrimaryButton, SecondaryButton } from '@/app/presentation/components';
+import { Icon, TextInput, PrimaryButton, SecondaryButton, KbdBadge } from '@/app/presentation/components';
 
 export interface DashboardFiltersProps {
   searchValue: string;
@@ -109,21 +109,24 @@ export const DashboardFilters: React.FC<DashboardFiltersProps> = ({
           <PrimaryButton
             onClick={onDirectReceptionClick}
             size="sm"
-            className="flex items-center gap-1"
-            title="Registrar recepción directa en taller (Walk-in)"
+            className="flex items-center gap-1.5"
+            title="Registrar recepción directa en taller (Walk-in) [Alt+W]"
           >
             <Icon name="Wrench" size="xs" />
-            + Recibir Auto
+            <span>+ Recibir Auto</span>
+            <KbdBadge keys="Alt+W" className="ml-1 opacity-80" />
           </PrimaryButton>
         )}
 
         <PrimaryButton
           onClick={onAddClick}
           size="sm"
-          className="flex items-center gap-1"
+          className="flex items-center gap-1.5"
+          title="Añadir Cita [Alt+N]"
         >
           <Icon name="Plus" size="xs" />
-          Añadir Cita
+          <span>Añadir Cita</span>
+          <KbdBadge keys="Alt+N" className="ml-1 opacity-80" />
         </PrimaryButton>
 
         <SecondaryButton

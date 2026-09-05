@@ -15,6 +15,7 @@ export interface ModalProps {
   headerBackground?: string; // Kept for backward compatibility
   maxWidth?: string;
   zIndex?: number;
+  closeOnBackdropClick?: boolean;
 }
 
 const headerVariantMap: Record<ModalHeaderVariant, string> = {
@@ -39,6 +40,7 @@ export const Modal: React.FC<ModalProps> = ({
   headerBackground,
   maxWidth = '600px',
   zIndex = 1100,
+  closeOnBackdropClick = false,
 }) => {
   const containerRef = React.useRef<HTMLDivElement>(null);
   const hasFocusedRef = React.useRef(false);
@@ -107,7 +109,7 @@ export const Modal: React.FC<ModalProps> = ({
     <div
       className="fixed inset-0 bg-neutral/50 backdrop-blur-xs flex items-center justify-center p-5"
       style={{ zIndex }}
-      onClick={onClose}
+      onClick={closeOnBackdropClick ? onClose : undefined}
     >
       <div
         ref={containerRef}

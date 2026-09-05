@@ -1,5 +1,5 @@
 import React from 'react';
-import { Modal, PrimaryButton, SecondaryButton, Icon } from '@/app/presentation/components';
+import { Modal, PrimaryButton, SecondaryButton, Icon, KbdBadge } from '@/app/presentation/components';
 import type { Product } from '@/app/domain';
 
 interface ProductDetailModalProps {
@@ -42,7 +42,9 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
       maxWidth="620px"
       footer={
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-          <SecondaryButton onClick={onClose}>Cerrar</SecondaryButton>
+          <SecondaryButton onClick={onClose}>
+            Cerrar <KbdBadge keys="Esc" className="ml-1.5" />
+          </SecondaryButton>
           {onAddToCart && (
             <PrimaryButton
               onClick={() => {
@@ -52,7 +54,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
               style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
             >
               <Icon name="Plus" size="sm" />
-              Agregar al Carrito
+              Agregar al Carrito <KbdBadge keys="Enter ↵" className="ml-1.5" />
             </PrimaryButton>
           )}
         </div>

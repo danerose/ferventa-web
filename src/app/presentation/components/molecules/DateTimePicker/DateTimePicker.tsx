@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import type { OccupiedSlots } from '@/app/domain';
 import { Box, Flex, Grid, Stack, Icon, PrimaryButton, SecondaryButton } from '@/app/presentation/components';
 
@@ -18,6 +18,27 @@ const MONTH_NAMES = [
 
 const DAY_LABELS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
+// Fast helpers defined outside component
+const timeToMinutes = (t: string) => {
+  const [h, m] = t.split(':').map(Number);
+  return h * 60 + m;
+};
+
+const minutesToTime = (min: number) => {
+  const h = Math.floor(min / 60).toString().padStart(2, '0');
+  const m = (min % 60).toString().padStart(2, '0');
+  return `${h}:${m}`;
+};
+
+const format12h = (t: string) => {
+  if (!t) return '';
+  const [hStr, mStr] = t.split(':');
+  const h = parseInt(hStr, 10);
+  const ampm = h >= 12 ? 'pm' : 'am';
+  const displayHour = h % 12 === 0 ? 12 : h % 12;
+  return `${displayHour}:${mStr}${ampm}`;
+};
+
 export const DateTimePicker: React.FC<DateTimePickerProps> = ({
   selectedDate,
   selectedTime,
@@ -27,6 +48,29 @@ export const DateTimePicker: React.FC<DateTimePickerProps> = ({
   occupiedSlotsLoading,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
+
+  // Local ephemeral state while modal is open for zero-latency interactions
+  const [localDate, setLocalDate] = useState(selectedDate);
+  const [localTime, setLocalTime] = useState(selectedTime);
+
+  // Synchronize local state when modal opens or selectedDate/Time changes externally
+  useEffect(() => {
+    if (isOpen) {
+      setLocalDate(selectedDate);
+      setLocalTime(selectedTime);
+      if (selectedDate) {
+        const parts = selectedDate.split('-');
+        if (parts.length === 3) {
+          const y = parseInt(parts[0], 10);
+          const m = parseInt(parts[1], 10) - 1;
+          if (!isNaN(y) && !isNaN(m)) {
+            setCurrentYear(y);
+            setCurrentMonth(m);
+          }
+        }
+      }
+    }
+  }, [isOpen, selectedDate, selectedTime]);
 
   // Navigation month & year states
   const todayDateObj = new Date();
@@ -61,28 +105,6 @@ export const DateTimePicker: React.FC<DateTimePickerProps> = ({
       (currentYear === todayVal.getFullYear() && currentMonth <= todayVal.getMonth())
     );
   }, [currentMonth, currentYear]);
-
-  // Convert "HH:MM" to minutes
-  const timeToMinutes = (t: string) => {
-    const [h, m] = t.split(':').map(Number);
-    return h * 60 + m;
-  };
-
-  // Convert minutes to "HH:MM"
-  const minutesToTime = (min: number) => {
-    const h = Math.floor(min / 60).toString().padStart(2, '0');
-    const m = (min % 60).toString().padStart(2, '0');
-    return `${h}:${m}`;
-  };
-
-  // Format standard 24h string to 12h representation for UI
-  const format12h = (t: string) => {
-    const [hStr, mStr] = t.split(':');
-    const h = parseInt(hStr);
-    const ampm = h >= 12 ? 'pm' : 'am';
-    const displayHour = h % 12 === 0 ? 12 : h % 12;
-    return `${displayHour}:${mStr}${ampm}`;
-  };
 
   // Generate calendar grid days for current month/year view
   const calendarDays = useMemo(() => {
@@ -184,14 +206,14 @@ export const DateTimePicker: React.FC<DateTimePickerProps> = ({
     return result;
   }, [currentMonth, currentYear, occupiedSlots]);
 
-  // Calculate available time slots for selectedDate
+  // Calculate available time slots for localDate
   const { availableTimes, dateMessage } = useMemo(() => {
-    if (!selectedDate || !occupiedSlots) {
+    if (!localDate || !occupiedSlots) {
       return { availableTimes: [], dateMessage: null };
     }
 
-    const dateStr = selectedDate;
-    const parsedDate = new Date(selectedDate + 'T00:00:00Z');
+    const dateStr = localDate;
+    const parsedDate = new Date(localDate + 'T00:00:00Z');
 
     // 1. Holiday Check
     const holiday = occupiedSlots.holidays.find((h) => h.date === dateStr);
@@ -221,7 +243,15 @@ export const DateTimePicker: React.FC<DateTimePickerProps> = ({
       };
     }
 
-    // 4. Generate 15 minutes slots
+    // 4. Pre-parse busy ranges for fast loop check
+    const busyRanges = occupiedSlots.busySlots
+      .filter((b) => b.date === dateStr)
+      .map((b) => ({
+        start: timeToMinutes(b.startTime),
+        end: timeToMinutes(b.endTime),
+      }));
+
+    // 5. Generate 15 minutes slots
     const startMin = timeToMinutes(daySchedule.startTime);
     const endMin = timeToMinutes(daySchedule.endTime);
     const slots = [];
@@ -237,13 +267,7 @@ export const DateTimePicker: React.FC<DateTimePickerProps> = ({
     while (current + 15 <= endMin) {
       const slotTime = minutesToTime(current);
 
-      const isBusy = occupiedSlots.busySlots.some((b) => {
-        if (b.date !== dateStr) return false;
-        const bStart = timeToMinutes(b.startTime);
-        const bEnd = timeToMinutes(b.endTime);
-        return current >= bStart && current < bEnd;
-      });
-
+      const isBusy = busyRanges.some((r) => current >= r.start && current < r.end);
       const isPast = dateStr === todayStr && current <= currentHourMinutes;
 
       if (!isBusy && !isPast) {
@@ -263,17 +287,17 @@ export const DateTimePicker: React.FC<DateTimePickerProps> = ({
       availableTimes: slots,
       dateMessage: null,
     };
-  }, [selectedDate, occupiedSlots]);
+  }, [localDate, occupiedSlots]);
 
-  // Format selected date for time slots header
-  const formattedSelectedDate = useMemo(() => {
-    if (!selectedDate) return '';
-    const dateObj = new Date(selectedDate + 'T00:00:00Z');
+  // Format local date for time slots header
+  const formattedLocalDate = useMemo(() => {
+    if (!localDate) return '';
+    const dateObj = new Date(localDate + 'T00:00:00Z');
     const dayName = dateObj.toLocaleDateString('es-MX', { weekday: 'long', timeZone: 'UTC' });
     const dayNum = dateObj.getUTCDate();
     const monthName = dateObj.toLocaleDateString('es-MX', { month: 'long', timeZone: 'UTC' });
     return `${dayName.charAt(0).toUpperCase() + dayName.slice(1)}, ${dayNum} de ${monthName}`;
-  }, [selectedDate]);
+  }, [localDate]);
 
   // Trigger input label representation
   const triggerLabel = useMemo(() => {
@@ -286,6 +310,25 @@ export const DateTimePicker: React.FC<DateTimePickerProps> = ({
     const monthName = dateObj.toLocaleDateString('es-MX', { month: 'long', timeZone: 'UTC' });
     return `${dayName.charAt(0).toUpperCase() + dayName.slice(1)}, ${dayNum} de ${monthName} - ${format12h(selectedTime)}`;
   }, [selectedDate, selectedTime]);
+
+  const handleDayClick = (dateString: string) => {
+    setLocalDate(dateString);
+    setLocalTime('');
+  };
+
+  const handleTimeSlotClick = (time: string) => {
+    setLocalTime(time);
+  };
+
+  const handleConfirm = () => {
+    if (localDate) {
+      onChangeDate(localDate);
+    }
+    if (localTime) {
+      onChangeTime(localTime);
+    }
+    setIsOpen(false);
+  };
 
   return (
     <>
@@ -372,7 +415,7 @@ export const DateTimePicker: React.FC<DateTimePickerProps> = ({
                   {/* Days Grid */}
                   <Grid cols={7} gap="xs" className="text-center">
                     {calendarDays.map((day, idx) => {
-                      const isSelected = selectedDate === day.dateString;
+                      const isSelected = localDate === day.dateString;
                       
                       if (!day.isCurrentMonth) {
                         return (
@@ -406,7 +449,7 @@ export const DateTimePicker: React.FC<DateTimePickerProps> = ({
                         <button
                           key={idx}
                           type="button"
-                          onClick={() => onChangeDate(day.dateString)}
+                          onClick={() => handleDayClick(day.dateString)}
                           className={`aspect-square flex items-center justify-center rounded-lg text-xs transition-all focus:outline-none cursor-pointer ${
                             isSelected
                               ? 'bg-primary text-primary-content font-bold shadow-xs'
@@ -422,10 +465,10 @@ export const DateTimePicker: React.FC<DateTimePickerProps> = ({
 
                 {/* Right Column: Time Slots */}
                 <Box p="lg" className="md:col-span-5 flex flex-col min-h-[300px]">
-                  {selectedDate ? (
+                  {localDate ? (
                     <Stack gap="md" className="flex-1">
                       <span className="font-bold text-base-content text-sm pb-2 border-b border-base-300 block">
-                        {formattedSelectedDate}
+                        {formattedLocalDate}
                       </span>
 
                       {occupiedSlotsLoading ? (
@@ -439,12 +482,12 @@ export const DateTimePicker: React.FC<DateTimePickerProps> = ({
                       ) : availableTimes.length > 0 ? (
                         <div className="flex-1 overflow-y-auto pr-1 max-h-[250px] space-y-2">
                           {availableTimes.map((time) => {
-                            const isTimeSelected = selectedTime === time;
+                            const isTimeSelected = localTime === time;
                             return (
                               <button
                                 key={time}
                                 type="button"
-                                onClick={() => onChangeTime(time)}
+                                onClick={() => handleTimeSlotClick(time)}
                                 className={`w-full py-2 px-3 text-center rounded-DEFAULT border transition-all text-xs font-bold block cursor-pointer ${
                                   isTimeSelected
                                     ? 'bg-primary text-primary-content border-primary shadow-xs'
@@ -486,8 +529,8 @@ export const DateTimePicker: React.FC<DateTimePickerProps> = ({
               <PrimaryButton
                 size="sm"
                 type="button"
-                disabled={!selectedDate || !selectedTime}
-                onClick={() => setIsOpen(false)}
+                disabled={!localDate || !localTime}
+                onClick={handleConfirm}
               >
                 Confirmar
               </PrimaryButton>
@@ -498,3 +541,4 @@ export const DateTimePicker: React.FC<DateTimePickerProps> = ({
     </>
   );
 };
+

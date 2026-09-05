@@ -1,6 +1,5 @@
 import React from 'react';
-import { Modal, Textarea } from '@/app/presentation/components';
-import { PrimaryButton, SecondaryButton, TextInput } from '@/app/presentation/components';
+import { Modal, Textarea, PrimaryButton, SecondaryButton, TextInput, KbdBadge } from '@/app/presentation/components';
 import type { AdminAppointment } from '@/app/domain';
 import { cn } from '@/core/utils/cn';
 
@@ -52,7 +51,7 @@ export const ApproveRescheduledModal: React.FC<ApproveRescheduledModalProps> = (
   const footer = (
     <>
       <SecondaryButton onClick={onClose} disabled={updating}>
-        Cancelar
+        Cancelar <KbdBadge keys="Esc" className="ml-1.5" />
       </SecondaryButton>
       <PrimaryButton
         onClick={onConfirm}
@@ -60,7 +59,7 @@ export const ApproveRescheduledModal: React.FC<ApproveRescheduledModalProps> = (
         loading={updating}
         color={isApprovedMode ? 'neutral' : 'secondary'}
       >
-        {isApprovedMode ? 'Guardar y Reagendar' : 'Actualizar Cita y Aprobar'}
+        {isApprovedMode ? 'Guardar y Reagendar' : 'Actualizar Cita y Aprobar'} <KbdBadge keys="Enter ↵" className="ml-1.5" />
       </PrimaryButton>
     </>
   );

@@ -48,10 +48,10 @@ export const SERVICE_STATUS_COLORS: Record<
     badgeColor: 'info',
   },
   [ServiceStatus.InProgress]: {
-    bg: 'bg-primary/10',
-    text: 'text-primary',
-    border: 'border-primary/20',
-    badgeColor: 'primary',
+    bg: 'bg-warning/10',
+    text: 'text-warning',
+    border: 'border-warning/20',
+    badgeColor: 'warning',
   },
   [ServiceStatus.Completed]: {
     bg: 'bg-success/10',
@@ -60,10 +60,10 @@ export const SERVICE_STATUS_COLORS: Record<
     badgeColor: 'success',
   },
   [ServiceStatus.Delivered]: {
-    bg: 'bg-base-300',
-    text: 'text-base-content',
-    border: 'border-base-content/20',
-    badgeColor: 'neutral',
+    bg: 'bg-info/10',
+    text: 'text-info',
+    border: 'border-info/20',
+    badgeColor: 'info',
   },
   [ServiceStatus.Cancelled]: {
     bg: 'bg-error/10',

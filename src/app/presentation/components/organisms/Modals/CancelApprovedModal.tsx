@@ -1,6 +1,5 @@
 import React from 'react';
-import { Modal } from '@/app/presentation/components';
-import { PrimaryButton, SecondaryButton, Icon } from '@/app/presentation/components';
+import { Modal, PrimaryButton, SecondaryButton, Icon, KbdBadge } from '@/app/presentation/components';
 import type { AdminAppointment } from '@/app/domain';
 
 export interface CancelApprovedModalProps {
@@ -41,7 +40,7 @@ export const CancelApprovedModal: React.FC<CancelApprovedModalProps> = ({
   const footer = (
     <>
       <SecondaryButton onClick={onClose} disabled={updating}>
-        Volver
+        Volver <KbdBadge keys="Esc" className="ml-1.5" />
       </SecondaryButton>
       <PrimaryButton
         onClick={onConfirm}
@@ -49,7 +48,7 @@ export const CancelApprovedModal: React.FC<CancelApprovedModalProps> = ({
         loading={updating}
         color="error"
       >
-        Sí, Cancelar Cita
+        Sí, Cancelar Cita <KbdBadge keys="Enter ↵" className="ml-1.5" />
       </PrimaryButton>
     </>
   );

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Icon, PrimaryButton, SecondaryButton } from '@/app/presentation/components';
+import { Modal, PrimaryButton, SecondaryButton } from '@/app/presentation/components';
 import { APIAttendanceRepository } from '@/app/data';
 import type { UserAttendanceBreakdown } from '@/app/domain';
 
@@ -98,35 +98,43 @@ export const UserBreakdownModal: React.FC<UserBreakdownModalProps> = ({
       monday.setDate(now.getDate() - dayOfWeek);
       sDate = toLocalYYYYMMDD(monday);
       eDate = toLocalYYYYMMDD(now);
-    } else if (preset === 'biweekly') {
+    } else if (preset === 'biweek') {
       const dayOfMonth = now.getDate();
-      const startFortnight = new Date(now.getFullYear(), now.getMonth(), dayOfMonth <= 15 ? 1 : 16);
-      sDate = toLocalYYYYMMDD(startFortnight);
-      eDate = toLocalYYYYMMDD(now);
+      const y = now.getFullYear();
+      const m = now.getMonth();
+      if (dayOfMonth <= 15) {
+        sDate = `${y}-${String(m + 1).padStart(2, '0')}-01`;
+        eDate = `${y}-${String(m + 1).padStart(2, '0')}-15`;
+      } else {
+        sDate = `${y}-${String(m + 1).padStart(2, '0')}-16`;
+        const lastDay = new Date(y, m + 1, 0).getDate();
+        eDate = `${y}-${String(m + 1).padStart(2, '0')}-${lastDay}`;
+      }
     } else if (preset === 'month') {
-      const startMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-      sDate = toLocalYYYYMMDD(startMonth);
-      eDate = toLocalYYYYMMDD(now);
+      const y = now.getFullYear();
+      const m = now.getMonth();
+      sDate = `${y}-${String(m + 1).padStart(2, '0')}-01`;
+      const lastDay = new Date(y, m + 1, 0).getDate();
+      eDate = `${y}-${String(m + 1).padStart(2, '0')}-${lastDay}`;
     } else if (preset === 'all') {
       sDate = '';
       eDate = '';
     }
 
-    if (preset !== 'custom') {
-      setStartDate(sDate);
-      setEndDate(eDate);
-      loadBreakdown(sDate, eDate);
-    }
+    setStartDate(sDate);
+    setEndDate(eDate);
+    loadBreakdown(sDate, eDate);
   };
 
-  const formatMinutes = (totalMin: number = 0) => {
-    const mins = Math.max(0, Math.floor(totalMin));
-    const h = Math.floor(mins / 60);
-    const m = mins % 60;
-    return `${h}h ${m < 10 ? '0' : ''}${m}m`;
+  const formatMinutes = (totalMinutes: number) => {
+    if (!totalMinutes || totalMinutes < 0) return '0 hrs 0 mins';
+    const hrs = Math.floor(totalMinutes / 60);
+    const mins = Math.round(totalMinutes % 60);
+    return `${hrs} hrs ${mins} mins`;
   };
 
-  const safeFormatTime = (isoString?: string, fallback = '-') => {
+  const safeFormatTime = (isoString?: string) => {
+    const fallback = '--:--';
     if (!isoString) return fallback;
     try {
       const d = new Date(isoString);
@@ -137,51 +145,22 @@ export const UserBreakdownModal: React.FC<UserBreakdownModalProps> = ({
     }
   };
 
-  if (!isOpen) return null;
-
   const totals = breakdown?.totals || { totalShifts: 0, totalWorkMinutes: 0, totalBreakMinutes: 0, netWorkMinutes: 0 };
   const recordsList = Array.isArray(breakdown?.records) ? breakdown!.records : [];
 
   return (
-    <div style={{
-      position: 'fixed',
-      inset: 0,
-      zIndex: 1000,
-      background: 'rgba(9, 20, 38, 0.6)',
-      backdropFilter: 'blur(4px)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '16px'
-    }}>
-      <div style={{
-        background: 'white',
-        borderRadius: '12px',
-        border: '1px solid #e2e8f0',
-        width: '100%',
-        maxWidth: '920px',
-        maxHeight: '92vh',
-        display: 'flex',
-        flexDirection: 'column',
-        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)',
-        overflow: 'hidden'
-      }}>
-        
-        {/* Modal Header */}
-        <div style={{ padding: '20px 24px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8fafc' }}>
-          <div>
-            <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#091426', margin: 0 }}>Desglose de Horarios y Asistencia</h3>
-            <span style={{ fontSize: '13px', color: '#64748b' }}>Colaborador: <strong style={{ color: '#0f172a' }}>{userName}</strong></span>
-          </div>
-
-          <button
-            onClick={onClose}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', padding: '4px' }}
-          >
-            <Icon name="X" size="md" />
-          </button>
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={`Desglose de Horarios — ${userName}`}
+      maxWidth="920px"
+      footer={
+        <div className="flex justify-end w-full">
+          <SecondaryButton onClick={onClose}>Cerrar</SecondaryButton>
         </div>
-
+      }
+    >
+      <div className="flex flex-col gap-5">
         {/* Period Preset Filter Bar */}
         <div style={{ padding: '14px 24px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '10px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
@@ -421,13 +400,7 @@ export const UserBreakdownModal: React.FC<UserBreakdownModalProps> = ({
             </>
           )}
         </div>
-
-        {/* Footer */}
-        <div style={{ padding: '16px 24px', borderTop: '1px solid #e2e8f0', background: '#f8fafc', display: 'flex', justifyContent: 'flex-end' }}>
-          <SecondaryButton onClick={onClose}>Cerrar</SecondaryButton>
-        </div>
-
       </div>
-    </div>
+    </Modal>
   );
 };

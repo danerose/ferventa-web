@@ -1,6 +1,5 @@
 import React from 'react';
-import { Modal } from '@/app/presentation/components';
-import { PrimaryButton, SecondaryButton, Icon } from '@/app/presentation/components';
+import { Modal, PrimaryButton, SecondaryButton, Icon, KbdBadge } from '@/app/presentation/components';
 import type { AdminAppointment } from '@/app/domain';
 
 export interface CompleteAppointmentModalProps {
@@ -23,7 +22,7 @@ export const CompleteAppointmentModal: React.FC<CompleteAppointmentModalProps> =
   const footer = (
     <>
       <SecondaryButton onClick={onClose} disabled={updating}>
-        Cancelar
+        Cancelar <KbdBadge keys="Esc" className="ml-1.5" />
       </SecondaryButton>
       <PrimaryButton
         onClick={onConfirm}
@@ -31,7 +30,7 @@ export const CompleteAppointmentModal: React.FC<CompleteAppointmentModalProps> =
         loading={updating}
         color="success"
       >
-        Completar Cita
+        Completar Cita <KbdBadge keys="Enter ↵" className="ml-1.5" />
       </PrimaryButton>
     </>
   );

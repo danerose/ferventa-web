@@ -8,11 +8,19 @@ import {
   Select,
   Textarea,
   PrimaryButton,
+  SecondaryButton,
   Icon,
   DateTimePicker,
+  KbdBadge,
 } from '@/app/presentation/components';
+import { cleanPhoneDigits, formatPhoneInput } from '@/core/utils';
 
-export const AppointmentForm: React.FC = () => {
+
+export interface AppointmentFormProps {
+  onCancel?: () => void;
+}
+
+export const AppointmentForm: React.FC<AppointmentFormProps> = ({ onCancel }) => {
   const {
     bookingLoading,
     bookingSuccess,
@@ -231,15 +239,21 @@ export const AppointmentForm: React.FC = () => {
 
         <Grid cols={{ base: 1, sm: 2 }} gap="md">
           <div>
-            <label className="text-xs font-medium text-base-content/70 mb-1.5 block">Teléfono *</label>
+            <label className="text-xs font-medium text-base-content/70 mb-1.5 block">Teléfono (10 dígitos) *</label>
             <TextInput
               value={formCustomerPhone}
-              onChange={(e) => setFormField('formCustomerPhone', e.target.value)}
-              placeholder="55 1234 5678"
+              onChange={(e) => setFormField('formCustomerPhone', formatPhoneInput(e.target.value))}
+              placeholder="99 1234 5678"
               type="tel"
+              maxLength={12}
               disabled={bookingLoading}
-              className="w-full"
+              className="w-full font-mono"
             />
+            {formCustomerPhone && cleanPhoneDigits(formCustomerPhone).length > 0 && cleanPhoneDigits(formCustomerPhone).length < 10 && (
+              <span className="text-[11px] text-error mt-1 block font-medium">
+                Faltan {10 - cleanPhoneDigits(formCustomerPhone).length} dígitos para completar los 10 dígitos.
+              </span>
+            )}
           </div>
           <div>
             <label className="text-xs font-medium text-base-content/70 mb-1.5 block">Correo Electrónico (Opcional)</label>
@@ -267,12 +281,12 @@ export const AppointmentForm: React.FC = () => {
         </Flex>
 
         <div>
-          <label className="text-xs font-medium text-base-content/70 mb-1.5 block">Placas o Serie (Últimos 4) *</label>
+          <label className="text-xs font-medium text-base-content/70 mb-1.5 block">Placas o Serie (Últimos 4 - Opcional)</label>
           <TextInput
             value={formSerialNumberLastFour}
-            onChange={(e) => setFormField('formSerialNumberLastFour', e.target.value.toUpperCase().slice(0, 8))}
-            placeholder="Ej. 1234 o PLACAS"
-            maxLength={8}
+            onChange={(e) => setFormField('formSerialNumberLastFour', e.target.value.toUpperCase().slice(0, 4))}
+            placeholder="Ej. 1234 (Opcional)"
+            maxLength={4}
             disabled={bookingLoading}
             className="w-full font-mono"
           />
@@ -360,27 +374,43 @@ export const AppointmentForm: React.FC = () => {
         </div>
 
         <div>
-          <label className="text-xs font-medium text-base-content/70 mb-1.5 block">Notas / Síntomas</label>
+          <label className="text-xs font-medium text-base-content/70 mb-1.5 block">Notas de la Cita / Motivo o Síntomas</label>
           <Textarea
             value={formNotes}
             onChange={(e) => setFormField('formNotes', e.target.value)}
-            placeholder="Describe alguna falla o nota especial..."
+            placeholder="Ej. Mi vehículo hace un ruido al frenar... Siento que pierde potencia"
             disabled={bookingLoading}
             rows={2}
             className="w-full text-xs"
           />
+          <span className="text-[11px] text-base-content/50 mt-1 block">
+            Describe el motivo de la cita, peticiones o síntomas que presenta el vehículo.
+          </span>
         </div>
       </Box>
 
-      <PrimaryButton
-        type="submit"
-        size="md"
-        loading={bookingLoading}
-        disabled={bookingLoading || occupiedSlotsLoading || !formSelectedTime}
-        className="w-full mt-2 font-bold"
-      >
-        Confirmar Solicitud
-      </PrimaryButton>
+      <Flex justify="end" gap="sm" className="mt-4 pt-2 border-t border-base-300">
+        {onCancel && (
+          <SecondaryButton
+            type="button"
+            size="md"
+            onClick={onCancel}
+            disabled={bookingLoading}
+            className="flex-1"
+          >
+            Cancelar <KbdBadge keys="Esc" className="ml-1.5" />
+          </SecondaryButton>
+        )}
+        <PrimaryButton
+          type="submit"
+          size="md"
+          loading={bookingLoading}
+          disabled={bookingLoading || occupiedSlotsLoading || !formSelectedTime}
+          className={onCancel ? "flex-1 font-bold" : "w-full font-bold"}
+        >
+          Confirmar Solicitud <KbdBadge keys="Enter ↵" className="ml-1.5" />
+        </PrimaryButton>
+      </Flex>
     </form>
   );
 };

@@ -10,6 +10,7 @@ import {
   PrimaryButton,
   SecondaryButton,
   Icon,
+  KbdBadge,
 } from '@/app/presentation/components';
 import type { SpecialOrder, CancelSpecialOrderPayload } from '@/app/domain';
 
@@ -71,7 +72,7 @@ export const CancelSpecialOrderModal: React.FC<CancelSpecialOrderModalProps> = (
       footer={
         <Flex justify="between" align="center" className="w-full">
           <SecondaryButton type="button" onClick={onClose} disabled={isSubmitting}>
-            Volver
+            Volver <KbdBadge keys="Esc" className="ml-1.5" />
           </SecondaryButton>
           <PrimaryButton
             type="submit"
@@ -84,7 +85,7 @@ export const CancelSpecialOrderModal: React.FC<CancelSpecialOrderModalProps> = (
             ) : (
               <Icon name="XCircle" size="sm" />
             )}
-            Confirmar Cancelación
+            Confirmar Cancelación <KbdBadge keys="Enter ↵" className="ml-1.5" />
           </PrimaryButton>
         </Flex>
       }

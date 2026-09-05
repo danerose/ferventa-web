@@ -9,6 +9,7 @@ import {
   Text,
   TextInput,
   Textarea,
+  KbdBadge,
 } from '@/app/presentation/components';
 import { STATUS_LABELS, STATUS_STYLES } from '@/core/constants';
 import type { AdminAppointment } from '@/app/domain';
@@ -22,7 +23,7 @@ export interface AppointmentDetailDrawerProps {
   onCompleteClick: (appt: AdminAppointment) => void;
   onCheckInClick?: (
     appt: AdminAppointment,
-    checkInData?: { serviceRequested?: string; laborCost?: number; notes?: string }
+    checkInData?: { serviceRequested?: string; laborCost?: number; receptionNotes?: string; notes?: string }
   ) => Promise<void> | void;
   onRescheduleApprovedClick: (appt: AdminAppointment) => void;
   onCancelClick: (appt: AdminAppointment) => void;
@@ -57,19 +58,28 @@ export const AppointmentDetailDrawer: React.FC<AppointmentDetailDrawerProps> = (
   onRescheduleApprovedClick,
   onCancelClick,
 }) => {
-  const [serviceRequested, setServiceRequested] = useState('');
   const [laborCost, setLaborCost] = useState<number | ''>(0);
-  const [notes, setNotes] = useState('');
+  const [receptionNotes, setReceptionNotes] = useState('');
   const [isReceiving, setIsReceiving] = useState(false);
 
   useEffect(() => {
     if (appt) {
-      setServiceRequested(appt.serviceRequested || '');
       setLaborCost(0);
-      setNotes(appt.notes || '');
+      setReceptionNotes(appt.receptionNotes || '');
       setIsReceiving(false);
     }
   }, [appt]);
+
+  useEffect(() => {
+    if (!appt) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' || e.key === 'Esc') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [appt, onClose]);
 
   if (!appt) return null;
 
@@ -94,13 +104,17 @@ export const AppointmentDetailDrawer: React.FC<AppointmentDetailDrawerProps> = (
               Información rápida
             </span>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-1 rounded-lg hover:bg-base-300/50 text-base-content/60 hover:text-base-content cursor-pointer transition-colors"
-          >
-            <Icon name="X" size="md" />
-          </button>
+          <div className="flex items-center gap-2">
+            <KbdBadge keys="Esc" className="opacity-70 text-[10px]" />
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-1 rounded-lg hover:bg-base-300/50 text-base-content/60 hover:text-base-content cursor-pointer transition-colors"
+              title="Cerrar (Esc)"
+            >
+              <Icon name="X" size="md" />
+            </button>
+          </div>
         </div>
 
         {/* Sidebar Body */}
@@ -156,7 +170,7 @@ export const AppointmentDetailDrawer: React.FC<AppointmentDetailDrawerProps> = (
                   <span className="text-[11px] font-bold text-base-content/60 uppercase tracking-wider block">
                     Teléfono
                   </span>
-                  <span className="text-sm font-semibold text-base-content">
+                  <span className="text-sm font-semibold text-base-content font-mono">
                     {appt.customerPhone}
                   </span>
                 </div>
@@ -203,28 +217,52 @@ export const AppointmentDetailDrawer: React.FC<AppointmentDetailDrawerProps> = (
               </div>
             </div>
 
+            {/* Motivo de la Cita (notes) si fue capturado al agendar */}
+            {appt.notes && (
+              <div className="flex gap-3 items-start p-3 bg-base-200/40 border border-base-300 rounded-lg">
+                <div className="w-7 h-7 rounded-lg bg-base-200 border border-base-300 flex items-center justify-center text-primary shrink-0 mt-0.5">
+                  <Icon name="FileText" size="xs" />
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold text-base-content/60 uppercase tracking-wider block">
+                    Motivo / Notas de la Cita
+                  </span>
+                  <p className="text-xs italic text-base-content/80 m-0 leading-relaxed mt-0.5">
+                    "{appt.notes}"
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* If appointment is approved, show the Reception / Check-in Form section */}
             {appt.status === 'approved' ? (
               <Box className="border-t border-base-300 pt-5">
                 <Flex align="center" gap="xs" className="mb-3">
-                  <Icon name="FileText" size="xs" className="text-primary" />
+                  <Icon name="Wrench" size="xs" className="text-primary" />
                   <Text size="xs" weight="bold" className="uppercase tracking-wider text-base-content">
-                    Motivo de Ingreso y Servicio
+                    Recepción Física del Vehículo (Check In)
                   </Text>
                 </Flex>
 
                 <Stack gap="md">
+                  {/* Servicio Solicitado (Read-only) */}
                   <Box>
                     <Text size="xs" weight="semibold" className="text-base-content/70 mb-1.5 block">
-                      Servicio Solicitado / Falla reportada *
+                      Servicio Solicitado
                     </Text>
-                    <Textarea
-                      value={serviceRequested}
-                      onChange={(e) => setServiceRequested(e.target.value)}
-                      placeholder="Ej. Revisión de frenos, afinación completa y cambio de balatas delanteras"
-                      rows={2}
-                      className="w-full text-sm"
-                    />
+                    <div className="flex gap-3 items-center p-3 bg-base-200/60 border border-base-300 rounded-lg">
+                      <div className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shrink-0">
+                        <Icon name="Wrench" size="sm" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <span className="text-sm font-bold text-base-content block truncate">
+                          {appt.serviceRequested || 'Mantenimiento General'}
+                        </span>
+                        <span className="text-[11px] text-base-content/50 block">
+                          Servicio seleccionado al agendar la cita
+                        </span>
+                      </div>
+                    </div>
                   </Box>
 
                   <Box>
@@ -243,15 +281,18 @@ export const AppointmentDetailDrawer: React.FC<AppointmentDetailDrawerProps> = (
 
                   <Box>
                     <Text size="xs" weight="semibold" className="text-base-content/70 mb-1.5 block">
-                      Notas de Recepción / Pertenencias
+                      Notas de Recepción / Inventario Físico
                     </Text>
-                    <TextInput
-                      value={notes}
-                      onChange={(e) => setNotes(e.target.value)}
-                      placeholder="Ej. Deja casco, tanque a 1/2, rechinido al frenar"
-                      size="sm"
+                    <Textarea
+                      value={receptionNotes}
+                      onChange={(e) => setReceptionNotes(e.target.value)}
+                      placeholder="Ej. Deja llaves, 1/2 tanque de gasolina, gato hidráulico, rayón leve en puerta..."
+                      rows={2}
                       className="w-full text-sm"
                     />
+                    <span className="text-[11px] text-base-content/50 mt-1 block">
+                      Registra pertenencias, inventario y estado físico del vehículo al recibirlo en taller.
+                    </span>
                   </Box>
                 </Stack>
               </Box>
@@ -272,18 +313,18 @@ export const AppointmentDetailDrawer: React.FC<AppointmentDetailDrawerProps> = (
                   </div>
                 </div>
 
-                {/* Notes */}
-                {appt.notes && (
-                  <div className="flex gap-3 items-start">
-                    <div className="w-8 h-8 rounded-lg bg-base-200 border border-base-300 flex items-center justify-center text-primary shrink-0">
-                      <Icon name="FileText" size="sm" />
+                {/* Reception Notes if available */}
+                {appt.receptionNotes && (
+                  <div className="flex gap-3 items-start p-3 bg-base-200/40 border border-base-300 rounded-lg">
+                    <div className="w-7 h-7 rounded-lg bg-base-200 border border-base-300 flex items-center justify-center text-secondary shrink-0 mt-0.5">
+                      <Icon name="Key" size="xs" />
                     </div>
                     <div>
-                      <span className="text-[11px] font-bold text-base-content/60 uppercase tracking-wider block">
-                        Notas
+                      <span className="text-[10px] font-bold text-base-content/60 uppercase tracking-wider block">
+                        Notas de Recepción (Inventario / Gasolina / Llaves)
                       </span>
-                      <p className="text-xs italic text-base-content/70 m-0 leading-relaxed">
-                        "{appt.notes}"
+                      <p className="text-xs italic text-base-content/80 m-0 leading-relaxed mt-0.5">
+                        "{appt.receptionNotes}"
                       </p>
                     </div>
                   </div>
@@ -292,6 +333,7 @@ export const AppointmentDetailDrawer: React.FC<AppointmentDetailDrawerProps> = (
             )}
           </div>
         </div>
+
 
         {/* Sidebar Footer Actions */}
         <div className="p-5 border-t border-base-300 bg-base-200/50 flex flex-col gap-2">
@@ -345,9 +387,10 @@ export const AppointmentDetailDrawer: React.FC<AppointmentDetailDrawerProps> = (
                   try {
                     if (onCheckInClick) {
                       await onCheckInClick(appt, {
-                        serviceRequested: serviceRequested.trim() || appt.serviceRequested,
+                        serviceRequested: appt.serviceRequested,
                         laborCost: Number(laborCost) || 0,
-                        notes: notes.trim(),
+                        receptionNotes: receptionNotes.trim(),
+                        notes: appt.notes,
                       });
                     } else {
                       onCompleteClick(appt);
@@ -362,12 +405,12 @@ export const AppointmentDetailDrawer: React.FC<AppointmentDetailDrawerProps> = (
                 {isReceiving ? (
                   <Flex align="center" justify="center" gap="xs">
                     <Icon name="RefreshCw" size="xs" className="animate-spin" />
-                    <Text size="sm" className="font-bold">Recibiendo vehículo...</Text>
+                    <span className="text-sm font-bold">Recibiendo vehículo...</span>
                   </Flex>
                 ) : (
                   <Flex align="center" justify="center" gap="xs">
                     <Icon name="Wrench" size="xs" />
-                    <Text size="sm" className="font-bold">Recibir Vehículo (Check in)</Text>
+                    <span className="text-sm font-bold">Recibir Vehículo (Check In)</span>
                   </Flex>
                 )}
               </PrimaryButton>

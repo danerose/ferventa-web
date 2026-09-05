@@ -23,7 +23,12 @@ export const AddAppointmentModal: React.FC<AddAppointmentModalProps> = ({
       title="Nueva Cita"
       maxWidth="600px"
     >
-      <AppointmentForm />
+      <AppointmentForm
+        onCancel={() => {
+          onClose();
+          onSuccess();
+        }}
+      />
     </Modal>
   );
 };
