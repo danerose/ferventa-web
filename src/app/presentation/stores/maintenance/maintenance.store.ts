@@ -88,7 +88,7 @@ export const useMaintenanceStore = create<MaintenanceState>((set, get) => ({
     try {
       const data = await adminRepo.getMaintenances(accessToken, {
         scope,
-        status: currentFilters.status !== 'all' ? currentFilters.status : undefined,
+        status: scope === 'history' && currentFilters.status !== 'all' ? currentFilters.status : undefined,
         search: currentFilters.search.trim() || undefined,
         from: currentFilters.from || undefined,
         to: currentFilters.to || undefined,

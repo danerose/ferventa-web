@@ -258,7 +258,11 @@ export const MaintenanceManagementPage: React.FC = () => {
   };
 
   const sortedMaintenances = useMemo(() => {
-    return [...maintenances].sort((a, b) => {
+    let list = maintenances;
+    if (filters.status && filters.status !== 'all') {
+      list = list.filter((m) => m.status === filters.status);
+    }
+    return [...list].sort((a, b) => {
       const weightA = STATUS_WORKFLOW_ORDER[a.status] || 99;
       const weightB = STATUS_WORKFLOW_ORDER[b.status] || 99;
       if (weightA !== weightB) {
@@ -268,7 +272,7 @@ export const MaintenanceManagementPage: React.FC = () => {
       const timeB = new Date(b.receptionDate || b.createdAt || 0).getTime();
       return timeB - timeA;
     });
-  }, [maintenances]);
+  }, [maintenances, filters.status]);
 
   // Formatter for intake dates
   const formatIntakeDate = (dateStr?: string) => {
@@ -594,7 +598,7 @@ export const MaintenanceManagementPage: React.FC = () => {
               </PrimaryButton>
             </Flex>
           </Box>
-        ) : maintenances.length === 0 ? (
+        ) : sortedMaintenances.length === 0 ? (
           <Box bg="base-100" rounded="DEFAULT" className="border border-base-300 p-12 text-center">
             <Box className="w-14 h-14 rounded-full bg-base-200 flex items-center justify-center mx-auto mb-3 text-base-content/40">
               <Icon name="Wrench" size="lg" />
@@ -605,6 +609,8 @@ export const MaintenanceManagementPage: React.FC = () => {
             <Text size="sm" variant="muted" className="max-w-sm mx-auto">
               {filters.search
                 ? `No se encontraron mantenimientos para "${filters.search}"`
+                : filters.status && filters.status !== 'all'
+                ? `No hay órdenes en estado "${SERVICE_STATUS_LABELS[filters.status as ServiceStatus] || filters.status}".`
                 : activeScope === 'delivered_recent'
                 ? 'No hay vehículos entregados recientemente en esta semana.'
                 : activeScope === 'history'
