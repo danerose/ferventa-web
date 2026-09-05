@@ -204,9 +204,10 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onLogout
       setLoading(true);
       setError(null);
       try {
+        const querySearch = typeof search === 'string' ? search : searchValue;
         const data = await adminRepo.getAppointments(accessToken, {
           status: statusFilter,
-          search: search ?? searchValue,
+          search: querySearch.trim() || undefined,
         });
         setAppointments(data);
       } catch (err: unknown) {
@@ -223,23 +224,28 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onLogout
     [accessToken, statusFilter, searchValue, handleUnauthorized, setAppointments, setError, setLoading]
   );
 
-  // Fetch on filter change
+  // Fetch when statusFilter or viewType changes
   useEffect(() => {
     if (viewType === 'list') {
       fetchAppointments(searchValue);
     }
-  }, [statusFilter, viewType, fetchAppointments, searchValue]);
+  }, [statusFilter, viewType]);
 
-  // Debounced search
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value;
-    setSearchValue(val);
-    if (viewType === 'list') {
+  // Debounced search when searchValue changes
+  useEffect(() => {
+    if (viewType !== 'list') return;
+    if (searchTimeout.current) clearTimeout(searchTimeout.current);
+    searchTimeout.current = setTimeout(() => {
+      fetchAppointments(searchValue);
+    }, 350);
+    return () => {
       if (searchTimeout.current) clearTimeout(searchTimeout.current);
-      searchTimeout.current = setTimeout(() => {
-        fetchAppointments(val);
-      }, 400);
-    }
+    };
+  }, [searchValue]);
+
+  // Debounced search input handler
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchValue(e.target.value);
   };
 
   const getUTCMonday = (d: Date) => {

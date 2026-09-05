@@ -109,7 +109,17 @@ export const useAdminDashboardStore = create<AdminDashboardState>((set) => ({
   selectedTimelineAppt: null,
 
   // Actions
-  setAppointments: (appointments) => set({ appointments }),
+  setAppointments: (appointments) => {
+    const seen = new Set<string>();
+    const unique = appointments.filter((a) => {
+      const id = a.id;
+      if (!id) return true;
+      if (seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    });
+    set({ appointments: unique });
+  },
   setLoading: (loading) => set({ loading }),
   setError: (error) => set({ error }),
   setStatusFilter: (statusFilter) => set({ statusFilter }),
@@ -148,7 +158,17 @@ export const useAdminDashboardStore = create<AdminDashboardState>((set) => ({
   setOccupiedSlots: (occupiedSlots) => set({ occupiedSlots }),
   setOccupiedLoading: (occupiedLoading) => set({ occupiedLoading }),
   setViewType: (viewType) => set({ viewType }),
-  setTimelineAppointments: (timelineAppointments) => set({ timelineAppointments }),
+  setTimelineAppointments: (timelineAppointments) => {
+    const seen = new Set<string>();
+    const unique = timelineAppointments.filter((a) => {
+      const id = a.id;
+      if (!id) return true;
+      if (seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    });
+    set({ timelineAppointments: unique });
+  },
   setTimelineLoading: (timelineLoading) => set({ timelineLoading }),
   setCurrentWeekRefDate: (currentWeekRefDate) =>
     set((state) => ({

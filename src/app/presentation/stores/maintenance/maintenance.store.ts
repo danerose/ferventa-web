@@ -5,6 +5,8 @@ import type { MaintenanceStage } from '@/core/enums';
 
 const adminRepo = new APIAdminRepository();
 
+import { getWeekMondayAndSaturday, toLocalYYYYMMDD } from '@/core/utils';
+
 export type MaintenanceScope = 'active' | 'delivered_recent' | 'history';
 type MaintenanceOrderStatus = AdminMaintenanceOrder['status'];
 
@@ -20,6 +22,7 @@ interface MaintenanceState {
   maintenances: AdminMaintenanceOrder[];
   selectedOrder: AdminMaintenanceOrder | null;
   activeScope: MaintenanceScope;
+  weekRefDate: Date;
   filters: MaintenanceFilterState;
   loading: boolean;
   updatingId: string | null;
@@ -29,10 +32,11 @@ interface MaintenanceState {
   error: string | null;
 
   setActiveScope: (scope: MaintenanceScope) => void;
+  setWeekRefDate: (date: Date | ((prev: Date) => Date)) => void;
   setSelectedOrder: (order: AdminMaintenanceOrder | null) => void;
   setFilter: (key: keyof MaintenanceFilterState, value: string) => void;
   resetFilters: () => void;
-  fetchMaintenances: (accessToken: string, scope?: MaintenanceScope, customFilters?: Partial<MaintenanceFilterState>) => Promise<void>;
+  fetchMaintenances: (accessToken: string, scope?: MaintenanceScope, customFilters?: Partial<MaintenanceFilterState>, refDateOverride?: Date) => Promise<void>;
   updateMaintenanceStatus: (accessToken: string, id: string, status: MaintenanceOrderStatus) => Promise<boolean>;
   updateMaintenanceLaborCost: (accessToken: string, id: string, laborCost: number) => Promise<boolean>;
   addDiagnosticNote: (accessToken: string, id: string, note: string) => Promise<boolean>;
@@ -60,6 +64,7 @@ export const useMaintenanceStore = create<MaintenanceState>((set, get) => ({
   maintenances: [],
   selectedOrder: null,
   activeScope: 'active',
+  weekRefDate: new Date(),
   filters: defaultFilters,
   loading: false,
   updatingId: null,
@@ -70,6 +75,11 @@ export const useMaintenanceStore = create<MaintenanceState>((set, get) => ({
 
   setActiveScope: (scope: MaintenanceScope) => set({ activeScope: scope }),
 
+  setWeekRefDate: (date) =>
+    set((state) => ({
+      weekRefDate: typeof date === 'function' ? date(state.weekRefDate) : date,
+    })),
+
   setSelectedOrder: (order: AdminMaintenanceOrder | null) => set({ selectedOrder: order }),
 
   setFilter: (key, value) =>
@@ -79,28 +89,55 @@ export const useMaintenanceStore = create<MaintenanceState>((set, get) => ({
 
   resetFilters: () => set({ filters: defaultFilters }),
 
-  fetchMaintenances: async (accessToken: string, scopeOverride?: MaintenanceScope, customFilters?: Partial<MaintenanceFilterState>) => {
+  fetchMaintenances: async (
+    accessToken: string,
+    scopeOverride?: MaintenanceScope,
+    customFilters?: Partial<MaintenanceFilterState>,
+    refDateOverride?: Date
+  ) => {
     if (!accessToken) return;
     const scope = scopeOverride || get().activeScope;
     const currentFilters = { ...get().filters, ...(customFilters || {}) };
+    const refDate = refDateOverride || get().weekRefDate;
 
     set({ loading: true, error: null });
     try {
+      let fromParam = currentFilters.from || undefined;
+      let toParam = currentFilters.to || undefined;
+      let dateFieldParam = currentFilters.dateField || undefined;
+
+      if (scope === 'active' || scope === 'delivered_recent') {
+        const { monday, saturday } = getWeekMondayAndSaturday(refDate);
+        fromParam = toLocalYYYYMMDD(monday);
+        toParam = toLocalYYYYMMDD(saturday);
+        dateFieldParam = scope === 'active' ? 'receptionDate' : 'deliveredAt';
+      }
+
       const data = await adminRepo.getMaintenances(accessToken, {
         scope,
         status: scope === 'history' && currentFilters.status !== 'all' ? currentFilters.status : undefined,
         search: currentFilters.search.trim() || undefined,
-        from: currentFilters.from || undefined,
-        to: currentFilters.to || undefined,
-        dateField: currentFilters.dateField || undefined,
+        from: fromParam,
+        to: toParam,
+        dateField: dateFieldParam,
       });
 
-      set({ maintenances: data, loading: false });
+      // Deduplicate by ID
+      const seen = new Set<string>();
+      const uniqueData = data.filter((item) => {
+        const id = item.id;
+        if (!id) return true;
+        if (seen.has(id)) return false;
+        seen.add(id);
+        return true;
+      });
+
+      set({ maintenances: uniqueData, loading: false });
 
       // If a selected order is currently open, refresh its data
       const currentSelected = get().selectedOrder;
       if (currentSelected) {
-        const refreshed = data.find((o) => o.id === currentSelected.id);
+        const refreshed = uniqueData.find((o) => o.id === currentSelected.id);
         if (refreshed) {
           set({ selectedOrder: refreshed });
         }

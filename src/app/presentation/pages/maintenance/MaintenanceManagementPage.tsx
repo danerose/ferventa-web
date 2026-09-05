@@ -30,6 +30,7 @@ import {
   SERVICE_STATUS_LABELS,
   MODULE_THEMES,
 } from '@/core';
+import { getWeekMondayAndSaturday, formatWeekRangeLabel } from '@/core/utils';
 
 const STATUS_OPTIONS = [
   { value: ServiceStatus.NotStarted, label: SERVICE_STATUS_LABELS[ServiceStatus.NotStarted] },
@@ -57,11 +58,13 @@ export const MaintenanceManagementPage: React.FC = () => {
     maintenances,
     selectedOrder,
     activeScope,
+    weekRefDate,
     filters,
     loading,
     updatingId,
     error,
     setActiveScope,
+    setWeekRefDate,
     setSelectedOrder,
     setFilter,
     resetFilters,
@@ -88,21 +91,29 @@ export const MaintenanceManagementPage: React.FC = () => {
     setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 3500);
   }, []);
 
+  // Compute current week bounds (Monday 00:00:00 to Saturday 23:59:59)
+  const { monday, saturday } = useMemo(() => getWeekMondayAndSaturday(weekRefDate), [weekRefDate]);
+  const weekLabel = useMemo(() => formatWeekRangeLabel(monday, saturday), [monday, saturday]);
+  const isCurrentWeek = useMemo(() => {
+    const current = getWeekMondayAndSaturday(new Date());
+    return current.monday.getTime() === monday.getTime();
+  }, [monday]);
+
   // Load initial data and users
   useEffect(() => {
     if (!accessToken) return;
-    fetchMaintenances(accessToken, activeScope);
+    fetchMaintenances(accessToken, activeScope, undefined, weekRefDate);
     userRepository.getUsers(accessToken).then(setUsersList).catch(() => {});
-  }, [accessToken, activeScope, fetchMaintenances]);
+  }, [accessToken, activeScope, weekRefDate, fetchMaintenances]);
 
   // Debounced search / filter reload
   useEffect(() => {
     if (!accessToken) return;
     const timer = setTimeout(() => {
-      fetchMaintenances(accessToken, activeScope);
+      fetchMaintenances(accessToken, activeScope, undefined, weekRefDate);
     }, 300);
     return () => clearTimeout(timer);
-  }, [accessToken, activeScope, filters.search, filters.status, filters.from, filters.to, filters.dateField, fetchMaintenances]);
+  }, [accessToken, activeScope, weekRefDate, filters.search, filters.status, filters.from, filters.to, filters.dateField, fetchMaintenances]);
 
   // Global Keyboard shortcuts: Alt+W (Direct Reception), Alt+R (Refresh)
   useEffect(() => {
@@ -230,24 +241,37 @@ export const MaintenanceManagementPage: React.FC = () => {
     }
   };
 
-  // Status statistics calculation
+  // Status statistics calculation (scoped by week when in active or delivered_recent)
   const stats = useMemo(() => {
-    const active = maintenances.filter(
-      (m) => m.status !== 'awaiting_appointment' && m.status !== ServiceStatus.Delivered
-    );
-    const notStarted = active.filter((m) => m.status === ServiceStatus.NotStarted).length;
-    const inProgress = active.filter((m) => m.status === ServiceStatus.InProgress).length;
-    const completed = active.filter((m) => m.status === ServiceStatus.Completed).length;
-    const delivered = maintenances.filter((m) => m.status === ServiceStatus.Delivered).length;
+    let baseList = maintenances;
+
+    if (activeScope === 'active') {
+      baseList = maintenances.filter((m) => {
+        if (m.status === 'awaiting_appointment' || m.status === ServiceStatus.Delivered) return false;
+        const rTime = new Date(m.receptionDate || m.createdAt || 0).getTime();
+        return rTime >= monday.getTime() && rTime <= saturday.getTime();
+      });
+    } else if (activeScope === 'delivered_recent') {
+      baseList = maintenances.filter((m) => {
+        if (m.status !== ServiceStatus.Delivered) return false;
+        const dTime = new Date(m.deliveredAt || m.completedAt || m.receptionDate || m.createdAt || 0).getTime();
+        return dTime >= monday.getTime() && dTime <= saturday.getTime();
+      });
+    }
+
+    const notStarted = baseList.filter((m) => m.status === ServiceStatus.NotStarted).length;
+    const inProgress = baseList.filter((m) => m.status === ServiceStatus.InProgress).length;
+    const completed = baseList.filter((m) => m.status === ServiceStatus.Completed).length;
+    const delivered = (activeScope === 'history' ? maintenances : baseList).filter((m) => m.status === ServiceStatus.Delivered).length;
 
     return {
-      total: active.length,
+      total: activeScope === 'history' ? maintenances.length : (activeScope === 'delivered_recent' ? delivered : notStarted + inProgress + completed),
       notStarted,
       inProgress,
       completed,
       delivered,
     };
-  }, [maintenances]);
+  }, [maintenances, activeScope, monday, saturday]);
 
   // Order workflow sorting: NotStarted -> InProgress -> Completed -> Delivered
   const STATUS_WORKFLOW_ORDER: Record<string, number> = {
@@ -259,9 +283,25 @@ export const MaintenanceManagementPage: React.FC = () => {
 
   const sortedMaintenances = useMemo(() => {
     let list = maintenances;
+
+    if (activeScope === 'active') {
+      list = list.filter((m) => {
+        if (m.status === 'awaiting_appointment' || m.status === ServiceStatus.Delivered) return false;
+        const rTime = new Date(m.receptionDate || m.createdAt || 0).getTime();
+        return rTime >= monday.getTime() && rTime <= saturday.getTime();
+      });
+    } else if (activeScope === 'delivered_recent') {
+      list = list.filter((m) => {
+        if (m.status !== ServiceStatus.Delivered) return false;
+        const dTime = new Date(m.deliveredAt || m.completedAt || m.receptionDate || m.createdAt || 0).getTime();
+        return dTime >= monday.getTime() && dTime <= saturday.getTime();
+      });
+    }
+
     if (filters.status && filters.status !== 'all') {
       list = list.filter((m) => m.status === filters.status);
     }
+
     return [...list].sort((a, b) => {
       const weightA = STATUS_WORKFLOW_ORDER[a.status] || 99;
       const weightB = STATUS_WORKFLOW_ORDER[b.status] || 99;
@@ -272,7 +312,7 @@ export const MaintenanceManagementPage: React.FC = () => {
       const timeB = new Date(b.receptionDate || b.createdAt || 0).getTime();
       return timeB - timeA;
     });
-  }, [maintenances, filters.status]);
+  }, [maintenances, activeScope, monday, saturday, filters.status]);
 
   // Formatter for intake dates
   const formatIntakeDate = (dateStr?: string) => {
@@ -392,9 +432,66 @@ export const MaintenanceManagementPage: React.FC = () => {
           </Box>
         </Flex>
 
+        {/* Weekly Navigator Bar (Only for active & delivered_recent tabs) */}
+        {activeScope !== 'history' && (
+          <Flex align="center" justify="between" className="bg-base-100 p-3 rounded-DEFAULT border border-base-300 shadow-xs flex-wrap gap-2">
+            <Flex align="center" gap="sm">
+              <Box className="w-8 h-8 rounded-DEFAULT bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                <Icon name="Calendar" size="xs" />
+              </Box>
+              <Box>
+                <Text size="xs" variant="muted" weight="bold" className="uppercase tracking-wider">
+                  {activeScope === 'active' ? 'Semana de Recepción (Lun – Sáb)' : 'Semana de Entrega (Lun – Sáb)'}
+                </Text>
+                <Text size="sm" weight="bold" className="capitalize">
+                  {weekLabel} {isCurrentWeek ? '(Esta semana)' : ''}
+                </Text>
+              </Box>
+            </Flex>
+
+            <Flex align="center" gap="xs">
+              <SecondaryButton
+                size="xs"
+                onClick={() => {
+                  const prev = new Date(weekRefDate);
+                  prev.setDate(prev.getDate() - 7);
+                  setWeekRefDate(prev);
+                }}
+                iconStart={<Icon name="ChevronLeft" size="xs" />}
+              >
+                Semana anterior
+              </SecondaryButton>
+
+              {!isCurrentWeek && (
+                <TertiaryButton
+                  size="xs"
+                  onClick={() => {
+                    const now = new Date();
+                    setWeekRefDate(now);
+                  }}
+                >
+                  Esta semana
+                </TertiaryButton>
+              )}
+
+              <SecondaryButton
+                size="xs"
+                onClick={() => {
+                  const next = new Date(weekRefDate);
+                  next.setDate(next.getDate() + 7);
+                  setWeekRefDate(next);
+                }}
+                iconEnd={<Icon name="ChevronRight" size="xs" />}
+              >
+                Semana siguiente
+              </SecondaryButton>
+            </Flex>
+          </Flex>
+        )}
+
         {/* KPI Stats Grid - Interactive Filter Cards */}
-        <Grid cols={{ base: 1, sm: 2, lg: 4 }} gap="md">
-          {/* Total Vehiculos Activos */}
+        <Grid cols={{ base: 1, sm: 2, lg: activeScope === 'history' ? 5 : activeScope === 'active' ? 4 : 2 }} gap="md">
+          {/* Total Vehiculos / Todas las Ordenes */}
           <Box
             as="button"
             type="button"
@@ -404,7 +501,7 @@ export const MaintenanceManagementPage: React.FC = () => {
                 ? 'bg-primary/5 border-primary ring-2 ring-primary/40 shadow-sm'
                 : 'bg-base-100 border-base-300 hover:border-primary/50 hover:bg-base-200/40'
             }`}
-            title="Ver todos los vehículos activos"
+            title="Ver todos los vehículos"
           >
             <Flex align="center" gap="md">
               <Box className="w-11 h-11 rounded-DEFAULT bg-primary/10 text-primary flex items-center justify-center shrink-0">
@@ -412,7 +509,11 @@ export const MaintenanceManagementPage: React.FC = () => {
               </Box>
               <Box>
                 <Text size="xs" weight="bold" variant="muted" className="uppercase tracking-wider">
-                  {activeScope === 'history' ? 'Todas las Órdenes' : 'Vehículos Activos'}
+                  {activeScope === 'history'
+                    ? 'Todas las Órdenes'
+                    : activeScope === 'delivered_recent'
+                    ? 'Entregados Esta Semana'
+                    : 'Vehículos Activos'}
                 </Text>
                 <Heading level={3} className="text-2xl font-black tracking-tight mt-0.5">
                   {activeScope === 'history' ? maintenances.length : stats.total}
@@ -421,86 +522,121 @@ export const MaintenanceManagementPage: React.FC = () => {
             </Flex>
           </Box>
 
-          {/* No Comenzado */}
-          <Box
-            as="button"
-            type="button"
-            onClick={() => setFilter('status', filters.status === ServiceStatus.NotStarted ? 'all' : ServiceStatus.NotStarted)}
-            className={`w-full text-left p-4 rounded-DEFAULT border transition-all cursor-pointer shadow-xs ${
-              filters.status === ServiceStatus.NotStarted
-                ? 'bg-base-200 border-base-content/50 ring-2 ring-base-content/30 shadow-sm'
-                : 'bg-base-100 border-base-300 hover:border-base-content/40 hover:bg-base-200/40'
-            }`}
-            title="Filtrar por No Comenzado"
-          >
-            <Flex align="center" gap="md">
-              <Box className="w-11 h-11 rounded-DEFAULT bg-base-200 text-base-content/70 flex items-center justify-center shrink-0">
-                <Icon name="Pause" size="md" />
-              </Box>
-              <Box>
-                <Text size="xs" weight="bold" variant="muted" className="uppercase tracking-wider">
-                  {SERVICE_STATUS_LABELS[ServiceStatus.NotStarted]}
-                </Text>
-                <Heading level={3} className="text-2xl font-black tracking-tight mt-0.5">
-                  {stats.notStarted}
-                </Heading>
-              </Box>
-            </Flex>
-          </Box>
+          {/* Active / History: No Comenzado */}
+          {activeScope !== 'delivered_recent' && (
+            <Box
+              as="button"
+              type="button"
+              onClick={() => setFilter('status', filters.status === ServiceStatus.NotStarted ? 'all' : ServiceStatus.NotStarted)}
+              className={`w-full text-left p-4 rounded-DEFAULT border transition-all cursor-pointer shadow-xs ${
+                filters.status === ServiceStatus.NotStarted
+                  ? 'bg-base-200 border-base-content/50 ring-2 ring-base-content/30 shadow-sm'
+                  : 'bg-base-100 border-base-300 hover:border-base-content/40 hover:bg-base-200/40'
+              }`}
+              title="Filtrar por No Comenzado"
+            >
+              <Flex align="center" gap="md">
+                <Box className="w-11 h-11 rounded-DEFAULT bg-base-200 text-base-content/70 flex items-center justify-center shrink-0">
+                  <Icon name="Pause" size="md" />
+                </Box>
+                <Box>
+                  <Text size="xs" weight="bold" variant="muted" className="uppercase tracking-wider">
+                    {SERVICE_STATUS_LABELS[ServiceStatus.NotStarted]}
+                  </Text>
+                  <Heading level={3} className="text-2xl font-black tracking-tight mt-0.5">
+                    {stats.notStarted}
+                  </Heading>
+                </Box>
+              </Flex>
+            </Box>
+          )}
 
-          {/* En Proceso */}
-          <Box
-            as="button"
-            type="button"
-            onClick={() => setFilter('status', filters.status === ServiceStatus.InProgress ? 'all' : ServiceStatus.InProgress)}
-            className={`w-full text-left p-4 rounded-DEFAULT border transition-all cursor-pointer shadow-xs ${
-              filters.status === ServiceStatus.InProgress
-                ? 'bg-warning/10 border-warning ring-2 ring-warning/40 shadow-sm'
-                : 'bg-base-100 border-base-300 hover:border-warning/50 hover:bg-warning/5'
-            }`}
-            title="Filtrar por En Proceso"
-          >
-            <Flex align="center" gap="md">
-              <Box className="w-11 h-11 rounded-DEFAULT bg-warning/10 text-warning flex items-center justify-center shrink-0">
-                <Icon name="Zap" size="md" />
-              </Box>
-              <Box>
-                <Text size="xs" weight="bold" className="text-warning uppercase tracking-wider">
-                  {SERVICE_STATUS_LABELS[ServiceStatus.InProgress]}
-                </Text>
-                <Heading level={3} className="text-2xl font-black tracking-tight text-warning mt-0.5">
-                  {stats.inProgress}
-                </Heading>
-              </Box>
-            </Flex>
-          </Box>
+          {/* Active / History: En Proceso */}
+          {activeScope !== 'delivered_recent' && (
+            <Box
+              as="button"
+              type="button"
+              onClick={() => setFilter('status', filters.status === ServiceStatus.InProgress ? 'all' : ServiceStatus.InProgress)}
+              className={`w-full text-left p-4 rounded-DEFAULT border transition-all cursor-pointer shadow-xs ${
+                filters.status === ServiceStatus.InProgress
+                  ? 'bg-warning/10 border-warning ring-2 ring-warning/40 shadow-sm'
+                  : 'bg-base-100 border-base-300 hover:border-warning/50 hover:bg-warning/5'
+              }`}
+              title="Filtrar por En Proceso"
+            >
+              <Flex align="center" gap="md">
+                <Box className="w-11 h-11 rounded-DEFAULT bg-warning/10 text-warning flex items-center justify-center shrink-0">
+                  <Icon name="Zap" size="md" />
+                </Box>
+                <Box>
+                  <Text size="xs" weight="bold" className="text-warning uppercase tracking-wider">
+                    {SERVICE_STATUS_LABELS[ServiceStatus.InProgress]}
+                  </Text>
+                  <Heading level={3} className="text-2xl font-black tracking-tight text-warning mt-0.5">
+                    {stats.inProgress}
+                  </Heading>
+                </Box>
+              </Flex>
+            </Box>
+          )}
 
-          {/* Terminado / Listos */}
-          <Box
-            as="button"
-            type="button"
-            onClick={() => setFilter('status', filters.status === ServiceStatus.Completed ? 'all' : ServiceStatus.Completed)}
-            className={`w-full text-left p-4 rounded-DEFAULT border transition-all cursor-pointer shadow-xs ${
-              filters.status === ServiceStatus.Completed
-                ? 'bg-success/10 border-success ring-2 ring-success/40 shadow-sm'
-                : 'bg-base-100 border-base-300 hover:border-success/50 hover:bg-success/5'
-            }`}
-            title="Filtrar por Terminado / Listos para entrega"
-          >
-            <Flex align="center" gap="md">
-              <Box className="w-11 h-11 rounded-DEFAULT bg-success/10 text-success flex items-center justify-center shrink-0">
-                <Icon name="CheckCircle" size="md" />
-              </Box>
-              <Box>
-                <Text size="xs" weight="bold" className="text-success uppercase tracking-wider">
-                  {SERVICE_STATUS_LABELS[ServiceStatus.Completed]}
-                </Text>
-                <Heading level={3} className="text-2xl font-black tracking-tight text-success mt-0.5">
-                  {stats.completed}
-                </Heading>
-              </Box>
-            </Flex>
-          </Box>
+          {/* Active / History: Terminado / Listos */}
+          {activeScope !== 'delivered_recent' && (
+            <Box
+              as="button"
+              type="button"
+              onClick={() => setFilter('status', filters.status === ServiceStatus.Completed ? 'all' : ServiceStatus.Completed)}
+              className={`w-full text-left p-4 rounded-DEFAULT border transition-all cursor-pointer shadow-xs ${
+                filters.status === ServiceStatus.Completed
+                  ? 'bg-success/10 border-success ring-2 ring-success/40 shadow-sm'
+                  : 'bg-base-100 border-base-300 hover:border-success/50 hover:bg-success/5'
+              }`}
+              title="Filtrar por Terminado / Listos para entrega"
+            >
+              <Flex align="center" gap="md">
+                <Box className="w-11 h-11 rounded-DEFAULT bg-success/10 text-success flex items-center justify-center shrink-0">
+                  <Icon name="CheckCircle" size="md" />
+                </Box>
+                <Box>
+                  <Text size="xs" weight="bold" className="text-success uppercase tracking-wider">
+                    {SERVICE_STATUS_LABELS[ServiceStatus.Completed]}
+                  </Text>
+                  <Heading level={3} className="text-2xl font-black tracking-tight text-success mt-0.5">
+                    {stats.completed}
+                  </Heading>
+                </Box>
+              </Flex>
+            </Box>
+          )}
+
+          {/* History Scope: Entregado Card */}
+          {activeScope === 'history' && (
+            <Box
+              as="button"
+              type="button"
+              onClick={() => setFilter('status', filters.status === ServiceStatus.Delivered ? 'all' : ServiceStatus.Delivered)}
+              className={`w-full text-left p-4 rounded-DEFAULT border transition-all cursor-pointer shadow-xs ${
+                filters.status === ServiceStatus.Delivered
+                  ? 'bg-info/10 border-info ring-2 ring-info/40 shadow-sm'
+                  : 'bg-base-100 border-base-300 hover:border-info/50 hover:bg-info/5'
+              }`}
+              title="Filtrar por Entregados al cliente"
+            >
+              <Flex align="center" gap="md">
+                <Box className="w-11 h-11 rounded-DEFAULT bg-info/10 text-info flex items-center justify-center shrink-0">
+                  <Icon name="Truck" size="md" />
+                </Box>
+                <Box>
+                  <Text size="xs" weight="bold" className="text-info uppercase tracking-wider">
+                    {SERVICE_STATUS_LABELS[ServiceStatus.Delivered]}
+                  </Text>
+                  <Heading level={3} className="text-2xl font-black tracking-tight text-info mt-0.5">
+                    {stats.delivered}
+                  </Heading>
+                </Box>
+              </Flex>
+            </Box>
+          )}
         </Grid>
 
         {/* History Scope Advanced Filters */}
@@ -612,10 +748,10 @@ export const MaintenanceManagementPage: React.FC = () => {
                 : filters.status && filters.status !== 'all'
                 ? `No hay órdenes en estado "${SERVICE_STATUS_LABELS[filters.status as ServiceStatus] || filters.status}".`
                 : activeScope === 'delivered_recent'
-                ? 'No hay vehículos entregados recientemente en esta semana.'
+                ? `No hay vehículos entregados en esta semana (${weekLabel}).`
                 : activeScope === 'history'
                 ? 'No hay órdenes en el historial para los filtros seleccionados.'
-                : 'No hay órdenes de mantenimiento activas en el taller.'}
+                : `No hay órdenes recibidas en esta semana (${weekLabel}).`}
             </Text>
           </Box>
         ) : (

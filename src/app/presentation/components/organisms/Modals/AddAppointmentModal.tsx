@@ -11,23 +11,17 @@ export interface AddAppointmentModalProps {
 export const AddAppointmentModal: React.FC<AddAppointmentModalProps> = ({
   isOpen,
   onClose,
-  onSuccess,
+  onSuccess: _onSuccess,
 }) => {
   return (
     <Modal
       isOpen={isOpen}
-      onClose={() => {
-        onClose();
-        onSuccess();
-      }}
+      onClose={onClose}
       title="Nueva Cita"
       maxWidth="600px"
     >
       <AppointmentForm
-        onCancel={() => {
-          onClose();
-          onSuccess();
-        }}
+        onCancel={onClose}
       />
     </Modal>
   );
