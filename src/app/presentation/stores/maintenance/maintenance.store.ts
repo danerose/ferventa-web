@@ -96,6 +96,7 @@ export const useMaintenanceStore = create<MaintenanceState>((set, get) => ({
     refDateOverride?: Date
   ) => {
     if (!accessToken) return;
+    if (get().loading) return;
     const scope = scopeOverride || get().activeScope;
     const currentFilters = { ...get().filters, ...(customFilters || {}) };
     const refDate = refDateOverride || get().weekRefDate;

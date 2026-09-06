@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Icon,
@@ -11,6 +11,7 @@ import {
   Checkbox,
   SearchableSelect,
   Modal,
+  MerchandiseReceptionDrawer,
   KbdBadge,
   Box,
   Flex,
@@ -22,7 +23,6 @@ import {
 } from '@/app/presentation/components';
 import { useAuthStore } from '@/app/presentation/stores';
 import { useInventoryStore } from '@/app/presentation/stores';
-import { useBarcodeScanner } from '@/core/hooks';
 import {
   inventoryRepository as inventoryRepo,
   adminRepository as adminRepo,
@@ -34,9 +34,14 @@ import type { Branch } from '@/app/domain';
 import type { PredefinedService, CreateServiceDto } from '@/app/domain';
 import { cn } from '@/core/utils/cn';
 
+import { useShallow } from 'zustand/react/shallow';
+
 export const InventoryPage: React.FC = () => {
   const navigate = useNavigate();
-  const { user, accessToken, activeBranchId, clearAuth } = useAuthStore();
+  const user = useAuthStore((s) => s.user);
+  const accessToken = useAuthStore((s) => s.accessToken);
+  const activeBranchId = useAuthStore((s) => s.activeBranchId);
+  const clearAuth = useAuthStore((s) => s.clearAuth);
   const [branches, setBranches] = useState<Branch[]>([]);
 
   useEffect(() => {
@@ -64,8 +69,13 @@ export const InventoryPage: React.FC = () => {
     fetchBranches();
   }, [accessToken]);
 
-  const activeBranch = branches.find(b => b.id === activeBranchId || (b as { _id?: string })._id === activeBranchId);
-  const activeBranchName = activeBranch ? activeBranch.name : (branches.length > 0 ? branches[0].name : 'Sucursal Principal');
+  const activeBranch = useMemo(() => {
+    return branches.find(b => b.id === activeBranchId || (b as { _id?: string })._id === activeBranchId);
+  }, [branches, activeBranchId]);
+  const activeBranchName = useMemo(() => {
+    return activeBranch ? activeBranch.name : (branches.length > 0 ? branches[0].name : 'Sucursal Principal');
+  }, [activeBranch, branches]);
+
   const {
     activeTab,
     setActiveTab,
@@ -94,7 +104,37 @@ export const InventoryPage: React.FC = () => {
     setPagination,
     selectedProduct,
     setSelectedProduct,
-  } = useInventoryStore();
+  } = useInventoryStore(
+    useShallow((s) => ({
+      activeTab: s.activeTab,
+      setActiveTab: s.setActiveTab,
+      products: s.products,
+      providers: s.providers,
+      brands: s.brands,
+      categories: s.categories,
+      movements: s.movements,
+      loading: s.loading,
+      searchValue: s.searchValue,
+      setSearchValue: s.setSearchValue,
+      setProducts: s.setProducts,
+      setProviders: s.setProviders,
+      setBrands: s.setBrands,
+      setCategories: s.setCategories,
+      setMovements: s.setMovements,
+      setLoading: s.setLoading,
+      activeModal: s.activeModal,
+      setActiveModal: s.setActiveModal,
+      page: s.page,
+      limit: s.limit,
+      total: s.total,
+      totalPages: s.totalPages,
+      setPage: s.setPage,
+      setLimit: s.setLimit,
+      setPagination: s.setPagination,
+      selectedProduct: s.selectedProduct,
+      setSelectedProduct: s.setSelectedProduct,
+    }))
+  );
 
   const [productForm, setProductForm] = useState<CreateProductDto>({
     name: '',
@@ -108,7 +148,6 @@ export const InventoryPage: React.FC = () => {
     minStock: 5,
     unit: 'piece',
     compatibility: [],
-    branchId: activeBranchId || undefined,
   });
 
   const [formErrors, setFormErrors] = useState<{ [key: string]: string }>({});
@@ -117,21 +156,8 @@ export const InventoryPage: React.FC = () => {
   const [providerForm, setProviderForm] = useState<CreateProviderDto>({
     name: '',
     providerCode: '',
-    branchId: activeBranchId || undefined,
   });
   const [editingProviderId, setEditingProviderId] = useState<string | null>(null);
-
-  const [movementForm, setMovementForm] = useState<{
-    productId: string;
-    providerId: string;
-    quantity: number;
-    reason?: string;
-  }>({
-    productId: '',
-    providerId: '',
-    quantity: 1,
-    reason: '',
-  });
 
   const [movementTypeFilter, setMovementTypeFilter] = useState<'all' | 'in' | 'out'>('all');
   const [productMovements, setProductMovements] = useState<StockMovement[]>([]);
@@ -150,6 +176,12 @@ export const InventoryPage: React.FC = () => {
   const [editingServiceId, setEditingServiceId] = useState<string | null>(null);
   const [serviceFormErrors, setServiceFormErrors] = useState<{ [key: string]: string }>({});
   const [serviceToDelete, setServiceToDelete] = useState<PredefinedService | null>(null);
+
+  const productsById = useMemo(() => new Map(products.map(p => [p.id, p])), [products]);
+  const availableSupplyProducts = useMemo(() => {
+    const used = new Set(serviceForm.supplies.map(s => s.productId));
+    return products.filter(p => !used.has(p.id));
+  }, [products, serviceForm.supplies]);
 
   const [itemToDelete, setItemToDelete] = useState<{ type: 'category' | 'brand'; id: string; name: string } | null>(null);
   const [deletingItem, setDeletingItem] = useState(false);
@@ -285,10 +317,68 @@ export const InventoryPage: React.FC = () => {
     }
   };
 
+  // Prefetch common master data (categories, brands, providers) on mount/auth so modals always have options
+  useEffect(() => {
+    if (!accessToken) return;
+    const prefetchMasterData = async () => {
+      try {
+        const [cats, brs, provs] = await Promise.all([
+          inventoryRepo.getCategories(accessToken),
+          inventoryRepo.getBrands(accessToken),
+          inventoryRepo.getProviders(accessToken),
+        ]);
+        setCategories(cats);
+        setBrands(brs);
+        setProviders(provs);
+      } catch (err) {
+        console.error('Error prefetching inventory master data:', err);
+      }
+    };
+    prefetchMasterData();
+  }, [accessToken, setCategories, setBrands, setProviders]);
+
   useEffect(() => {
     fetchInventoryData();
     // eslint-disable-next-line
   }, [activeTab, page, limit, searchValue, movementTypeFilter, activeBranchId]);
+
+  const handleOpenAddProduct = useCallback(async () => {
+    setEditingProductId(null);
+    setProductForm({
+      name: '',
+      description: '',
+      sku: '',
+      brandId: brands[0]?.id || '',
+      categoryId: categories[0]?.id || '',
+      costPrice: 0,
+      sellingPrice: 0,
+      stock: 0,
+      minStock: 5,
+      unit: 'piece',
+      compatibility: [],
+    });
+    setFormErrors({});
+    setActiveModal('addProduct');
+
+    if (accessToken && (categories.length === 0 || brands.length === 0)) {
+      try {
+        const [cats, brs] = await Promise.all([
+          categories.length === 0 ? inventoryRepo.getCategories(accessToken) : Promise.resolve(categories),
+          brands.length === 0 ? inventoryRepo.getBrands(accessToken) : Promise.resolve(brands),
+        ]);
+        if (categories.length === 0) {
+          setCategories(cats);
+          if (cats.length > 0) setProductForm((prev) => ({ ...prev, categoryId: prev.categoryId || cats[0].id }));
+        }
+        if (brands.length === 0) {
+          setBrands(brs);
+          if (brs.length > 0) setProductForm((prev) => ({ ...prev, brandId: prev.brandId || brs[0].id }));
+        }
+      } catch (err) {
+        console.error('Error loading categories/brands for product modal:', err);
+      }
+    }
+  }, [accessToken, categories, brands, setCategories, setBrands, setActiveModal]);
 
   const handleCreateProduct = async () => {
     const errors: { [key: string]: string } = {};
@@ -307,30 +397,29 @@ export const InventoryPage: React.FC = () => {
       if (editingProductId) {
         await inventoryRepo.updateProduct(accessToken!, editingProductId, productForm);
       } else {
-        await inventoryRepo.createProduct(accessToken!, {
-          ...productForm,
-          branchId: activeBranchId || undefined,
-        });
+        await inventoryRepo.createProduct(accessToken!, productForm);
       }
       setActiveModal(null);
       setEditingProductId(null);
+      setFormErrors({});
       setProductForm({
         name: '',
         description: '',
         sku: '',
-        brandId: '',
-        categoryId: '',
+        brandId: brands[0]?.id || '',
+        categoryId: categories[0]?.id || '',
         costPrice: 0,
         sellingPrice: 0,
         stock: 0,
         minStock: 5,
         unit: 'piece',
         compatibility: [],
-        branchId: activeBranchId || undefined,
       });
       fetchInventoryData();
     } catch (err) {
       console.error(err);
+      const msg = err instanceof Error ? err.message : 'Error al guardar el producto';
+      setFormErrors({ general: msg });
     } finally {
       setLoading(false);
     }
@@ -350,7 +439,6 @@ export const InventoryPage: React.FC = () => {
       minStock: product.minStock,
       unit: product.unit,
       compatibility: product.compatibility ?? [],
-      branchId: activeBranchId || undefined,
     });
     setFormErrors({});
     setActiveModal('addProduct');
@@ -371,28 +459,35 @@ export const InventoryPage: React.FC = () => {
       if (editingProviderId) {
         await inventoryRepo.updateProvider(accessToken!, editingProviderId, providerForm);
       } else {
-        await inventoryRepo.createProvider(accessToken!, {
-          ...providerForm,
-          branchId: activeBranchId || undefined,
-        });
+        await inventoryRepo.createProvider(accessToken!, providerForm);
       }
       setActiveModal(null);
       setEditingProviderId(null);
-      setProviderForm({ name: '', providerCode: '', branchId: activeBranchId || undefined });
+      setFormErrors({});
+      setProviderForm({ name: '', providerCode: '' });
+      inventoryRepo.getProviders(accessToken!).then(setProviders).catch(() => {});
       fetchInventoryData();
     } catch (err) {
       console.error(err);
+      const msg = err instanceof Error ? err.message : 'Error al guardar el proveedor';
+      setFormErrors({ general: msg });
     } finally {
       setLoading(false);
     }
   };
+
+  const handleOpenAddProvider = useCallback(() => {
+    setEditingProviderId(null);
+    setProviderForm({ name: '', providerCode: '' });
+    setFormErrors({});
+    setActiveModal('addProvider');
+  }, [setActiveModal]);
 
   const handleOpenEditProvider = (provider: Provider) => {
     setEditingProviderId(provider.id);
     setProviderForm({
       name: provider.name,
       providerCode: provider.providerCode || '',
-      branchId: activeBranchId || undefined,
     });
     setFormErrors({});
     setActiveModal('addProvider');
@@ -438,36 +533,6 @@ export const InventoryPage: React.FC = () => {
       console.error('Error deleting item:', err);
     } finally {
       setDeletingItem(false);
-    }
-  };
-
-  const handleCreateMovement = async () => {
-    const errors: { [key: string]: string } = {};
-    if (!movementForm.productId) errors.productId = 'El producto es obligatorio';
-    if (!movementForm.quantity || movementForm.quantity <= 0) errors.quantity = 'La cantidad debe ser mayor a 0';
-
-    if (Object.keys(errors).length > 0) {
-      setFormErrors(errors);
-      return;
-    }
-
-    try {
-      setLoading(true);
-      await inventoryRepo.createMovement(accessToken!, {
-        productId: movementForm.productId,
-        quantity: movementForm.quantity,
-        type: 'in',
-        reason: 'Ingreso Manual de Mercancía',
-        providerId: movementForm.providerId || undefined,
-        branchId: activeBranchId || undefined,
-      });
-      setActiveModal(null);
-      setMovementForm({ productId: '', providerId: '', quantity: 1, reason: '' });
-      fetchInventoryData();
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -573,23 +638,6 @@ export const InventoryPage: React.FC = () => {
     }
   }, [activeModal, accessToken, providers.length, setProviders]);
 
-  useBarcodeScanner({
-    onScan: async (barcode) => {
-      if (!accessToken || activeModal !== 'addMovement') return;
-      try {
-        const prod = await inventoryRepo.getProductBySku(accessToken, barcode);
-        if (prod) {
-          setMovementForm(prev => ({ ...prev, productId: prod.id }));
-        } else {
-          alert(`No se encontró producto con SKU: ${barcode}`);
-        }
-      } catch {
-        // Ignore scan error
-      }
-    },
-    enabled: activeModal === 'addMovement',
-  });
-
   // ── Keyboard Shortcuts ──────────────────────────────────────────────────
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -616,8 +664,8 @@ export const InventoryPage: React.FC = () => {
         document.querySelector<HTMLInputElement>('#inventory-search-input')?.focus();
       } else if (e.altKey && (e.key === 'n' || e.key === 'N')) {
         e.preventDefault();
-        if (activeTab === 'inventory') setActiveModal('addProduct');
-        else if (activeTab === 'providers') setActiveModal('addProvider');
+        if (activeTab === 'inventory') handleOpenAddProduct();
+        else if (activeTab === 'providers') handleOpenAddProvider();
         else if (activeTab === 'services') {
           setEditingServiceId(null);
           setServiceForm({ name: '', description: '', basePrice: 0, isActive: true, supplies: [] });
@@ -631,7 +679,7 @@ export const InventoryPage: React.FC = () => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [activeTab, setActiveTab, setActiveModal]);
+  }, [activeTab, setActiveTab, setActiveModal, handleOpenAddProduct, handleOpenAddProvider]);
 
   const renderPaginationFooter = () => {
     const startItem = total > 0 ? (page - 1) * limit + 1 : 0;
@@ -727,7 +775,7 @@ export const InventoryPage: React.FC = () => {
                     size="sm"
                     color="success"
                     onClick={() => setActiveModal('addMovement')}
-                    iconStart={<Icon name="Plus" size="sm" />}
+                    iconStart={<Icon name="PackagePlus" size="sm" />}
                   >
                     Ingreso de Mercancía
                     <KbdBadge keys="Alt+M" className="ml-1.5" />
@@ -741,7 +789,7 @@ export const InventoryPage: React.FC = () => {
                   </SecondaryButton>
                   <PrimaryButton
                     size="sm"
-                    onClick={() => setActiveModal('addProduct')}
+                    onClick={handleOpenAddProduct}
                     iconStart={<Icon name="Plus" size="sm" />}
                   >
                     Nuevo Producto
@@ -770,7 +818,7 @@ export const InventoryPage: React.FC = () => {
               ) : activeTab === 'providers' ? (
                 <PrimaryButton
                   size="sm"
-                  onClick={() => setActiveModal('addProvider')}
+                  onClick={handleOpenAddProvider}
                   iconStart={<Icon name="Plus" size="sm" />}
                 >
                   Nuevo Proveedor
@@ -1269,6 +1317,13 @@ export const InventoryPage: React.FC = () => {
           Registrando en sucursal: {activeBranchName}
         </Box>
 
+        {formErrors.general && (
+          <Box className="bg-error/10 text-error p-3 rounded-DEFAULT text-xs font-medium mb-4 flex items-center gap-2">
+            <Icon name="AlertCircle" size="sm" />
+            {formErrors.general}
+          </Box>
+        )}
+
         <Stack spacing="md">
           <Grid cols={3} gap="md">
             <Box className="col-span-1">
@@ -1420,6 +1475,13 @@ export const InventoryPage: React.FC = () => {
           Registrando en sucursal: {activeBranchName}
         </Box>
 
+        {formErrors.general && (
+          <Box className="bg-error/10 text-error p-3 rounded-DEFAULT text-xs font-medium mb-4 flex items-center gap-2">
+            <Icon name="AlertCircle" size="sm" />
+            {formErrors.general}
+          </Box>
+        )}
+
         <Stack spacing="md">
           <Box>
             <Text as="label" size="xs" weight="semibold" className="block mb-2">Nombre</Text>
@@ -1450,71 +1512,19 @@ export const InventoryPage: React.FC = () => {
         </Stack>
       </Modal>
 
-      {/* Modal for Movement */}
-      <Modal
+      {/* Drawer for Split Merchandise Reception & Live Entry Management */}
+      <MerchandiseReceptionDrawer
         isOpen={activeModal === 'addMovement'}
         onClose={() => setActiveModal(null)}
-        onConfirm={handleCreateMovement}
-        title="Ingreso de Mercancía"
-        maxWidth="500px"
-        footer={
-          <>
-            <SecondaryButton onClick={() => setActiveModal(null)} disabled={loading}>
-              Cancelar <KbdBadge keys="Esc" className="ml-1.5" />
-            </SecondaryButton>
-            <PrimaryButton onClick={handleCreateMovement} loading={loading} disabled={loading}>
-              Registrar Ingreso <KbdBadge keys="Enter ↵" className="ml-1.5" />
-            </PrimaryButton>
-          </>
-        }
-      >
-        <Box className="bg-info/10 text-info p-3 rounded-DEFAULT text-xs font-medium mb-5 flex items-center gap-2">
-          <Icon name="Info" size="sm" />
-          El stock se añadirá a la sucursal: {activeBranchName}
-        </Box>
-
-        <Stack spacing="md">
-          <Box>
-            <Text as="label" size="xs" weight="semibold" className="block mb-2">Proveedor (Opcional)</Text>
-            <SearchableSelect
-              options={providers}
-              value={movementForm.providerId}
-              onChange={id => setMovementForm({ ...movementForm, providerId: id })}
-              placeholder="Buscar proveedor..."
-            />
-          </Box>
-          <Box>
-            <Text as="label" size="xs" weight="semibold" className="block mb-2">Producto</Text>
-            <SearchableSelect
-              options={products}
-              value={movementForm.productId}
-              onChange={id => setMovementForm({ ...movementForm, productId: id })}
-              placeholder="Buscar producto por SKU o nombre..."
-              error={!!formErrors.productId}
-            />
-            {formErrors.productId && <Text size="xs" color="error" className="mt-1 block">{formErrors.productId}</Text>}
-            {movementForm.productId && (
-              <Box className="mt-2 p-2 bg-base-200 rounded-DEFAULT">
-                <Text size="xs" color="muted">
-                  Stock actual: <Text as="span" weight="bold" className="text-base-content">{products.find(p => p.id === movementForm.productId)?.stock || 0}</Text> {products.find(p => p.id === movementForm.productId)?.unit}
-                </Text>
-              </Box>
-            )}
-          </Box>
-          <Box>
-            <Text as="label" size="xs" weight="semibold" className="block mb-2">Cantidad a ingresar</Text>
-            <TextInput
-              size="sm"
-              placeholder="0"
-              type="number"
-              value={movementForm.quantity.toString()}
-              onChange={e => setMovementForm({ ...movementForm, quantity: parseInt(e.target.value) || 0 })}
-              error={!!formErrors.quantity}
-            />
-            {formErrors.quantity && <Text size="xs" color="error" className="mt-1 block">{formErrors.quantity}</Text>}
-          </Box>
-        </Stack>
-      </Modal>
+        products={products}
+        providers={providers}
+        categories={categories}
+        brands={brands}
+        activeBranchName={activeBranchName}
+        activeBranchId={activeBranchId}
+        initialProductId={selectedProduct?.id}
+        onStockUpdated={fetchInventoryData}
+      />
 
       {/* Modal for Batch Upload */}
       <Modal
@@ -1649,7 +1659,7 @@ export const InventoryPage: React.FC = () => {
             {serviceForm.supplies.length > 0 && (
               <Box className="border border-warning/30 rounded-DEFAULT mb-3 overflow-hidden">
                 {serviceForm.supplies.map((supply, idx) => {
-                  const prod = products.find(p => p.id === supply.productId);
+                  const prod = productsById.get(supply.productId);
                   return (
                     <Flex key={idx} align="center" gap="sm" className={cn('p-2.5 px-3.5 bg-warning/10', idx < serviceForm.supplies.length - 1 && 'border-b border-warning/20')}>
                       <Text size="sm" weight="semibold" className="flex-1">{prod?.name ?? supply.productId}</Text>
@@ -1670,7 +1680,7 @@ export const InventoryPage: React.FC = () => {
 
             {/* Add supply picker */}
             <SearchableSelect
-              options={products.filter(p => !serviceForm.supplies.find(s => s.productId === p.id))}
+              options={availableSupplyProducts}
               value=""
               onChange={(id) => { if (id) addSupply(id); }}
               placeholder="Agregar insumo del inventario..."
@@ -1723,12 +1733,11 @@ export const InventoryPage: React.FC = () => {
               size="sm"
               color="success"
               onClick={() => {
-                setMovementForm({ productId: selectedProduct?.id || '', providerId: '', quantity: 1 });
                 setActiveModal('addMovement');
               }}
-              iconStart={<Icon name="Plus" size="sm" />}
+              iconStart={<Icon name="PackagePlus" size="sm" />}
             >
-              Registrar Movimiento de Stock
+              Ingreso de Mercancía
             </PrimaryButton>
             <SecondaryButton onClick={() => setActiveModal(null)}>
               Cerrar <KbdBadge keys="Esc" className="ml-1.5" />

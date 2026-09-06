@@ -88,6 +88,7 @@ export const useSpecialOrdersStore = create<SpecialOrdersState>((set, get) => ({
       set({ isLoading: false });
       return;
     }
+    if (get().isLoading) return;
 
     set({ isLoading: true });
     try {

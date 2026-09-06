@@ -30,37 +30,40 @@ const adminRepo = new APIAdminRepository();
 type ActiveSettingsTab = 'system' | 'business' | 'printer';
 
 export const SettingsPage: React.FC = () => {
-  const { user, activeBranchId } = useAuthStore();
-  const { mode: currentThemeMode, setThemeMode } = useThemeStore();
-  const printerSettingsStore = usePrinterSettingsStore();
+  const user = useAuthStore((s) => s.user);
+  const activeBranchId = useAuthStore((s) => s.activeBranchId);
+  const currentThemeMode = useThemeStore((s) => s.mode);
+  const setThemeMode = useThemeStore((s) => s.setThemeMode);
+  const saveSettings = usePrinterSettingsStore((s) => s.saveSettings);
+  const resetDefaults = usePrinterSettingsStore((s) => s.resetDefaults);
 
   const [activeTab, setActiveTab] = useState<ActiveSettingsTab>('printer');
   const [branches, setBranches] = useState<Branch[]>([]);
 
-  // Estado local para configuración de impresora
-  const [printerName, setPrinterName] = useState(printerSettingsStore.printerName);
-  const [paperWidth, setPaperWidth] = useState<'58mm' | '80mm'>(printerSettingsStore.paperWidth);
-  const [autoPrintOnSale, setAutoPrintOnSale] = useState(printerSettingsStore.autoPrintOnSale);
-  const [fontSize, setFontSize] = useState<'compact' | 'normal' | 'large'>(printerSettingsStore.fontSize);
-  const [showFolio, setShowFolio] = useState(printerSettingsStore.showFolio);
-  const [showCashier, setShowCashier] = useState(printerSettingsStore.showCashier);
-  const [showCutLine, setShowCutLine] = useState(printerSettingsStore.showCutLine);
-  const [showPolicies, setShowPolicies] = useState(printerSettingsStore.showPolicies);
-  const [showPhone, setShowPhone] = useState(printerSettingsStore.showPhone);
-  const [showAddress, setShowAddress] = useState(printerSettingsStore.showAddress);
+  // Estado local para configuración de impresora inicializado perezosamente desde el store
+  const [printerName, setPrinterName] = useState(() => usePrinterSettingsStore.getState().printerName);
+  const [paperWidth, setPaperWidth] = useState<'58mm' | '80mm'>(() => usePrinterSettingsStore.getState().paperWidth);
+  const [autoPrintOnSale, setAutoPrintOnSale] = useState(() => usePrinterSettingsStore.getState().autoPrintOnSale);
+  const [fontSize, setFontSize] = useState<'compact' | 'normal' | 'large'>(() => usePrinterSettingsStore.getState().fontSize);
+  const [showFolio, setShowFolio] = useState(() => usePrinterSettingsStore.getState().showFolio);
+  const [showCashier, setShowCashier] = useState(() => usePrinterSettingsStore.getState().showCashier);
+  const [showCutLine, setShowCutLine] = useState(() => usePrinterSettingsStore.getState().showCutLine);
+  const [showPolicies, setShowPolicies] = useState(() => usePrinterSettingsStore.getState().showPolicies);
+  const [showPhone, setShowPhone] = useState(() => usePrinterSettingsStore.getState().showPhone);
+  const [showAddress, setShowAddress] = useState(() => usePrinterSettingsStore.getState().showAddress);
 
   // Textos y políticas personalizables por el Admin
-  const [businessName, setBusinessName] = useState(printerSettingsStore.businessName);
-  const [businessTagline, setBusinessTagline] = useState(printerSettingsStore.businessTagline);
-  const [phone, setPhone] = useState(printerSettingsStore.phone);
-  const [address, setAddress] = useState(printerSettingsStore.address);
-  const [policiesTitle, setPoliciesTitle] = useState(printerSettingsStore.policiesTitle || 'IMPORTANTE');
+  const [businessName, setBusinessName] = useState(() => usePrinterSettingsStore.getState().businessName);
+  const [businessTagline, setBusinessTagline] = useState(() => usePrinterSettingsStore.getState().businessTagline);
+  const [phone, setPhone] = useState(() => usePrinterSettingsStore.getState().phone);
+  const [address, setAddress] = useState(() => usePrinterSettingsStore.getState().address);
+  const [policiesTitle, setPoliciesTitle] = useState(() => usePrinterSettingsStore.getState().policiesTitle || 'IMPORTANTE');
   const [policiesText, setPoliciesText] = useState(
-    printerSettingsStore.policiesText ||
+    () => usePrinterSettingsStore.getState().policiesText ||
     '* En partes eléctricas no aplica garantía, cambio ni devolución.\n* Cualquier aclaración dentro de los 2 días posteriores con este ticket.'
   );
-  const [footerMessage, setFooterMessage] = useState(printerSettingsStore.footerMessage || '¡GRACIAS POR SU PREFERENCIA!');
-  const [footerSubtext, setFooterSubtext] = useState(printerSettingsStore.footerSubtext || 'Moto servicio Nova FV');
+  const [footerMessage, setFooterMessage] = useState(() => usePrinterSettingsStore.getState().footerMessage || '¡GRACIAS POR SU PREFERENCIA!');
+  const [footerSubtext, setFooterSubtext] = useState(() => usePrinterSettingsStore.getState().footerSubtext || 'Moto servicio Nova FV');
 
   const [showSafariHelp, setShowSafariHelp] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
@@ -87,7 +90,7 @@ export const SettingsPage: React.FC = () => {
   const activeBranchName = activeBranch ? activeBranch.name : 'Sucursal Principal';
 
   const handleSaveAllSettings = () => {
-    printerSettingsStore.saveSettings({
+    saveSettings({
       printerName,
       paperWidth,
       autoPrintOnSale,
@@ -112,7 +115,7 @@ export const SettingsPage: React.FC = () => {
   };
 
   const handleResetDefaults = () => {
-    printerSettingsStore.resetDefaults();
+    resetDefaults();
     setPrinterName('SUZWIP 58MM Thermal');
     setPaperWidth('58mm');
     setAutoPrintOnSale(true);

@@ -1,9 +1,18 @@
 import React, { useState } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { useClientPortalStore } from '@/app/presentation/stores';
 import { Box, Flex, Stack, Grid, Icon } from '@/app/presentation/components';
 
 export const StatusResults: React.FC = () => {
-  const { appointments, maintenanceTrack, searchLoading, searchError, hasSearched } = useClientPortalStore();
+  const { appointments, maintenanceTrack, searchLoading, searchError, hasSearched } = useClientPortalStore(
+    useShallow((s) => ({
+      appointments: s.appointments,
+      maintenanceTrack: s.maintenanceTrack,
+      searchLoading: s.searchLoading,
+      searchError: s.searchError,
+      hasSearched: s.hasSearched,
+    }))
+  );
   const [selectedPhoto, setSelectedPhoto] = useState<{ url: string; stage: string } | null>(null);
 
   if (searchLoading) {

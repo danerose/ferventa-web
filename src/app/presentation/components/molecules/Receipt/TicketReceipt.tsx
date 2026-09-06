@@ -1,4 +1,5 @@
 import React from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import type { Sale } from '@/app/domain';
 import { usePrinterSettingsStore } from '@/app/presentation/stores';
 
@@ -149,7 +150,26 @@ export const TicketReceipt: React.FC<TicketReceiptProps> = ({
   branchName,
   sellerName,
 }) => {
-  const settings = usePrinterSettingsStore();
+  const settings = usePrinterSettingsStore(
+    useShallow((s) => ({
+      paperWidth: s.paperWidth,
+      fontSize: s.fontSize,
+      businessName: s.businessName,
+      businessTagline: s.businessTagline,
+      phone: s.phone,
+      showPhone: s.showPhone,
+      address: s.address,
+      showAddress: s.showAddress,
+      showFolio: s.showFolio,
+      showCashier: s.showCashier,
+      showCutLine: s.showCutLine,
+      showPolicies: s.showPolicies,
+      policiesTitle: s.policiesTitle,
+      policiesText: s.policiesText,
+      footerMessage: s.footerMessage,
+      footerSubtext: s.footerSubtext,
+    }))
+  );
 
   if (!sale) return null;
 

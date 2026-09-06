@@ -180,10 +180,19 @@ export class APIInventoryRepository {
   }
 
   async createProvider(token: string, data: CreateProviderDto): Promise<Provider> {
+    const { branchId, ...payload } = data;
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    };
+    if (branchId) {
+      headers['x-branch-id'] = branchId;
+    }
+
     const res = await this.fetchWithAuth(`${this.baseUrl}/inventory/providers`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify(data),
+      headers,
+      body: JSON.stringify(payload),
     });
     const json = await res.json();
     if (res.status === 401) throw new Error('UNAUTHORIZED');
@@ -193,10 +202,19 @@ export class APIInventoryRepository {
   }
 
   async updateProvider(token: string, id: string, data: Partial<CreateProviderDto>): Promise<Provider> {
+    const { branchId, ...payload } = data;
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    };
+    if (branchId) {
+      headers['x-branch-id'] = branchId;
+    }
+
     const res = await this.fetchWithAuth(`${this.baseUrl}/inventory/providers/${id}`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify(data),
+      headers,
+      body: JSON.stringify(payload),
     });
     const json = await res.json();
     if (res.status === 401) throw new Error('UNAUTHORIZED');
@@ -256,10 +274,19 @@ export class APIInventoryRepository {
   }
 
   async createProduct(token: string, data: CreateProductDto): Promise<Product> {
+    const { branchId, ...payload } = data;
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    };
+    if (branchId) {
+      headers['x-branch-id'] = branchId;
+    }
+
     const res = await this.fetchWithAuth(`${this.baseUrl}/inventory/products`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify(data),
+      headers,
+      body: JSON.stringify(payload),
     });
     const json = await res.json();
     if (res.status === 401) throw new Error('UNAUTHORIZED');
@@ -269,10 +296,11 @@ export class APIInventoryRepository {
   }
 
   async createProductsBatch(token: string, data: CreateProductDto[]): Promise<{ added: number }> {
+    const sanitized = data.map(({ branchId: _b, ...rest }) => rest);
     const res = await this.fetchWithAuth(`${this.baseUrl}/inventory/products/batch`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ products: data }),
+      body: JSON.stringify({ products: sanitized }),
     });
     const json = await res.json();
     if (res.status === 401) throw new Error('UNAUTHORIZED');
@@ -281,10 +309,19 @@ export class APIInventoryRepository {
   }
 
   async updateProduct(token: string, id: string, data: Partial<CreateProductDto>): Promise<Product> {
+    const { branchId, ...payload } = data;
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    };
+    if (branchId) {
+      headers['x-branch-id'] = branchId;
+    }
+
     const res = await this.fetchWithAuth(`${this.baseUrl}/inventory/products/${id}`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify(data),
+      headers,
+      body: JSON.stringify(payload),
     });
     const json = await res.json();
     if (res.status === 401) throw new Error('UNAUTHORIZED');
@@ -336,16 +373,44 @@ export class APIInventoryRepository {
   }
 
   async createMovement(token: string, data: CreateStockMovementDto): Promise<StockMovement> {
+    const payload: Record<string, unknown> = {
+      productId: data.productId,
+      type: data.type,
+      quantity: data.quantity,
+      reason: data.reason,
+    };
+    if (data.providerId && data.providerId.trim()) {
+      payload.providerId = data.providerId.trim();
+    }
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    };
+    if (data.branchId) {
+      headers['x-branch-id'] = data.branchId;
+    }
+
     const res = await this.fetchWithAuth(`${this.baseUrl}/inventory/movements`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify(data),
+      headers,
+      body: JSON.stringify(payload),
     });
     const json = await res.json();
     if (res.status === 401) throw new Error('UNAUTHORIZED');
     if (!res.ok || !json.success) throw new Error(json.message || 'Error al crear movimiento');
     const m = json.data;
     return { ...m, id: m.id || m._id };
+  }
+
+  async deleteMovement(token: string, id: string): Promise<void> {
+    const res = await this.fetchWithAuth(`${this.baseUrl}/inventory/movements/${id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const json = await res.json();
+    if (res.status === 401) throw new Error('UNAUTHORIZED');
+    if (!res.ok || !json.success) throw new Error(json.message || 'Error al eliminar movimiento');
   }
 }
 

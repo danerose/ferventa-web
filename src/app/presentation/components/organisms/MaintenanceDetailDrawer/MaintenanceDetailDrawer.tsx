@@ -562,7 +562,7 @@ export const MaintenanceDetailDrawer: React.FC<MaintenanceDetailDrawerProps> = (
                         {order.sale.items.map((item, idx) => (
                           <Flex key={idx} justify="between" align="center" className="text-xs bg-base-100 p-1.5 rounded border border-base-300/50">
                             <Text size="xs" className="font-medium text-base-content truncate">
-                              {item.quantity}x {item.name || (item as any).productName || 'Concepto'}
+                              {item.quantity}x {item.name || (item as { productName?: string }).productName || 'Concepto'}
                             </Text>
                             <span className="font-mono text-[11px] font-semibold text-base-content/80 shrink-0 ml-2">
                               {formatCurrency((item.priceSnapshot || 0) * item.quantity)}

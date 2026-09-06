@@ -32,7 +32,7 @@ export const LinkSaleModal: React.FC<LinkSaleModalProps> = ({
   onLink,
   loading = false,
 }) => {
-  const { accessToken } = useAuthStore();
+  const accessToken = useAuthStore((s) => s.accessToken);
   const [folioInput, setFolioInput] = useState('');
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
   const [recentSales, setRecentSales] = useState<Sale[]>([]);
@@ -194,7 +194,7 @@ export const LinkSaleModal: React.FC<LinkSaleModalProps> = ({
                           </Text>
                           {sale.items && sale.items.length > 0 && (
                             <Text size="xs" variant="muted" className="text-[11px] line-clamp-1 mt-0.5">
-                              {sale.items.map((i: any) => `${i.quantity}x ${i.name || i.productName || 'Item'}`).join(', ')}
+                              {sale.items.map((i: { quantity?: number; name?: string; productName?: string }) => `${i.quantity || 1}x ${i.name || i.productName || 'Item'}`).join(', ')}
                             </Text>
                           )}
                         </Box>

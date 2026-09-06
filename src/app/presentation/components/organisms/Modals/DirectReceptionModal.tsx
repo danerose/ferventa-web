@@ -42,7 +42,7 @@ export const DirectReceptionModal: React.FC<DirectReceptionModalProps> = ({
   onClose,
   onSuccess,
 }) => {
-  const { accessToken } = useAuthStore();
+  const accessToken = useAuthStore((s) => s.accessToken);
 
   // Form states - Customer
   const [customerPhone, setCustomerPhone] = useState('');

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Icon,
   PageLayout,
@@ -62,11 +62,60 @@ const translateRoleName = (rawRole?: unknown): string => {
   return rawName;
 };
 
+interface AttendanceLiveHeaderCardProps {
+  activeBranchName: string;
+}
+
+const AttendanceLiveHeaderCard: React.FC<AttendanceLiveHeaderCardProps> = React.memo(({ activeBranchName }) => {
+  const [now, setNow] = useState<Date>(() => new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const formatTime = (date: Date) => {
+    return date.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+  };
+
+  const formatDate = (date: Date) => {
+    const formatted = date.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    return formatted.charAt(0).toUpperCase() + formatted.slice(1);
+  };
+
+  return (
+    <Box className="bg-base-100 rounded-DEFAULT border border-base-300 p-5">
+      <Flex justify="between" align="center" wrap="wrap" gap="md">
+        <Box>
+          <Flex align="center" gap="sm" className="mb-1">
+            <Flex align="center" justify="center" className="w-8 h-8 rounded-DEFAULT bg-warning/10 border border-warning/20">
+              <Icon name={MODULE_THEMES.attendance.icon as 'Clock'} size="sm" color={MODULE_THEMES.attendance.badgeColor} />
+            </Flex>
+            <Heading level={5} className="font-bold">
+              Estación de Asistencia - {activeBranchName}
+            </Heading>
+          </Flex>
+          <Text size="sm" color="muted">{formatDate(now)}</Text>
+        </Box>
+
+        <Box className="bg-base-200 px-4 py-2 rounded-DEFAULT border border-base-300 text-right">
+          <Text weight="bold" className="font-mono text-xl block">
+            {formatTime(now)}
+          </Text>
+          <Text size="xs" color="muted" className="uppercase tracking-wider">Hora Servidor</Text>
+        </Box>
+      </Flex>
+    </Box>
+  );
+});
+
 export const AttendancePage: React.FC = () => {
-  const { user, accessToken, activeBranchId } = useAuthStore();
+  const user = useAuthStore((s) => s.user);
+  const accessToken = useAuthStore((s) => s.accessToken);
+  const activeBranchId = useAuthStore((s) => s.activeBranchId);
 
   // Role check for current logged-in user
-  const isAdmin = (() => {
+  const isAdmin = useMemo(() => {
     if (!user) return false;
     const roleVal = typeof user.role === 'string' ? user.role : (user.role as { name?: string })?.name;
     if (typeof roleVal === 'string') {
@@ -74,7 +123,7 @@ export const AttendancePage: React.FC = () => {
       return r === 'admin' || r === 'administrator';
     }
     return false;
-  })();
+  }, [user]);
 
   // Navigation tab: 'my-clock' | 'admin-dashboard'
   const [activeTab, setActiveTab] = useState<'my-clock' | 'admin-dashboard'>('my-clock');
@@ -121,14 +170,6 @@ export const AttendancePage: React.FC = () => {
 
   // Global Error state
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-
-  // Real-time clock tick
-  const [now, setNow] = useState<Date>(new Date());
-
-  useEffect(() => {
-    const timer = setInterval(() => setNow(new Date()), 1000);
-    return () => clearInterval(timer);
-  }, []);
 
   // Fetch all users & filter for active branch (excluding soft-deleted / inactive users)
   useEffect(() => {
@@ -264,40 +305,36 @@ export const AttendancePage: React.FC = () => {
     return `${h}h ${m < 10 ? '0' : ''}${m}m`;
   };
 
-  const activeBranchName = (() => {
+  const activeBranchName = useMemo(() => {
     if (!activeBranchId || branches.length === 0) return 'Sucursal Activa';
     const found = branches.find(b => (b.id === activeBranchId || (b as { _id?: string })._id === activeBranchId));
     return found ? found.name : 'Sucursal Activa';
-  })();
+  }, [activeBranchId, branches]);
 
   // Filter out ADMIN users & inactive users from checador cards
-  const nonAdminBranchUsers = branchUsers.filter((u) => {
-    if (u.isActive === false) return false;
-    const roleVal = typeof u.role === 'string' ? u.role : (u.role as { name?: string })?.name;
-    if (typeof roleVal === 'string') {
-      const r = roleVal.toLowerCase();
-      return r !== 'admin' && r !== 'administrator';
-    }
-    return true;
-  });
-
-  const formatTime = (date: Date) => {
-    return date.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
-  };
-
-  const formatDate = (date: Date) => {
-    const formatted = date.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-    return formatted.charAt(0).toUpperCase() + formatted.slice(1);
-  };
+  const nonAdminBranchUsers = useMemo(() => {
+    return branchUsers.filter((u) => {
+      if (u.isActive === false) return false;
+      const roleVal = typeof u.role === 'string' ? u.role : (u.role as { name?: string })?.name;
+      if (typeof roleVal === 'string') {
+        const r = roleVal.toLowerCase();
+        return r !== 'admin' && r !== 'administrator';
+      }
+      return true;
+    });
+  }, [branchUsers]);
 
   // Safe arrays for mapping
-  const safeUserSummary = Array.isArray(summaryData?.usersSummary)
-    ? summaryData.usersSummary.filter((u: AttendanceUserSummary) => (u as unknown as { isActive?: boolean }).isActive !== false)
-    : [];
+  const safeUserSummary = useMemo(() => {
+    return Array.isArray(summaryData?.usersSummary)
+      ? summaryData.usersSummary.filter((u: AttendanceUserSummary) => (u as unknown as { isActive?: boolean }).isActive !== false)
+      : [];
+  }, [summaryData]);
+
   const safeRecords = Array.isArray(records) ? records : [];
 
   // Filtered single-day users list (excluding admins when 'all' is selected)
-  const filteredTodayUsers = (() => {
+  const filteredTodayUsers = useMemo(() => {
     if (!todayBranchStatus?.users) return [];
     return todayBranchStatus.users.filter((uItem: BranchTodayUserStatus) => {
       const uObj = (typeof uItem.user === 'object' && uItem.user !== null) ? uItem.user : null;
@@ -318,23 +355,33 @@ export const AttendancePage: React.FC = () => {
 
       return true;
     });
-  })();
+  }, [todayBranchStatus, branchUsers, selectedUserIdFilter]);
 
-  const todayWorkingCount = filteredTodayUsers.filter((u) => u.status === 'working' || u.status === 'completed').length;
-  const todayOnBreakCount = filteredTodayUsers.filter((u) => u.status === 'onBreak').length;
-  const todayOffShiftCount = filteredTodayUsers.filter((u) => u.status !== 'working' && u.status !== 'completed' && u.status !== 'onBreak').length;
+  const todayWorkingCount = useMemo(() => {
+    return filteredTodayUsers.filter((u) => u.status === 'working' || u.status === 'completed').length;
+  }, [filteredTodayUsers]);
+
+  const todayOnBreakCount = useMemo(() => {
+    return filteredTodayUsers.filter((u) => u.status === 'onBreak').length;
+  }, [filteredTodayUsers]);
+
+  const todayOffShiftCount = useMemo(() => {
+    return filteredTodayUsers.filter((u) => u.status !== 'working' && u.status !== 'completed' && u.status !== 'onBreak').length;
+  }, [filteredTodayUsers]);
 
   // Filtered multi-day period summary list (excluding admins when 'all' is selected)
-  const filteredUserSummary = safeUserSummary.filter((u: AttendanceUserSummary) => {
-    if (selectedUserIdFilter !== 'all') {
-      return u.userId === selectedUserIdFilter;
-    }
-    const matchedLocal = branchUsers.find(b => (b as { _id?: string })._id === u.userId || b.id === u.userId);
-    const rawRoleVal = matchedLocal?.role;
-    const rName = (typeof rawRoleVal === 'string' ? rawRoleVal : String((rawRoleVal as { name?: string })?.name || '')).toLowerCase().trim();
-    if (rName === 'admin' || rName === 'administrator') return false;
-    return true;
-  });
+  const filteredUserSummary = useMemo(() => {
+    return safeUserSummary.filter((u: AttendanceUserSummary) => {
+      if (selectedUserIdFilter !== 'all') {
+        return u.userId === selectedUserIdFilter;
+      }
+      const matchedLocal = branchUsers.find(b => (b as { _id?: string })._id === u.userId || b.id === u.userId);
+      const rawRoleVal = matchedLocal?.role;
+      const rName = (typeof rawRoleVal === 'string' ? rawRoleVal : String((rawRoleVal as { name?: string })?.name || '')).toLowerCase().trim();
+      if (rName === 'admin' || rName === 'administrator') return false;
+      return true;
+    });
+  }, [safeUserSummary, selectedUserIdFilter, branchUsers]);
 
   return (
     <PageLayout userName={user?.name || 'Usuario'}>
@@ -349,60 +396,69 @@ export const AttendancePage: React.FC = () => {
           </Flex>
         </Box>
 
-        {/* Content Body */}
-        <Box as="main" className="flex-1 p-7 max-w-7xl w-full mx-auto">
-
-          {/* Navigation Tabs (Admin only) */}
-          {isAdmin && (
-            <Flex gap="sm" className="bg-base-100 p-1 rounded-DEFAULT border border-base-300 mb-6 w-fit">
-              {activeTab === 'my-clock' ? (
-                <PrimaryButton size="sm" color="neutral" onClick={() => setActiveTab('my-clock')}>
-                  Mi Checador
-                </PrimaryButton>
-              ) : (
-                <TertiaryButton size="sm" color="neutral" onClick={() => setActiveTab('my-clock')}>
-                  Mi Checador
-                </TertiaryButton>
-              )}
-              {activeTab === 'admin-dashboard' ? (
-                <PrimaryButton size="sm" color="neutral" onClick={() => setActiveTab('admin-dashboard')}>
-                  Dashboard Administrativo
-                </PrimaryButton>
-              ) : (
-                <TertiaryButton size="sm" color="neutral" onClick={() => setActiveTab('admin-dashboard')}>
-                  Dashboard Administrativo
-                </TertiaryButton>
-              )}
+        {/* Global Error Alert Banner */}
+        {errorMsg && (
+          <Box className="mx-7 mt-5 p-4 bg-error/15 border border-error/30 rounded-DEFAULT">
+            <Flex justify="between" align="center">
+              <Flex align="center" gap="sm">
+                <Icon name="AlertCircle" size="sm" className="text-error" />
+                <Text size="sm" className="text-error font-medium">{errorMsg}</Text>
+              </Flex>
+              <button
+                type="button"
+                onClick={() => setErrorMsg(null)}
+                className="text-error hover:opacity-75 cursor-pointer text-xs font-bold"
+              >
+                ✕
+              </button>
             </Flex>
-          )}
+          </Box>
+        )}
+
+        {/* Tabs Bar (Only visible to Admin) */}
+        {isAdmin && (
+          <Box className="bg-base-100 border-b border-base-300 px-7">
+            <Flex gap="lg">
+              <button
+                type="button"
+                onClick={() => setActiveTab('my-clock')}
+                className={`py-4 border-b-2 font-semibold text-sm cursor-pointer transition-colors ${
+                  activeTab === 'my-clock'
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-base-content/60 hover:text-base-content'
+                }`}
+              >
+                <Flex align="center" gap="xs">
+                  <Icon name="Clock" size="sm" />
+                  Terminal de Asistencia (Kiosco)
+                </Flex>
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('admin-dashboard')}
+                className={`py-4 border-b-2 font-semibold text-sm cursor-pointer transition-colors ${
+                  activeTab === 'admin-dashboard'
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-base-content/60 hover:text-base-content'
+                }`}
+              >
+                <Flex align="center" gap="xs">
+                  <Icon name="Shield" size="sm" />
+                  Panel de Gestión y Registros
+                </Flex>
+              </button>
+            </Flex>
+          </Box>
+        )}
+
+        <Box className="p-7 max-w-7xl mx-auto w-full">
 
           {/* TAB 1: Checador por Colaborador */}
           {(activeTab === 'my-clock' || !isAdmin) && (
             <Stack spacing="lg">
 
-              {/* Header Card */}
-              <Box className="bg-base-100 rounded-DEFAULT border border-base-300 p-5">
-                <Flex justify="between" align="center" wrap="wrap" gap="md">
-                  <Box>
-                    <Flex align="center" gap="sm" className="mb-1">
-                      <Flex align="center" justify="center" className="w-8 h-8 rounded-DEFAULT bg-warning/10 border border-warning/20">
-                        <Icon name={MODULE_THEMES.attendance.icon as 'Clock'} size="sm" color={MODULE_THEMES.attendance.badgeColor} />
-                      </Flex>
-                      <Heading level={5} className="font-bold">
-                        Estación de Asistencia - {activeBranchName}
-                      </Heading>
-                    </Flex>
-                    <Text size="sm" color="muted">{formatDate(now)}</Text>
-                  </Box>
-
-                  <Box className="bg-base-200 px-4 py-2 rounded-DEFAULT border border-base-300 text-right">
-                    <Text weight="bold" className="font-mono text-xl block">
-                      {formatTime(now)}
-                    </Text>
-                    <Text size="xs" color="muted" className="uppercase tracking-wider">Hora Servidor</Text>
-                  </Box>
-                </Flex>
-              </Box>
+              {/* Header Card con Reloj Aislado */}
+              <AttendanceLiveHeaderCard activeBranchName={activeBranchName} />
 
               {/* Employee Cards List */}
               {isUsersLoading ? (

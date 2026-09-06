@@ -207,10 +207,16 @@ const CartItemRow: React.FC<CartItemRowProps> = ({
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
+import { useShallow } from 'zustand/react/shallow';
+
 export const POSPage: React.FC = () => {
   const navigate = useNavigate();
-  const { user, accessToken, activeBranchId, clearAuth } = useAuthStore();
-  const printerSettings = usePrinterSettingsStore();
+  const user = useAuthStore((s) => s.user);
+  const accessToken = useAuthStore((s) => s.accessToken);
+  const activeBranchId = useAuthStore((s) => s.activeBranchId);
+  const clearAuth = useAuthStore((s) => s.clearAuth);
+  const autoPrintOnSale = usePrinterSettingsStore((s) => s.autoPrintOnSale);
+
   const [activeTab, setActiveTab] = useState<'products' | 'services'>('products');
   const [isTempServiceModalOpen, setIsTempServiceModalOpen] = useState(false);
   const [lastCompletedSale, setLastCompletedSale] = useState<Sale | null>(null);
@@ -252,7 +258,48 @@ export const POSPage: React.FC = () => {
     searchServices,
     scanBarcode,
     checkoutSale,
-  } = usePOSStore();
+  } = usePOSStore(
+    useShallow((s) => ({
+      cart: s.cart,
+      carts: s.carts,
+      activeCartId: s.activeCartId,
+      searchValue: s.searchValue,
+      searchResults: s.searchResults,
+      serviceSearchValue: s.serviceSearchValue,
+      serviceResults: s.serviceResults,
+      subtotal: s.subtotal,
+      tax: s.tax,
+      total: s.total,
+      applyTax: s.applyTax,
+      isFullDiscount: s.isFullDiscount,
+      toggleApplyTax: s.toggleApplyTax,
+      toggleFullDiscount: s.toggleFullDiscount,
+      setSearchValue: s.setSearchValue,
+      setServiceSearchValue: s.setServiceSearchValue,
+      addProductToCart: s.addProductToCart,
+      addServiceToCart: s.addServiceToCart,
+      addTemporaryServiceToCart: s.addTemporaryServiceToCart,
+      removeFromCart: s.removeFromCart,
+      updateQuantity: s.updateQuantity,
+      updateUnitPrice: s.updateUnitPrice,
+      toggleItemNoAplica: s.toggleItemNoAplica,
+      clearCart: s.clearCart,
+      createCart: s.createCart,
+      switchCart: s.switchCart,
+      deleteCart: s.deleteCart,
+      renameCart: s.renameCart,
+      branches: s.branches,
+      allProductsForSupplies: s.allProductsForSupplies,
+      loadingServices: s.loadingServices,
+      loadBranches: s.loadBranches,
+      loadInitialProducts: s.loadInitialProducts,
+      loadServices: s.loadServices,
+      searchProducts: s.searchProducts,
+      searchServices: s.searchServices,
+      scanBarcode: s.scanBarcode,
+      checkoutSale: s.checkoutSale,
+    }))
+  );
 
   const [editingCartLabel, setEditingCartLabel] = useState<string | null>(null);
   const [cartLabelValue, setCartLabelValue] = useState('');
@@ -312,9 +359,16 @@ export const POSPage: React.FC = () => {
     });
   }, [accessToken, handleUnauthorized, loadServices]);
 
+  const isFirstServiceSearch = useRef(true);
+  const isFirstProductSearch = useRef(true);
+
   // ── Service search (server & client fallback) ──────────────────────────────
   useEffect(() => {
     if (!accessToken) return;
+    if (isFirstServiceSearch.current) {
+      isFirstServiceSearch.current = false;
+      return;
+    }
     const id = setTimeout(() => {
       searchServices(accessToken, serviceSearchValue).catch((err) => {
         if (err instanceof Error && err.message === 'UNAUTHORIZED') handleUnauthorized();
@@ -326,6 +380,10 @@ export const POSPage: React.FC = () => {
   // ── Product search ─────────────────────────────────────────────────────────
   useEffect(() => {
     if (!accessToken) return;
+    if (isFirstProductSearch.current) {
+      isFirstProductSearch.current = false;
+      return;
+    }
     const id = setTimeout(() => {
       searchProducts(accessToken, searchValue).catch((err) => {
         if (err instanceof Error && err.message === 'UNAUTHORIZED') handleUnauthorized();
@@ -507,12 +565,12 @@ export const POSPage: React.FC = () => {
       setActiveModal('checkoutSuccess');
 
       // Impresión térmica directa y optimizada (compatible con Safari / macOS y USB/Bluetooth)
-      if (printerSettings.autoPrintOnSale) {
+      if (autoPrintOnSale) {
         thermalPrintService.print({
           sale: createdSale,
           branchName: activeBranchName,
           sellerName: user?.name,
-          settings: printerSettings,
+          settings: usePrinterSettingsStore.getState(),
         });
       }
     } catch (err) {
@@ -541,10 +599,10 @@ export const POSPage: React.FC = () => {
         sale: lastCompletedSale,
         branchName: activeBranchName,
         sellerName: user?.name,
-        settings: printerSettings,
+        settings: usePrinterSettingsStore.getState(),
       });
     }
-  }, [lastCompletedSale, activeBranchName, user?.name, printerSettings]);
+  }, [lastCompletedSale, activeBranchName, user?.name]);
 
   const handlePrintQuotation = () => {
     document.body.classList.remove('print-ticket-mode');

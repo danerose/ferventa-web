@@ -79,7 +79,10 @@ function getRoleLabel(user: { role?: unknown } | null | undefined): string {
 
 export const Sidebar: React.FC<SidebarProps> = ({ onLogout, userName }) => {
   const location = useLocation();
-  const { user, accessToken, activeBranchId, setActiveBranchId } = useAuthStore();
+  const user = useAuthStore((s) => s.user);
+  const accessToken = useAuthStore((s) => s.accessToken);
+  const activeBranchId = useAuthStore((s) => s.activeBranchId);
+  const setActiveBranchId = useAuthStore((s) => s.setActiveBranchId);
   const [branches, setBranches] = React.useState<Branch[]>([]);
 
   const isAdmin = isAdminUser(user);

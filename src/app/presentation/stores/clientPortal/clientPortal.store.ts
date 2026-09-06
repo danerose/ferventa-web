@@ -87,11 +87,10 @@ export const useClientPortalStore = create<ClientPortalState>((set, get) => ({
   branches: [],
 
   setFormField: (field, value) => {
-    set((state) => ({
-      ...state,
+    set({
       [field]: value,
       formValidationError: null,
-    }));
+    } as unknown as Partial<ClientPortalState>);
   },
 
   setFormValidationError: (error) => {
@@ -199,6 +198,7 @@ export const useClientPortalStore = create<ClientPortalState>((set, get) => ({
   },
 
   loadOccupiedSlots: async (startDate, endDate) => {
+    if (get().occupiedSlotsLoading) return;
     set({ occupiedSlotsLoading: true, occupiedSlotsError: null });
     try {
       const occupiedSlots = await clientPortalUseCases.getOccupiedSlots.execute(startDate, endDate);
@@ -246,6 +246,7 @@ export const useClientPortalStore = create<ClientPortalState>((set, get) => ({
   },
 
   loadBranches: async () => {
+    if (get().branches.length > 0) return;
     try {
       const branches = await clientPortalUseCases.getPublicBranches();
       set({ branches });

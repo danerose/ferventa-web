@@ -53,6 +53,11 @@ export const DateTimePicker: React.FC<DateTimePickerProps> = ({
   const [localDate, setLocalDate] = useState(selectedDate);
   const [localTime, setLocalTime] = useState(selectedTime);
 
+  // Navigation month & year states
+  const todayDateObj = new Date();
+  const [currentMonth, setCurrentMonth] = useState(todayDateObj.getMonth());
+  const [currentYear, setCurrentYear] = useState(todayDateObj.getFullYear());
+
   // Synchronize local state when modal opens or selectedDate/Time changes externally
   useEffect(() => {
     if (isOpen) {
@@ -71,11 +76,6 @@ export const DateTimePicker: React.FC<DateTimePickerProps> = ({
       }
     }
   }, [isOpen, selectedDate, selectedTime]);
-
-  // Navigation month & year states
-  const todayDateObj = new Date();
-  const [currentMonth, setCurrentMonth] = useState(todayDateObj.getMonth());
-  const [currentYear, setCurrentYear] = useState(todayDateObj.getFullYear());
 
   const handlePrevMonth = () => {
     setCurrentMonth((prev) => {

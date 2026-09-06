@@ -16,7 +16,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
   const [passwordError, setPasswordError] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { setAuth } = useAuthStore();
+  const setAuth = useAuthStore((s) => s.setAuth);
 
   const validateUsernameOrEmail = (val: string) => {
     if (!val.trim()) return 'El usuario o correo electrónico es obligatorio';

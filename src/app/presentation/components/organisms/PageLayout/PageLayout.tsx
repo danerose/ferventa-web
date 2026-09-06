@@ -33,7 +33,8 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
   className = '',
   userName,
 }) => {
-  const { user, clearAuth } = useAuthStore();
+  const user = useAuthStore((s) => s.user);
+  const clearAuth = useAuthStore((s) => s.clearAuth);
   const resolvedName = userName ?? user?.name ?? 'Admin';
 
   const handleLogout = () => {

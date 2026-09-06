@@ -52,8 +52,11 @@ const DATE_FIELD_OPTIONS = [
   { value: 'createdAt', label: 'Fecha de Creación' },
 ];
 
+import { useShallow } from 'zustand/react/shallow';
+
 export const MaintenanceManagementPage: React.FC = () => {
-  const { user, accessToken } = useAuthStore();
+  const user = useAuthStore((s) => s.user);
+  const accessToken = useAuthStore((s) => s.accessToken);
   const {
     maintenances,
     selectedOrder,
@@ -75,7 +78,30 @@ export const MaintenanceManagementPage: React.FC = () => {
     notifyCustomer,
     linkMaintenanceSale,
     unlinkMaintenanceSale,
-  } = useMaintenanceStore();
+  } = useMaintenanceStore(
+    useShallow((s) => ({
+      maintenances: s.maintenances,
+      selectedOrder: s.selectedOrder,
+      activeScope: s.activeScope,
+      weekRefDate: s.weekRefDate,
+      filters: s.filters,
+      loading: s.loading,
+      updatingId: s.updatingId,
+      error: s.error,
+      setActiveScope: s.setActiveScope,
+      setWeekRefDate: s.setWeekRefDate,
+      setSelectedOrder: s.setSelectedOrder,
+      setFilter: s.setFilter,
+      resetFilters: s.resetFilters,
+      fetchMaintenances: s.fetchMaintenances,
+      updateMaintenanceStatus: s.updateMaintenanceStatus,
+      updateMaintenanceLaborCost: s.updateMaintenanceLaborCost,
+      addDiagnosticNote: s.addDiagnosticNote,
+      notifyCustomer: s.notifyCustomer,
+      linkMaintenanceSale: s.linkMaintenanceSale,
+      unlinkMaintenanceSale: s.unlinkMaintenanceSale,
+    }))
+  );
 
   const [usersList, setUsersList] = useState<User[]>([]);
   const [isDirectReceptionOpen, setIsDirectReceptionOpen] = useState(false);
@@ -99,6 +125,8 @@ export const MaintenanceManagementPage: React.FC = () => {
     return current.monday.getTime() === monday.getTime();
   }, [monday]);
 
+  const isFirstFilterRender = useRef(true);
+
   // Load initial data and users
   useEffect(() => {
     if (!accessToken) return;
@@ -106,8 +134,12 @@ export const MaintenanceManagementPage: React.FC = () => {
     userRepository.getUsers(accessToken).then(setUsersList).catch(() => {});
   }, [accessToken, activeScope, weekRefDate, fetchMaintenances]);
 
-  // Debounced search / filter reload
+  // Debounced search / filter reload (skips initial mount duplicate fetch)
   useEffect(() => {
+    if (isFirstFilterRender.current) {
+      isFirstFilterRender.current = false;
+      return;
+    }
     if (!accessToken) return;
     const timer = setTimeout(() => {
       fetchMaintenances(accessToken, activeScope, undefined, weekRefDate);

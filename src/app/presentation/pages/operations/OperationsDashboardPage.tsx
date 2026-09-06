@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Icon,
@@ -321,8 +321,10 @@ type SalesPeriod = 'today' | 'week' | 'month' | 'custom';
 
 export const OperationsDashboardPage: React.FC = () => {
   const navigate = useNavigate();
-  const { user, accessToken, activeBranchId, clearAuth } = useAuthStore();
-  const printerSettings = usePrinterSettingsStore() as import('@/app/presentation/stores').PrinterSettings;
+  const user = useAuthStore((s) => s.user);
+  const accessToken = useAuthStore((s) => s.accessToken);
+  const activeBranchId = useAuthStore((s) => s.activeBranchId);
+  const clearAuth = useAuthStore((s) => s.clearAuth);
   const isAdmin = isAdminUser(user);
 
   const handleUnauthorized = useCallback(() => {
@@ -550,37 +552,61 @@ export const OperationsDashboardPage: React.FC = () => {
     // eslint-disable-next-line
   }, [pageTab, salesPeriod, salesBranchFilter]);
 
-  // ── KPI calculations ─────────────────────────────────────────────────────
-  const activeTodaySales = todaySales.filter(s => !s.isCancelled);
-  const activeYesterdaySales = yesterdaySales.filter(s => !s.isCancelled);
-  const todayTotal = activeTodaySales.reduce((acc, s) => acc + (s.total || 0), 0);
-  const yesterdayTotal = activeYesterdaySales.reduce((acc, s) => acc + (s.total || 0), 0);
-  const salesGrowth = yesterdayTotal > 0
-    ? (((todayTotal - yesterdayTotal) / yesterdayTotal) * 100).toFixed(1)
-    : null;
+  // ── KPI calculations (memoized) ─────────────────────────────────────────────
+  const { todayTotal, salesGrowth } = useMemo(() => {
+    const actToday = todaySales.filter(s => !s.isCancelled);
+    const actYd = yesterdaySales.filter(s => !s.isCancelled);
+    const tTotal = actToday.reduce((acc, s) => acc + (s.total || 0), 0);
+    const ydTotal = actYd.reduce((acc, s) => acc + (s.total || 0), 0);
+    const growth = ydTotal > 0
+      ? (((tTotal - ydTotal) / ydTotal) * 100).toFixed(1)
+      : null;
+    return {
+      todayTotal: tTotal,
+      salesGrowth: growth,
+    };
+  }, [todaySales, yesterdaySales]);
 
-  const salesTotal = salesData.reduce((acc, s) => acc + (s.total || 0), 0);
-  const salesCount = salesData.length;
-  const avgTicket = salesCount > 0 ? salesTotal / salesCount : 0;
+  const {
+    salesTotal,
+    salesCount,
+    avgTicket,
+    cashTotal,
+    cardTotal,
+    transferTotal,
+    cashCount,
+    cardCount,
+    transferCount,
+  } = useMemo(() => {
+    const sTotal = salesData.reduce((acc, s) => acc + (s.total || 0), 0);
+    const sCount = salesData.length;
+    const avg = sCount > 0 ? sTotal / sCount : 0;
 
-  const cashSales = salesData.filter(s => s.paymentMethod === 'cash');
-  const cardSales = salesData.filter(s => s.paymentMethod === 'card');
-  const transferSales = salesData.filter(s => s.paymentMethod === 'transfer');
+    const cSales = salesData.filter(s => s.paymentMethod === 'cash');
+    const cdSales = salesData.filter(s => s.paymentMethod === 'card');
+    const tSales = salesData.filter(s => s.paymentMethod === 'transfer');
 
-  const cashTotal = cashSales.reduce((acc, s) => acc + (s.total || 0), 0);
-  const cardTotal = cardSales.reduce((acc, s) => acc + (s.total || 0), 0);
-  const transferTotal = transferSales.reduce((acc, s) => acc + (s.total || 0), 0);
-
-  const cashCount = cashSales.length;
-  const cardCount = cardSales.length;
-  const transferCount = transferSales.length;
+    return {
+      salesTotal: sTotal,
+      salesCount: sCount,
+      avgTicket: avg,
+      cashTotal: cSales.reduce((acc, s) => acc + (s.total || 0), 0),
+      cardTotal: cdSales.reduce((acc, s) => acc + (s.total || 0), 0),
+      transferTotal: tSales.reduce((acc, s) => acc + (s.total || 0), 0),
+      cashCount: cSales.length,
+      cardCount: cdSales.length,
+      transferCount: tSales.length,
+    };
+  }, [salesData]);
 
   const topPayMethod = cashCount >= cardCount && cashCount >= transferCount ? 'Efectivo'
     : cardCount >= transferCount ? 'Tarjeta' : 'Transferencia';
 
-  const displayedSalesTable = salesPaymentMethodFilter === 'all'
-    ? salesData
-    : salesData.filter(s => s.paymentMethod === salesPaymentMethodFilter);
+  const displayedSalesTable = useMemo(() => {
+    return salesPaymentMethodFilter === 'all'
+      ? salesData
+      : salesData.filter(s => s.paymentMethod === salesPaymentMethodFilter);
+  }, [salesData, salesPaymentMethodFilter]);
 
   const last7Days = Array.from({ length: 7 }, (_, i) => {
     const d = new Date();
@@ -1230,7 +1256,12 @@ export const OperationsDashboardPage: React.FC = () => {
             allBranches.find(b => b.id === activeBranchId)?.name ||
             'Sucursal Principal';
           const sellerName = s?.seller?.name || user?.name || 'Cajero';
-          thermalPrintService.print({ sale: s, branchName, sellerName, settings: printerSettings });
+          thermalPrintService.print({
+            sale: s,
+            branchName,
+            sellerName,
+            settings: usePrinterSettingsStore.getState() as import('@/app/presentation/stores').PrinterSettings,
+          });
         }}
       />
     </PageLayout>

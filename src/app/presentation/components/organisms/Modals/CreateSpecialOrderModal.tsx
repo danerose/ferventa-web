@@ -34,7 +34,7 @@ export const CreateSpecialOrderModal: React.FC<CreateSpecialOrderModalProps> = (
   onClose,
   onSubmit,
 }) => {
-  const { accessToken } = useAuthStore();
+  const accessToken = useAuthStore((s) => s.accessToken);
 
   // Step 1: Customer fields
   const [customerPhone, setCustomerPhone] = useState('');

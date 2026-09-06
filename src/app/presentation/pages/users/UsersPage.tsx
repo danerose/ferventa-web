@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Icon,
@@ -33,9 +33,14 @@ import {
   UserRole,
 } from '@/core';
 
+import { useShallow } from 'zustand/react/shallow';
+
 export const UsersPage: React.FC = () => {
   const navigate = useNavigate();
-  const { user, accessToken, clearAuth } = useAuthStore();
+  const user = useAuthStore((s) => s.user);
+  const accessToken = useAuthStore((s) => s.accessToken);
+  const clearAuth = useAuthStore((s) => s.clearAuth);
+
   const {
     users,
     roles,
@@ -58,7 +63,31 @@ export const UsersPage: React.FC = () => {
     deleteUser,
     checkUsername,
     generateUsername,
-  } = useUserStore();
+  } = useUserStore(
+    useShallow((s) => ({
+      users: s.users,
+      roles: s.roles,
+      branches: s.branches,
+      loading: s.loading,
+      searchValue: s.searchValue,
+      setSearchValue: s.setSearchValue,
+      activeModal: s.activeModal,
+      setActiveModal: s.setActiveModal,
+      selectedUser: s.selectedUser,
+      setSelectedUser: s.setSelectedUser,
+      isSubmitting: s.isSubmitting,
+      submitError: s.submitError,
+      successData: s.successData,
+      clearSuccessData: s.clearSuccessData,
+      usernameStatus: s.usernameStatus,
+      loadData: s.loadData,
+      createUser: s.createUser,
+      updateUser: s.updateUser,
+      deleteUser: s.deleteUser,
+      checkUsername: s.checkUsername,
+      generateUsername: s.generateUsername,
+    }))
+  );
 
   // ── Ephemeral Form State (UI Only) ────────────────────────────────────
   const [formData, setFormData] = useState<CreateUserDto>({
@@ -102,12 +131,16 @@ export const UsersPage: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accessToken]);
 
-  const filteredUsers = users.filter(
-    (u) =>
-      u.name.toLowerCase().includes(searchValue.toLowerCase()) ||
-      (u.username && u.username.toLowerCase().includes(searchValue.toLowerCase())) ||
-      u.email.toLowerCase().includes(searchValue.toLowerCase())
-  );
+  const filteredUsers = useMemo(() => {
+    const q = searchValue.toLowerCase();
+    if (!q) return users;
+    return users.filter(
+      (u) =>
+        u.name.toLowerCase().includes(q) ||
+        (u.username && u.username.toLowerCase().includes(q)) ||
+        u.email.toLowerCase().includes(q)
+    );
+  }, [users, searchValue]);
 
   const handleBranchToggle = (branchId: string) => {
     setFormData((prev) => {

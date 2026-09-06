@@ -64,6 +64,8 @@ export * from './organisms/AttendanceWidget/AttendanceWidget';
 export * from './organisms/DashboardFilters/DashboardFilters';
 export * from './organisms/DashboardQuickDetailDrawer/DashboardQuickDetailDrawer';
 export * from './organisms/MaintenanceDetailDrawer/MaintenanceDetailDrawer';
+export * from './organisms/MerchandiseReceptionDrawer/MerchandiseReceptionDrawer';
+export * from './organisms/MerchandiseReceptionDrawer/QuickAddProductModal';
 export * from './organisms/Modals/AddAppointmentModal';
 export * from './organisms/Modals/ApproveAppointmentModal';
 export * from './organisms/Modals/ApproveRescheduledModal';

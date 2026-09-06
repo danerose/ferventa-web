@@ -34,6 +34,8 @@ const applyThemeToDOM = (isDark: boolean) => {
   }
 };
 
+let isMediaListenerAttached = false;
+
 export const useThemeStore = create<ThemeState>((set, get) => ({
   mode: getInitialMode(),
   isDark: false,
@@ -73,8 +75,9 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
     applyThemeToDOM(isDark);
     set({ isDark });
 
-    // Listener para cambios de tema en el sistema operativo
-    if (window.matchMedia) {
+    // Listener para cambios de tema en el sistema operativo (solo una vez)
+    if (window.matchMedia && !isMediaListenerAttached) {
+      isMediaListenerAttached = true;
       window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
         if (get().mode === ThemeMode.System) {
           applyThemeToDOM(e.matches);

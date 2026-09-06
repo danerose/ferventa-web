@@ -10,7 +10,9 @@ const adminRepo = new APIAdminRepository();
 
 export const ScheduleSettingsPage: React.FC = () => {
   const navigate = useNavigate();
-  const { user, accessToken, clearAuth } = useAuthStore();
+  const user = useAuthStore((s) => s.user);
+  const accessToken = useAuthStore((s) => s.accessToken);
+  const clearAuth = useAuthStore((s) => s.clearAuth);
 
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [holidays, setHolidays] = useState<Holiday[]>([]);

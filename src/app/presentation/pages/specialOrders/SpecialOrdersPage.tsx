@@ -35,9 +35,14 @@ import type {
 } from '@/app/domain';
 import { formatCurrency, formatDate } from '@/core/utils';
 
+import { useShallow } from 'zustand/react/shallow';
+
 export const SpecialOrdersPage: React.FC = () => {
   const navigate = useNavigate();
-  const { user, accessToken, activeBranchId, clearAuth } = useAuthStore();
+  const user = useAuthStore((s) => s.user);
+  const accessToken = useAuthStore((s) => s.accessToken);
+  const activeBranchId = useAuthStore((s) => s.activeBranchId);
+  const clearAuth = useAuthStore((s) => s.clearAuth);
 
   // Store state & actions
   const {
@@ -59,7 +64,28 @@ export const SpecialOrdersPage: React.FC = () => {
     addPayment,
     updateOrderStatus,
     cancelOrder,
-  } = useSpecialOrdersStore();
+  } = useSpecialOrdersStore(
+    useShallow((s) => ({
+      orders: s.orders,
+      summary: s.summary,
+      isLoading: s.isLoading,
+      searchInput: s.searchInput,
+      debouncedSearch: s.debouncedSearch,
+      statusFilter: s.statusFilter,
+      paidFilter: s.paidFilter,
+      selectedOrder: s.selectedOrder,
+      toasts: s.toasts,
+      setSearchInput: s.setSearchInput,
+      setStatusFilter: s.setStatusFilter,
+      setPaidFilter: s.setPaidFilter,
+      setSelectedOrder: s.setSelectedOrder,
+      loadData: s.loadData,
+      createOrder: s.createOrder,
+      addPayment: s.addPayment,
+      updateOrderStatus: s.updateOrderStatus,
+      cancelOrder: s.cancelOrder,
+    }))
+  );
 
   // Ephemeral Modal / Drawer visibility state
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);

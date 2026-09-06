@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { useClientPortalStore } from '@/app/presentation/stores';
 import {
   Box,
@@ -50,7 +51,34 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({ onCancel }) =>
     submitBooking,
     resetForm,
     loadBranches,
-  } = useClientPortalStore();
+  } = useClientPortalStore(
+    useShallow((s) => ({
+      bookingLoading: s.bookingLoading,
+      bookingSuccess: s.bookingSuccess,
+      bookingError: s.bookingError,
+      loadOccupiedSlots: s.loadOccupiedSlots,
+      occupiedSlots: s.occupiedSlots,
+      occupiedSlotsLoading: s.occupiedSlotsLoading,
+      formCustomerName: s.formCustomerName,
+      formCustomerPhone: s.formCustomerPhone,
+      formCustomerEmail: s.formCustomerEmail,
+      formBrand: s.formBrand,
+      formModel: s.formModel,
+      formYear: s.formYear,
+      formSerialNumberLastFour: s.formSerialNumberLastFour,
+      formServiceRequested: s.formServiceRequested,
+      formSelectedDate: s.formSelectedDate,
+      formSelectedTime: s.formSelectedTime,
+      formNotes: s.formNotes,
+      formBranchId: s.formBranchId,
+      formValidationError: s.formValidationError,
+      branches: s.branches,
+      setFormField: s.setFormField,
+      submitBooking: s.submitBooking,
+      resetForm: s.resetForm,
+      loadBranches: s.loadBranches,
+    }))
+  );
 
   // Load branches on mount
   useEffect(() => {

@@ -337,9 +337,11 @@ export class APIAdminRepository {
     }
 
     const raw = Array.isArray(json.data) ? json.data : [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return raw.map((item: any) => this.mapRawMaintenance(item));
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private mapRawMaintenance(item: any): AdminMaintenanceOrder {
     if (!item) return {} as AdminMaintenanceOrder;
     return {
@@ -484,7 +486,7 @@ export class APIAdminRepository {
     token: string,
     startDate?: string,
     endDate?: string
-  ): Promise<any> {
+  ): Promise<Record<string, unknown>> {
     const params = new URLSearchParams();
     if (startDate) params.set('startDate', startDate);
     if (endDate) params.set('endDate', endDate);

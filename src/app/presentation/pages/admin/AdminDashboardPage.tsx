@@ -49,8 +49,13 @@ export interface AdminDashboardPageProps {
   onLogout: () => void;
 }
 
+import { useShallow } from 'zustand/react/shallow';
+
 export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onLogout }) => {
-  const { user, accessToken, clearAuth } = useAuthStore();
+  const user = useAuthStore((s) => s.user);
+  const accessToken = useAuthStore((s) => s.accessToken);
+  const clearAuth = useAuthStore((s) => s.clearAuth);
+
   const {
     appointments,
     loading,
@@ -77,7 +82,6 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onLogout
     timelineLoading,
     currentWeekRefDate,
     selectedTimelineAppt,
-
     setAppointments,
     setLoading,
     setError,
@@ -104,7 +108,61 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onLogout
     setCurrentWeekRefDate,
     setSelectedTimelineAppt,
     updateAppointmentInStates,
-  } = useAdminDashboardStore();
+  } = useAdminDashboardStore(
+    useShallow((s) => ({
+      appointments: s.appointments,
+      loading: s.loading,
+      error: s.error,
+      statusFilter: s.statusFilter,
+      branchFilter: s.branchFilter,
+      searchValue: s.searchValue,
+      updatingId: s.updatingId,
+      toasts: s.toasts,
+      activeModal: s.activeModal,
+      selectedAppt: s.selectedAppt,
+      modalMessage: s.modalMessage,
+      isMessageEdited: s.isMessageEdited,
+      rejectionReason: s.rejectionReason,
+      suggestedSchedules: s.suggestedSchedules,
+      newSuggestionDate: s.newSuggestionDate,
+      newSuggestionTime: s.newSuggestionTime,
+      finalDate: s.finalDate,
+      finalTime: s.finalTime,
+      occupiedSlots: s.occupiedSlots,
+      occupiedLoading: s.occupiedLoading,
+      viewType: s.viewType,
+      timelineAppointments: s.timelineAppointments,
+      timelineLoading: s.timelineLoading,
+      currentWeekRefDate: s.currentWeekRefDate,
+      selectedTimelineAppt: s.selectedTimelineAppt,
+      setAppointments: s.setAppointments,
+      setLoading: s.setLoading,
+      setError: s.setError,
+      setStatusFilter: s.setStatusFilter,
+      setBranchFilter: s.setBranchFilter,
+      setSearchValue: s.setSearchValue,
+      setUpdatingId: s.setUpdatingId,
+      addToast: s.addToast,
+      setActiveModal: s.setActiveModal,
+      setSelectedAppt: s.setSelectedAppt,
+      setModalMessage: s.setModalMessage,
+      setIsMessageEdited: s.setIsMessageEdited,
+      setRejectionReason: s.setRejectionReason,
+      setSuggestedSchedules: s.setSuggestedSchedules,
+      setNewSuggestionDate: s.setNewSuggestionDate,
+      setNewSuggestionTime: s.setNewSuggestionTime,
+      setFinalDate: s.setFinalDate,
+      setFinalTime: s.setFinalTime,
+      setOccupiedSlots: s.setOccupiedSlots,
+      setOccupiedLoading: s.setOccupiedLoading,
+      setViewType: s.setViewType,
+      setTimelineAppointments: s.setTimelineAppointments,
+      setTimelineLoading: s.setTimelineLoading,
+      setCurrentWeekRefDate: s.setCurrentWeekRefDate,
+      setSelectedTimelineAppt: s.setSelectedTimelineAppt,
+      updateAppointmentInStates: s.updateAppointmentInStates,
+    }))
+  );
 
   const [alertState, setAlertState] = React.useState<{ isOpen: boolean; title: string; message: string; isError: boolean }>({
     isOpen: false, title: '', message: '', isError: false
@@ -224,6 +282,8 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onLogout
     [accessToken, statusFilter, searchValue, handleUnauthorized, setAppointments, setError, setLoading]
   );
 
+  const isFirstSearchRender = useRef(true);
+
   // Fetch when statusFilter or viewType changes
   useEffect(() => {
     if (viewType === 'list') {
@@ -231,8 +291,12 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onLogout
     }
   }, [statusFilter, viewType]);
 
-  // Debounced search when searchValue changes
+  // Debounced search when searchValue changes (skips initial mount)
   useEffect(() => {
+    if (isFirstSearchRender.current) {
+      isFirstSearchRender.current = false;
+      return;
+    }
     if (viewType !== 'list') return;
     if (searchTimeout.current) clearTimeout(searchTimeout.current);
     searchTimeout.current = setTimeout(() => {

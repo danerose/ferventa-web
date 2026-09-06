@@ -19,7 +19,8 @@ export interface ClientPortalPageProps {
 }
 
 export const ClientPortalPage: React.FC<ClientPortalPageProps> = ({ onOpenAdmin }) => {
-  const { isDark, toggleTheme } = useThemeStore();
+  const isDark = useThemeStore((s) => s.isDark);
+  const toggleTheme = useThemeStore((s) => s.toggleTheme);
 
   return (
     <Box className="min-h-screen bg-base-100 text-base-content font-sans">
