@@ -35,7 +35,6 @@ export const QuickAddProductModal: React.FC<QuickAddProductModalProps> = ({
   initialName = '',
   categories: propCategories = [],
   brands: propBrands = [],
-  activeBranchId,
   onProductCreated,
 }) => {
   const accessToken = useAuthStore((s) => s.accessToken);
