@@ -5,8 +5,6 @@ import type { MaintenanceStage } from '@/core/enums';
 
 const adminRepo = new APIAdminRepository();
 
-import { getWeekMondayAndSaturday, toLocalYYYYMMDD } from '@/core/utils';
-
 export type MaintenanceScope = 'active' | 'delivered_recent' | 'history';
 type MaintenanceOrderStatus = AdminMaintenanceOrder['status'];
 
@@ -93,26 +91,19 @@ export const useMaintenanceStore = create<MaintenanceState>((set, get) => ({
     accessToken: string,
     scopeOverride?: MaintenanceScope,
     customFilters?: Partial<MaintenanceFilterState>,
-    refDateOverride?: Date
+    _refDateOverride?: Date
   ) => {
     if (!accessToken) return;
     if (get().loading) return;
     const scope = scopeOverride || get().activeScope;
     const currentFilters = { ...get().filters, ...(customFilters || {}) };
-    const refDate = refDateOverride || get().weekRefDate;
 
     set({ loading: true, error: null });
     try {
-      let fromParam = currentFilters.from || undefined;
-      let toParam = currentFilters.to || undefined;
-      let dateFieldParam = currentFilters.dateField || undefined;
-
-      if (scope === 'delivered_recent') {
-        const { monday, saturday } = getWeekMondayAndSaturday(refDate);
-        fromParam = toLocalYYYYMMDD(monday);
-        toParam = toLocalYYYYMMDD(saturday);
-        dateFieldParam = 'deliveredAt';
-      }
+      // Only 'history' scope uses custom date ranges; 'active' and 'delivered_recent' use their predefined backend scope windows
+      const fromParam = scope === 'history' ? currentFilters.from || undefined : undefined;
+      const toParam = scope === 'history' ? currentFilters.to || undefined : undefined;
+      const dateFieldParam = scope === 'history' ? currentFilters.dateField || undefined : undefined;
 
       const data = await adminRepo.getMaintenances(accessToken, {
         scope,

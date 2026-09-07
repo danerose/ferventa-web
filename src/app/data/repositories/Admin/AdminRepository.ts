@@ -353,10 +353,10 @@ export class APIAdminRepository {
       serviceRequested: item.serviceRequested || item.notes || 'Servicio de mantenimiento',
       diagnosticNotes: Array.isArray(item.diagnosticNotes) ? item.diagnosticNotes : [],
       receptionDate: item.receptionDate || item.createdAt,
-      startedAt: item.startedAt,
-      completedAt: item.completedAt,
+      startedAt: item.startedAt || item.startDate || (Array.isArray(item.statusHistory) ? item.statusHistory.find((h: any) => h.status === 'in_progress')?.changedAt : undefined),
+      completedAt: item.completedAt || (Array.isArray(item.statusHistory) ? item.statusHistory.find((h: any) => h.status === 'completed')?.changedAt : undefined),
       notifiedAt: item.notifiedAt,
-      deliveredAt: item.deliveredAt,
+      deliveredAt: item.deliveredAt || item.endDate || (Array.isArray(item.statusHistory) ? item.statusHistory.find((h: any) => h.status === 'delivered')?.changedAt : undefined),
       statusHistory: Array.isArray(item.statusHistory) ? item.statusHistory : [],
       appointment: item.appointment ? {
         id: typeof item.appointment === 'string' ? item.appointment : item.appointment.id || item.appointment._id || '',

@@ -323,11 +323,7 @@ export const MaintenanceManagementPage: React.FC = () => {
         baseList = thisWeekActiveOrders;
       }
     } else if (activeScope === 'delivered_recent') {
-      baseList = maintenances.filter((m) => {
-        if (m.status !== ServiceStatus.Delivered) return false;
-        const dTime = new Date(m.deliveredAt || m.completedAt || m.receptionDate || m.createdAt || 0).getTime();
-        return dTime >= monday.getTime() && dTime <= saturday.getTime();
-      });
+      baseList = maintenances.filter((m) => m.status === ServiceStatus.Delivered);
     }
 
     const notStarted = baseList.filter((m) => m.status === ServiceStatus.NotStarted).length;
@@ -365,11 +361,7 @@ export const MaintenanceManagementPage: React.FC = () => {
         list = thisWeekActiveOrders;
       }
     } else if (activeScope === 'delivered_recent') {
-      list = list.filter((m) => {
-        if (m.status !== ServiceStatus.Delivered) return false;
-        const dTime = new Date(m.deliveredAt || m.completedAt || m.receptionDate || m.createdAt || 0).getTime();
-        return dTime >= monday.getTime() && dTime <= saturday.getTime();
-      });
+      list = list.filter((m) => m.status === ServiceStatus.Delivered);
     }
 
     if (filters.status && filters.status !== 'all') {
@@ -377,6 +369,12 @@ export const MaintenanceManagementPage: React.FC = () => {
     }
 
     return [...list].sort((a, b) => {
+      if (activeScope === 'delivered_recent') {
+        const timeA = new Date(a.deliveredAt || a.completedAt || a.receptionDate || a.createdAt || 0).getTime();
+        const timeB = new Date(b.deliveredAt || b.completedAt || b.receptionDate || b.createdAt || 0).getTime();
+        return timeB - timeA;
+      }
+
       const weightA = STATUS_WORKFLOW_ORDER[a.status] || 99;
       const weightB = STATUS_WORKFLOW_ORDER[b.status] || 99;
       if (weightA !== weightB) {
@@ -420,6 +418,68 @@ export const MaintenanceManagementPage: React.FC = () => {
         return { width: '100%', color: 'bg-info', label: 'Entregado al cliente' };
       default:
         return { width: '0%', color: 'bg-base-300', label: '' };
+    }
+  };
+
+  // Helper to determine the contextual primary and secondary date based on order status
+  const getOrderDateInfo = (order: AdminMaintenanceOrder) => {
+    switch (order.status) {
+      case ServiceStatus.Delivered: {
+        const date =
+          order.deliveredAt ||
+          order.statusHistory?.find((h) => h.status === 'delivered')?.changedAt ||
+          order.updatedAt;
+        return {
+          primaryLabel: 'Entrega',
+          primaryDate: date || order.receptionDate || order.createdAt,
+          icon: 'Truck' as const,
+          colorClass: 'text-info',
+          textClass: 'text-info font-semibold',
+          secondaryLabel: 'Recepción',
+          secondaryDate: order.receptionDate || order.createdAt,
+        };
+      }
+      case ServiceStatus.Completed: {
+        const date =
+          order.completedAt ||
+          order.statusHistory?.find((h) => h.status === 'completed')?.changedAt ||
+          order.updatedAt;
+        return {
+          primaryLabel: 'Terminado',
+          primaryDate: date || order.receptionDate || order.createdAt,
+          icon: 'CheckCircle' as const,
+          colorClass: 'text-success',
+          textClass: 'text-success font-semibold',
+          secondaryLabel: 'Recepción',
+          secondaryDate: order.receptionDate || order.createdAt,
+        };
+      }
+      case ServiceStatus.InProgress: {
+        const date =
+          order.startedAt ||
+          order.statusHistory?.find((h) => h.status === 'in_progress')?.changedAt;
+        return {
+          primaryLabel: date ? 'Iniciado' : 'En proceso',
+          primaryDate: date || order.receptionDate || order.createdAt,
+          icon: date ? ('Clock' as const) : ('Zap' as const),
+          colorClass: 'text-warning',
+          textClass: 'text-warning font-semibold',
+          secondaryLabel: date ? 'Recepción' : undefined,
+          secondaryDate: date ? (order.receptionDate || order.createdAt) : undefined,
+        };
+      }
+      case ServiceStatus.NotStarted:
+      default: {
+        return {
+          primaryLabel: 'Recepción',
+          primaryDate: order.receptionDate || order.createdAt,
+          icon: 'Calendar' as const,
+          colorClass: 'text-base-content/50',
+          textClass: 'text-base-content/80',
+          secondaryLabel: undefined,
+          secondaryDate: undefined,
+        };
+      }
     }
   };
 
@@ -509,8 +569,8 @@ export const MaintenanceManagementPage: React.FC = () => {
           </Box>
         </Flex>
 
-        {/* Weekly Navigator Bar (Only for active & delivered_recent tabs) */}
-        {activeScope !== 'history' && (
+        {/* Weekly Navigator Bar (Only for active tab - Semana de Recepción) */}
+        {activeScope === 'active' && (
           <Flex align="center" justify="between" className="bg-base-100 p-3 rounded-DEFAULT border border-base-300 shadow-xs flex-wrap gap-2">
             <Flex align="center" gap="sm">
               <Box className="w-8 h-8 rounded-DEFAULT bg-primary/10 text-primary flex items-center justify-center shrink-0">
@@ -518,7 +578,7 @@ export const MaintenanceManagementPage: React.FC = () => {
               </Box>
               <Box>
                 <Text size="xs" variant="muted" weight="bold" className="uppercase tracking-wider">
-                  {activeScope === 'active' ? 'Semana de Recepción (Lun – Sáb)' : 'Semana de Entrega (Lun – Sáb)'}
+                  Semana de Recepción (Lun – Sáb)
                 </Text>
                 <Text size="sm" weight="bold" className="capitalize">
                   {weekLabel} {isCurrentWeek ? '(Esta semana)' : ''}
@@ -563,6 +623,28 @@ export const MaintenanceManagementPage: React.FC = () => {
                 Semana siguiente
               </SecondaryButton>
             </Flex>
+          </Flex>
+        )}
+
+        {/* Delivered Recent Scope Info Bar (Opción A: Últimos 7 días móviles) */}
+        {activeScope === 'delivered_recent' && (
+          <Flex align="center" justify="between" className="bg-base-100 p-3 rounded-DEFAULT border border-base-300 shadow-xs flex-wrap gap-2">
+            <Flex align="center" gap="sm">
+              <Box className="w-8 h-8 rounded-DEFAULT bg-info/10 text-info flex items-center justify-center shrink-0">
+                <Icon name="Clock" size="xs" />
+              </Box>
+              <Box>
+                <Text size="xs" variant="muted" weight="bold" className="uppercase tracking-wider">
+                  Vehículos Entregados
+                </Text>
+                <Text size="sm" weight="bold">
+                  Últimos 7 días móviles
+                </Text>
+              </Box>
+            </Flex>
+            <Badge variant="soft" color="info" size="sm" className="font-semibold">
+              Ventana continua de 7 días
+            </Badge>
           </Flex>
         )}
 
@@ -938,7 +1020,7 @@ export const MaintenanceManagementPage: React.FC = () => {
                 : filters.status && filters.status !== 'all'
                 ? `No hay órdenes en estado "${SERVICE_STATUS_LABELS[filters.status as ServiceStatus] || filters.status}".`
                 : activeScope === 'delivered_recent'
-                ? `No hay vehículos entregados en esta semana (${weekLabel}).`
+                ? 'No hay vehículos entregados en los últimos 7 días.'
                 : activeScope === 'history'
                 ? 'No hay órdenes en el historial para los filtros seleccionados.'
                 : stalledFilterMode === 'only'
@@ -951,6 +1033,7 @@ export const MaintenanceManagementPage: React.FC = () => {
             {sortedMaintenances.map((order) => {
               const sColor = SERVICE_STATUS_COLORS[order.status] || SERVICE_STATUS_COLORS[ServiceStatus.NotStarted];
               const progress = getProgressDetails(order.status);
+              const dateInfo = getOrderDateInfo(order);
 
               return (
                 <Box
@@ -997,12 +1080,23 @@ export const MaintenanceManagementPage: React.FC = () => {
                           {order.customer.name}
                         </Text>
                       </Flex>
+                      {/* Contextual Status Milestone Date */}
                       <Flex align="center" gap="xs">
-                        <Icon name="Calendar" size="xs" className="text-base-content/50" />
-                        <Text size="xs" variant="muted">
-                          Recepción: {formatIntakeDate(order.receptionDate || order.createdAt)}
+                        <Icon name={dateInfo.icon} size="xs" className={dateInfo.colorClass} />
+                        <Text size="xs" className={dateInfo.textClass}>
+                          {dateInfo.primaryLabel}: {formatIntakeDate(dateInfo.primaryDate)}
                         </Text>
                       </Flex>
+
+                      {/* Secondary Reception Date (if primary date is milestone like entrega/terminado/iniciado) */}
+                      {dateInfo.secondaryDate && (
+                        <Flex align="center" gap="xs">
+                          <Icon name="Calendar" size="xs" className="text-base-content/40" />
+                          <Text size="xs" variant="muted">
+                            {dateInfo.secondaryLabel}: {formatIntakeDate(dateInfo.secondaryDate)}
+                          </Text>
+                        </Flex>
+                      )}
                       <div className="mt-1">
                         <div className="bg-primary/10 border border-primary/20 rounded-md px-2.5 py-1 inline-flex items-center gap-1.5 max-w-full">
                           <Icon name="Wrench" size="xs" className="text-primary shrink-0" />

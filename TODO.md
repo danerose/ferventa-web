@@ -134,14 +134,14 @@ La pantalla de **Mantenimiento / Taller** se organiza en 3 pestañas principales
 ### Pestaña 1: "En Taller / Activos"
 * **Endpoint**: `GET /api/maintenance?scope=active`
 * **Estados**: `not_started`, `in_progress`, `completed`.
-* **Motos Varadas (> 1 semana en taller)**: El endpoint consulta todas las órdenes activas en taller sin acotarlas por fecha. El frontend detecta automáticamente las motos recibidas antes de la semana en curso (`receptionDate < monday`) y muestra:
-  - **Leyenda / Banner de alerta**: Informa cuántas motos llevan más de 1 semana en taller con botones para *"Incluir varadas"* o *"Ver solo varadas"*.
-  - **Tarjeta KPI interactiva**: Muestra el conteo de motos varadas y permite filtrarlas con un clic.
-  - **Badge de advertencia**: Las motos varadas incluyen una etiqueta `⚠️ Varada (+X d)` calculando sus días de retraso.
 
 ### Pestaña 2: "Entregados Esta Semana"
-* **Endpoint**: `GET /api/maintenance?scope=delivered_recent&from=YYYY-MM-DD&to=YYYY-MM-DD&dateField=deliveredAt`
-* **Qué muestra**: Vehículos entregados en la semana laboral seleccionada (Lunes a Sábado). Al pararse en un lunes, las entregas del sábado previo pertenecen a la semana anterior y se visualizan al presionar el botón *"Semana anterior"*.
+* **Opción A (Últimos 7 días móviles - Recomendado):**
+  * **Endpoint**: `GET /api/maintenance?scope=delivered_recent` (sin parámetros `from` ni `to`).
+  * **Qué muestra**: Vehículos entregados en los últimos 7 días móviles. No requiere calcular semanas ni navegar por fechas.
+* **Opción B (Navegador semanal Lunes a Sábado):**
+  * **Endpoint**: `GET /api/maintenance?scope=delivered_recent&from=YYYY-MM-DD&to=YYYY-MM-DD&dateField=deliveredAt`
+  * **Qué muestra**: Vehículos entregados dentro del rango de la semana seleccionada. Si hoy es lunes, una moto entregada el sábado anterior pertenece a la semana anterior (requiere dar clic a "Semana anterior").
 
 ### Pestaña 3: "Historial de Mantenimientos"
 * **Endpoint**: `GET /api/maintenance?scope=history`
