@@ -1737,11 +1737,30 @@ Base URL: `/api`
 **Parameters**:
 - `customerId` (query): Filtrar por ID de cliente (Opcional)
 - `status` (query): Filtrar por estado específico (ej. `in_progress` o lista separada por comas `in_progress,completed`) (Opcional)
-- `scope` (query): Vista predefinida (`active` = en taller, `delivered_recent` = entregados últimos 7 días, `history` = histórico general) (Opcional)
+- `scope` (query): Vista predefinida (Opcional):
+  - `active`: Vehículos actualmente en taller (estados: `not_started`, `in_progress`, `completed`).
+  - `delivered_recent`: Órdenes entregadas (`status: 'delivered'`).
+    - **Sin `from` ni `to`**: Retorna vehículos entregados en una **ventana móvil de los últimos 7 días** (desde `now - 7 días` hasta el momento actual). No requiere enviar parámetros de fecha.
+      *Ejemplo:* `GET /maintenance?scope=delivered_recent`
+    - **Con `from` y `to`**: Filtra órdenes entregadas dentro de dicho rango en el campo indicado (`dateField=deliveredAt`), **sin** imponer el límite fijo de 7 días. Esto permite consultar semanas pasadas o cualquier periodo histórico en la vista de entregados.
+      *Ejemplo:* `GET /maintenance?scope=delivered_recent&from=2026-08-31&to=2026-09-05&dateField=deliveredAt`
+  - `history`: Historial general de órdenes (todas las órdenes excepto `awaiting_appointment`). Permite combinar con `status`, `from`, `to`, `search`, etc.
 - `from` (query): Fecha inicio (YYYY-MM-DD) (Opcional)
 - `to` (query): Fecha fin (YYYY-MM-DD) (Opcional)
 - `dateField` (query): Campo de fecha a filtrar (`receptionDate`, `completedAt`, `deliveredAt`, `createdAt`, `startDate`, `endDate`) (Opcional, default: `receptionDate`)
 - `search` (query): Búsqueda difusa (tolerante a errores) por cliente, teléfono, placas, modelo o notas (Opcional)
+
+> **💡 Guía de Integración para Frontend (Pestaña "Entregados"):**
+> 
+> Existen 2 opciones válidas según cómo diseñes la UX:
+> 
+> 1. **Opción 1: Vista "Últimos 7 días móviles" (Recomendada si no se requiere navegador de semanas):**
+>    - Enviar únicamente: `GET /maintenance?scope=delivered_recent` (NO enviar `from`, `to` ni `dateField`).
+>    - Muestra todo lo entregado en los últimos 7 días corridos. Si hoy es lunes, una moto entregada el sábado o domingo aparecerá directamente sin necesidad de navegar a la semana anterior.
+> 
+> 2. **Opción 2: Vista "Navegador Semanal" (Lunes a Sábado):**
+>    - Enviar: `GET /maintenance?scope=delivered_recent&from=YYYY-MM-DD&to=YYYY-MM-DD&dateField=deliveredAt`.
+>    - **Regla de fechas:** Si una moto se entregó un sábado (ej. 5 de septiembre), pertenece a la semana laboral anterior (Lun 31 Ago – Sáb 5 Sep). Si el usuario se encuentra parado en el lunes siguiente (7 de septiembre), el rango de la semana actual es 7 Sep – 12 Sep, por lo que para ver la entrega del sábado el usuario debe presionar el botón *"Semana anterior"* en la interfaz.
 
 **Responses**:
 - `200`: 

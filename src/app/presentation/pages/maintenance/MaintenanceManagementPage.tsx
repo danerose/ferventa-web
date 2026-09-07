@@ -108,6 +108,12 @@ export const MaintenanceManagementPage: React.FC = () => {
   const [orderToNotify, setOrderToNotify] = useState<AdminMaintenanceOrder | null>(null);
   const [orderToLinkSale, setOrderToLinkSale] = useState<AdminMaintenanceOrder | null>(null);
   const [toasts, setToasts] = useState<{ id: number; type: 'success' | 'error'; message: string }[]>([]);
+  const [stalledFilterMode, setStalledFilterMode] = useState<'exclude' | 'include' | 'only'>('exclude');
+
+  // Reset stalled filter mode when switching tabs
+  useEffect(() => {
+    setStalledFilterMode('exclude');
+  }, [activeScope]);
 
   const toastIdCounter = useRef(0);
   const addToast = useCallback((type: 'success' | 'error', message: string) => {
@@ -273,16 +279,49 @@ export const MaintenanceManagementPage: React.FC = () => {
     }
   };
 
+  // Helper to calculate days spent in the workshop
+  const getDaysInWorkshop = (dateStr?: string) => {
+    if (!dateStr) return 0;
+    const time = new Date(dateStr).getTime();
+    if (!time) return 0;
+    const diffMs = Date.now() - time;
+    return Math.max(1, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
+  };
+
+  // Active orders categorized into this week's vs stalled (received prior to this week)
+  const { thisWeekActiveOrders, stalledActiveOrders } = useMemo(() => {
+    if (activeScope !== 'active') {
+      return { thisWeekActiveOrders: [], stalledActiveOrders: [] };
+    }
+
+    const thisWeek: AdminMaintenanceOrder[] = [];
+    const stalled: AdminMaintenanceOrder[] = [];
+
+    maintenances.forEach((m) => {
+      if (m.status === 'awaiting_appointment' || m.status === ServiceStatus.Delivered) return;
+      const rTime = new Date(m.receptionDate || m.createdAt || 0).getTime();
+      if (rTime < monday.getTime()) {
+        stalled.push(m);
+      } else if (rTime <= saturday.getTime()) {
+        thisWeek.push(m);
+      }
+    });
+
+    return { thisWeekActiveOrders: thisWeek, stalledActiveOrders: stalled };
+  }, [maintenances, activeScope, monday, saturday]);
+
   // Status statistics calculation (scoped by week when in active or delivered_recent)
   const stats = useMemo(() => {
     let baseList = maintenances;
 
     if (activeScope === 'active') {
-      baseList = maintenances.filter((m) => {
-        if (m.status === 'awaiting_appointment' || m.status === ServiceStatus.Delivered) return false;
-        const rTime = new Date(m.receptionDate || m.createdAt || 0).getTime();
-        return rTime >= monday.getTime() && rTime <= saturday.getTime();
-      });
+      if (stalledFilterMode === 'only') {
+        baseList = stalledActiveOrders;
+      } else if (stalledFilterMode === 'include') {
+        baseList = [...thisWeekActiveOrders, ...stalledActiveOrders];
+      } else {
+        baseList = thisWeekActiveOrders;
+      }
     } else if (activeScope === 'delivered_recent') {
       baseList = maintenances.filter((m) => {
         if (m.status !== ServiceStatus.Delivered) return false;
@@ -302,8 +341,9 @@ export const MaintenanceManagementPage: React.FC = () => {
       inProgress,
       completed,
       delivered,
+      stalledCount: stalledActiveOrders.length,
     };
-  }, [maintenances, activeScope, monday, saturday]);
+  }, [maintenances, activeScope, monday, saturday, stalledFilterMode, thisWeekActiveOrders, stalledActiveOrders]);
 
   // Order workflow sorting: NotStarted -> InProgress -> Completed -> Delivered
   const STATUS_WORKFLOW_ORDER: Record<string, number> = {
@@ -317,11 +357,13 @@ export const MaintenanceManagementPage: React.FC = () => {
     let list = maintenances;
 
     if (activeScope === 'active') {
-      list = list.filter((m) => {
-        if (m.status === 'awaiting_appointment' || m.status === ServiceStatus.Delivered) return false;
-        const rTime = new Date(m.receptionDate || m.createdAt || 0).getTime();
-        return rTime >= monday.getTime() && rTime <= saturday.getTime();
-      });
+      if (stalledFilterMode === 'only') {
+        list = stalledActiveOrders;
+      } else if (stalledFilterMode === 'include') {
+        list = [...stalledActiveOrders, ...thisWeekActiveOrders];
+      } else {
+        list = thisWeekActiveOrders;
+      }
     } else if (activeScope === 'delivered_recent') {
       list = list.filter((m) => {
         if (m.status !== ServiceStatus.Delivered) return false;
@@ -342,9 +384,12 @@ export const MaintenanceManagementPage: React.FC = () => {
       }
       const timeA = new Date(a.receptionDate || a.createdAt || 0).getTime();
       const timeB = new Date(b.receptionDate || b.createdAt || 0).getTime();
+      if (stalledFilterMode === 'only') {
+        return timeA - timeB;
+      }
       return timeB - timeA;
     });
-  }, [maintenances, activeScope, monday, saturday, filters.status]);
+  }, [maintenances, activeScope, monday, saturday, filters.status, stalledFilterMode, thisWeekActiveOrders, stalledActiveOrders]);
 
   // Formatter for intake dates
   const formatIntakeDate = (dateStr?: string) => {
@@ -522,7 +567,7 @@ export const MaintenanceManagementPage: React.FC = () => {
         )}
 
         {/* KPI Stats Grid - Interactive Filter Cards */}
-        <Grid cols={{ base: 1, sm: 2, lg: activeScope === 'history' ? 5 : activeScope === 'active' ? 4 : 2 }} gap="md">
+        <Grid cols={{ base: 1, sm: 2, lg: activeScope === 'history' ? 5 : activeScope === 'active' ? (stalledActiveOrders.length > 0 ? 5 : 4) : 2 }} gap="md">
           {/* Total Vehiculos / Todas las Ordenes */}
           <Box
             as="button"
@@ -641,6 +686,38 @@ export const MaintenanceManagementPage: React.FC = () => {
             </Box>
           )}
 
+          {/* Active Scope: Stalled Orders Card */}
+          {activeScope === 'active' && stalledActiveOrders.length > 0 && (
+            <Box
+              as="button"
+              type="button"
+              onClick={() => {
+                setStalledFilterMode((prev) => (prev === 'only' ? 'exclude' : 'only'));
+                setFilter('status', 'all');
+              }}
+              className={`w-full text-left p-4 rounded-DEFAULT border transition-all cursor-pointer shadow-xs ${
+                stalledFilterMode === 'only'
+                  ? 'bg-warning/15 border-warning ring-2 ring-warning/50 shadow-sm'
+                  : 'bg-base-100 border-base-300 hover:border-warning/50 hover:bg-warning/5'
+              }`}
+              title="Filtrar motos varadas con más de 1 semana en taller"
+            >
+              <Flex align="center" gap="md">
+                <Box className="w-11 h-11 rounded-DEFAULT bg-warning/10 text-warning flex items-center justify-center shrink-0">
+                  <Icon name="AlertTriangle" size="md" />
+                </Box>
+                <Box>
+                  <Text size="xs" weight="bold" className="text-warning uppercase tracking-wider">
+                    Varadas (&gt; 1 sem)
+                  </Text>
+                  <Heading level={3} className="text-2xl font-black tracking-tight text-warning mt-0.5">
+                    {stats.stalledCount}
+                  </Heading>
+                </Box>
+              </Flex>
+            </Box>
+          )}
+
           {/* History Scope: Entregado Card */}
           {activeScope === 'history' && (
             <Box
@@ -741,6 +818,87 @@ export const MaintenanceManagementPage: React.FC = () => {
           </Box>
         )}
 
+        {/* Banner de Motos Varadas (> 1 semana en taller) */}
+        {activeScope === 'active' && stalledActiveOrders.length > 0 && (
+          <Box
+            bg="base-100"
+            rounded="DEFAULT"
+            className="p-4 border border-warning/40 bg-warning/5 shadow-xs transition-all"
+          >
+            <Flex justify="between" align="center" className="flex-wrap gap-3">
+              <Flex align="center" gap="sm">
+                <Box className="w-10 h-10 rounded-full bg-warning/15 text-warning flex items-center justify-center shrink-0">
+                  <Icon name="AlertTriangle" size="sm" />
+                </Box>
+                <Box>
+                  <Text size="sm" weight="bold" className="text-warning-content">
+                    {stalledFilterMode === 'only'
+                      ? `Mostrando ${stalledActiveOrders.length} moto(s) varada(s) que llevan más de una semana en el taller.`
+                      : stalledFilterMode === 'include'
+                      ? `Se están incluyendo ${stalledActiveOrders.length} moto(s) varada(s) junto con las órdenes de esta semana.`
+                      : `Atención: Hay ${stalledActiveOrders.length} moto(s) varada(s) que llevan más de una semana en el taller.`}
+                  </Text>
+                  <Text size="xs" variant="muted">
+                    {stalledFilterMode === 'only'
+                      ? 'Estas motos fueron recibidas en semanas anteriores y aún no se entregan.'
+                      : stalledFilterMode === 'include'
+                      ? 'Las motos varadas aparecen marcadas con la etiqueta "Varada (+X d)".'
+                      : 'Fueron recibidas antes de esta semana y siguen activas sin entregarse.'}
+                  </Text>
+                </Box>
+              </Flex>
+
+              <Flex align="center" gap="xs" className="flex-wrap">
+                {stalledFilterMode === 'only' ? (
+                  <>
+                    <SecondaryButton
+                      size="xs"
+                      onClick={() => setStalledFilterMode('exclude')}
+                      iconStart={<Icon name="Calendar" size="xs" />}
+                    >
+                      Volver a esta semana
+                    </SecondaryButton>
+                    <TertiaryButton
+                      size="xs"
+                      onClick={() => setStalledFilterMode('include')}
+                    >
+                      Ver todas (Esta semana + Varadas)
+                    </TertiaryButton>
+                  </>
+                ) : (
+                  <>
+                    <SecondaryButton
+                      size="xs"
+                      onClick={() =>
+                        setStalledFilterMode((prev) => (prev === 'include' ? 'exclude' : 'include'))
+                      }
+                      iconStart={
+                        <Icon
+                          name={stalledFilterMode === 'include' ? 'EyeOff' : 'PlusCircle'}
+                          size="xs"
+                        />
+                      }
+                    >
+                      {stalledFilterMode === 'include'
+                        ? 'Ocultar varadas'
+                        : `Incluir varadas (${stalledActiveOrders.length})`}
+                    </SecondaryButton>
+
+                    <PrimaryButton
+                      size="xs"
+                      color="warning"
+                      onClick={() => setStalledFilterMode('only')}
+                      iconStart={<Icon name="AlertTriangle" size="xs" />}
+                    >
+                      Ver solo varadas ({stalledActiveOrders.length})
+                    </PrimaryButton>
+                  </>
+                )}
+              </Flex>
+            </Flex>
+          </Box>
+        )}
+
         {/* Service Cards Grid */}
         {loading ? (
           <Stack spacing="md">
@@ -783,6 +941,8 @@ export const MaintenanceManagementPage: React.FC = () => {
                 ? `No hay vehículos entregados en esta semana (${weekLabel}).`
                 : activeScope === 'history'
                 ? 'No hay órdenes en el historial para los filtros seleccionados.'
+                : stalledFilterMode === 'only'
+                ? 'No hay motos varadas en el taller.'
                 : `No hay órdenes recibidas en esta semana (${weekLabel}).`}
             </Text>
           </Box>
@@ -802,14 +962,23 @@ export const MaintenanceManagementPage: React.FC = () => {
                   <Box>
                     {/* Status Badge & Actions */}
                     <Flex justify="between" align="center" className="mb-3">
-                      <Badge
-                        variant="soft"
-                        color={sColor.badgeColor}
-                        size="sm"
-                        className="font-semibold"
-                      >
-                        {SERVICE_STATUS_LABELS[order.status] || order.status}
-                      </Badge>
+                      <Flex align="center" gap="xs">
+                        <Badge
+                          variant="soft"
+                          color={sColor.badgeColor}
+                          size="sm"
+                          className="font-semibold"
+                        >
+                          {SERVICE_STATUS_LABELS[order.status] || order.status}
+                        </Badge>
+                        {activeScope === 'active' &&
+                          new Date(order.receptionDate || order.createdAt || 0).getTime() < monday.getTime() && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-bold bg-warning/15 text-warning border border-warning/30">
+                              <Icon name="AlertTriangle" size="xs" />
+                              Varada ({getDaysInWorkshop(order.receptionDate || order.createdAt)}d)
+                            </span>
+                          )}
+                      </Flex>
                       <Text size="xs" variant="mono" weight="semibold">
                         SERIE: {order.vehicle.serialNumberLastFour}
                       </Text>

@@ -107,11 +107,11 @@ export const useMaintenanceStore = create<MaintenanceState>((set, get) => ({
       let toParam = currentFilters.to || undefined;
       let dateFieldParam = currentFilters.dateField || undefined;
 
-      if (scope === 'active' || scope === 'delivered_recent') {
+      if (scope === 'delivered_recent') {
         const { monday, saturday } = getWeekMondayAndSaturday(refDate);
         fromParam = toLocalYYYYMMDD(monday);
         toParam = toLocalYYYYMMDD(saturday);
-        dateFieldParam = scope === 'active' ? 'receptionDate' : 'deliveredAt';
+        dateFieldParam = 'deliveredAt';
       }
 
       const data = await adminRepo.getMaintenances(accessToken, {
