@@ -17,7 +17,8 @@ import {
   SPECIAL_ORDER_STATUS_COLORS,
 } from '@/core/enums';
 import type { SpecialOrder } from '@/app/domain';
-import { formatCurrency, formatDate } from '@/core/utils';
+import { formatCurrency, formatDate, buildSpecialOrderWhatsAppMessage } from '@/core/utils';
+import { useActiveBranch } from '@/app/presentation/hooks';
 
 export interface SpecialOrderDetailDrawerProps {
   isOpen: boolean;
@@ -49,6 +50,8 @@ export const SpecialOrderDetailDrawer: React.FC<SpecialOrderDetailDrawerProps> =
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, order, onClose]);
 
+  const { activeBranchName } = useActiveBranch();
+
   if (!isOpen || !order) return null;
 
   const handleCopyFolio = () => {
@@ -59,8 +62,14 @@ export const SpecialOrderDetailDrawer: React.FC<SpecialOrderDetailDrawerProps> =
 
   // WhatsApp link preparation
   const cleanPhone = order.customer.phone.replace(/\D/g, '');
-  const remainingFormatted = formatCurrency(order.remainingBalance);
-  const waMessage = `Hola ${order.customer.name}, le saludamos de Taller Ferventa. Respecto a su pedido especial ${order.folio} (${order.itemDescription}): le informamos que su estatus actual es "${SPECIAL_ORDER_STATUS_LABELS[order.status]}". Saldo pendiente: ${remainingFormatted}.`;
+  const waMessage = buildSpecialOrderWhatsAppMessage({
+    customerName: order.customer.name,
+    folio: order.folio,
+    itemDescription: order.itemDescription,
+    status: order.status,
+    remainingBalance: order.remainingBalance,
+    branchName: activeBranchName,
+  });
   const waUrl = `https://wa.me/52${cleanPhone}?text=${encodeURIComponent(waMessage)}`;
 
   const statusColor = SPECIAL_ORDER_STATUS_COLORS[order.status] || {

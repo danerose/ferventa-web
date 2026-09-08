@@ -83,6 +83,7 @@ export * from './organisms/Modals/RejectAppointmentModal';
 export * from './organisms/Modals/RescheduleAppointmentModal';
 export * from './organisms/Modals/UpdateSpecialOrderStatusModal';
 export * from './organisms/Modals/UserBreakdownModal';
+export * from './organisms/Modals/ChangePasswordModal';
 export * from './organisms/SaleDetailDrawer/SaleDetailDrawer';
 export * from './organisms/PageLayout/PageLayout';
 export * from './organisms/Sidebar/Sidebar';

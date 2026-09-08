@@ -5,7 +5,10 @@ export interface AuthUser {
   email: string;
   role: string;
   branches?: string[];
+  lastLoginAt?: string | null;
+  isDefaultPassword?: boolean;
 }
+
 
 export interface AdminVehicle {
   brand: string;

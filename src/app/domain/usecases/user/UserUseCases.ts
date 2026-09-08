@@ -7,6 +7,7 @@ import type {
   UpdateUserDto,
   CreateUserResponse,
   CheckUsernameResponse,
+  ResetPasswordResponse,
 } from '../../entities';
 
 export interface IAdminBranchProvider {
@@ -53,4 +54,9 @@ export class UserUseCases {
   deleteUser(token: string, id: string): Promise<void> {
     return this.userRepository.deleteUser(token, id);
   }
+
+  resetPassword(token: string, userId: string, newPassword?: string): Promise<ResetPasswordResponse> {
+    return this.userRepository.resetPassword(token, userId, newPassword);
+  }
 }
+

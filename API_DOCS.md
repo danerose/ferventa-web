@@ -179,6 +179,69 @@ Base URL: `/api`
 
 ---
 
+### [PATCH] /users/change-password
+**Summary**: Actualizar la propia contraseña del usuario autenticado
+
+**Request Body**:
+```json
+{
+  "currentPassword": "PasswordActual123!",
+  "newPassword": "NuevaPasswordSegura456!"
+}
+```
+
+**Responses**:
+- `200`: Contraseña actualizada exitosamente.
+  ```json
+  {
+    "success": true,
+    "data": null,
+    "message": "Contraseña actualizada exitosamente"
+  }
+  ```
+- `400`: Contraseña actual incorrecta o nueva contraseña inválida.
+
+---
+
+### [PATCH] /users/{id}/password
+**Summary**: Actualizar o restablecer la contraseña de un usuario por su ID (Solo Admin)
+
+**Parameters**:
+- `id` (path): ID del usuario (Required)
+
+**Request Body**:
+```json
+{
+  "newPassword": "PasswordOpcional123!"
+}
+```
+*(Opcional: Si `newPassword` se omite o viene vacío `""`, el API autogenera una nueva contraseña).*
+
+**Responses**:
+- `200`: Contraseña actualizada exitosamente.
+  ```json
+  {
+    "success": true,
+    "data": {
+      "user": {
+        "id": "60d5ec49c6d48227b409748b",
+        "name": "Alexis Rojas",
+        "username": "arojas",
+        "email": "alexis@ferventa.com",
+        "defaultPassword": "PasswordOpcional123!",
+        "isDefaultPassword": true
+      },
+      "tempPassword": "PasswordOpcional123!",
+      "message": "¡Hola Alexis Rojas! Tu contraseña en Ferventa ha sido actualizada por el administrador...",
+      "whatsappUrl": "https://api.whatsapp.com/send?phone=528118765432&text=..."
+    },
+    "message": "Contraseña restablecida exitosamente"
+  }
+  ```
+- `404`: Usuario no encontrado.
+
+---
+
 ### [GET] /users/{id}
 **Summary**: Obtener un usuario por ID (Solo Admin)
 
@@ -402,6 +465,30 @@ Base URL: `/api`
 
 ---
 
+### [PATCH] /auth/change-password
+**Summary**: Actualizar la propia contraseña del usuario autenticado
+
+**Request Body**:
+```json
+{
+  "currentPassword": "PasswordActual123!",
+  "newPassword": "NuevaPasswordSegura456!"
+}
+```
+
+**Responses**:
+- `200`: Contraseña actualizada exitosamente.
+  ```json
+  {
+    "success": true,
+    "data": null,
+    "message": "Contraseña actualizada exitosamente"
+  }
+  ```
+- `400`: Contraseña actual incorrecta o nueva contraseña inválida.
+
+---
+
 ### [GET] /auth/me
 **Summary**: Obtener el perfil del usuario autenticado
 
@@ -418,7 +505,8 @@ Base URL: `/api`
       "branches": [
         "6a5e6e9a0..."
       ],
-      "lastLoginAt": "2026-09-04T02:56:01.273Z"
+      "lastLoginAt": "2026-09-04T02:56:01.273Z",
+      "isDefaultPassword": false
     },
     "message": "Perfil retornado con éxito"
   }

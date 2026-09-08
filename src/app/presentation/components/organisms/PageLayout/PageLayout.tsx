@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Sidebar } from '@/app/presentation/components/organisms/Sidebar/Sidebar';
+import { ChangePasswordModal } from '@/app/presentation/components/organisms/Modals/ChangePasswordModal';
+import { Icon, PrimaryButton } from '@/app/presentation/components';
 import { useAuthStore } from '@/app/presentation/stores';
 
 /**
@@ -34,15 +36,28 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
   userName,
 }) => {
   const user = useAuthStore((s) => s.user);
+  const accessToken = useAuthStore((s) => s.accessToken);
   const clearAuth = useAuthStore((s) => s.clearAuth);
+  const fetchProfile = useAuthStore((s) => s.fetchProfile);
+
+  const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
+  const [successToast, setSuccessToast] = useState<string | null>(null);
+
   const resolvedName = userName ?? user?.name ?? 'Admin';
+
+  useEffect(() => {
+    if (accessToken) {
+      fetchProfile();
+    }
+  }, [accessToken, fetchProfile]);
 
   const handleLogout = () => {
     clearAuth();
-    // Navigation is handled by the ProtectedRoute / auth guards; we just
-    // clear the store here. Individual pages may override via prop if they
-    // need to run extra logic before logging out — but for the standard
-    // case the store listener in the router takes care of redirect.
+  };
+
+  const handlePasswordSuccess = () => {
+    setSuccessToast('¡Contraseña actualizada con éxito!');
+    setTimeout(() => setSuccessToast(null), 4000);
   };
 
   return (
@@ -54,7 +69,11 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
     >
       {/* Fixed navigation sidebar */}
       <div className="print:hidden">
-        <Sidebar onLogout={handleLogout} userName={resolvedName} />
+        <Sidebar
+          onLogout={handleLogout}
+          userName={resolvedName}
+          onChangePassword={() => setIsChangePasswordOpen(true)}
+        />
       </div>
 
       {/* Content area — pushed right by sidebar width, never overlaps */}
@@ -67,8 +86,45 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
         }}
         className={`print:ml-0 ${className}`.trim()}
       >
+        {/* Banner de aviso de contraseña temporal */}
+        {user?.isDefaultPassword && (
+          <div className="bg-amber-500/15 border-b border-amber-500/30 px-6 py-2.5 flex items-center justify-between gap-4 text-amber-950 dark:text-amber-200 z-20 shrink-0">
+            <div className="flex items-center gap-2.5 text-xs sm:text-sm font-medium">
+              <Icon name="ShieldAlert" size="sm" className="text-amber-600 dark:text-amber-400 shrink-0" />
+              <span>
+                Estás usando una contraseña temporal. Por seguridad, debes actualizarla a una privada.
+              </span>
+            </div>
+            <PrimaryButton
+              size="xs"
+              color="warning"
+              onClick={() => setIsChangePasswordOpen(true)}
+              iconStart={<Icon name="Key" size="xs" />}
+            >
+              Cambiar Contraseña
+            </PrimaryButton>
+          </div>
+        )}
+
+        {/* Success Toast */}
+        {successToast && (
+          <div className="fixed top-4 right-4 z-50 bg-emerald-600 text-white text-xs font-semibold px-4 py-2.5 rounded-xl shadow-lg flex items-center gap-2 animate-in fade-in slide-in-from-top-2">
+            <Icon name="CheckCircle" size="xs" className="text-white" />
+            <span>{successToast}</span>
+          </div>
+        )}
+
         {children}
+
+        {/* Modal de cambio de contraseña */}
+        <ChangePasswordModal
+          isOpen={isChangePasswordOpen}
+          onClose={() => setIsChangePasswordOpen(false)}
+          onSuccess={handlePasswordSuccess}
+          isMandatory={!!user?.isDefaultPassword}
+        />
       </div>
     </div>
   );
 };
+

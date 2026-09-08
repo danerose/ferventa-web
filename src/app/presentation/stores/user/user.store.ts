@@ -7,6 +7,7 @@ import type {
   CreateUserDto,
   UpdateUserDto,
   CreateUserResponse,
+  ResetPasswordResponse,
 } from '@/app/domain';
 
 interface UsernameStatus {
@@ -16,6 +17,8 @@ interface UsernameStatus {
   message?: string;
 }
 
+export type UserActiveModal = 'addUser' | 'editUser' | 'deleteUser' | 'success' | 'resetPassword' | 'resetSuccess' | null;
+
 interface UserState {
   users: User[];
   roles: Role[];
@@ -23,28 +26,32 @@ interface UserState {
   loading: boolean;
   error: string | null;
   searchValue: string;
-  activeModal: 'addUser' | 'editUser' | 'deleteUser' | 'success' | null;
+  activeModal: UserActiveModal;
   selectedUser: User | null;
   isSubmitting: boolean;
   submitError: string | null;
   successData: CreateUserResponse | null;
+  resetSuccessData: ResetPasswordResponse | null;
   usernameStatus: UsernameStatus;
 
   // Setters
   setSearchValue: (val: string) => void;
-  setActiveModal: (modal: 'addUser' | 'editUser' | 'deleteUser' | 'success' | null) => void;
+  setActiveModal: (modal: UserActiveModal) => void;
   setSelectedUser: (user: User | null) => void;
   setSubmitError: (error: string | null) => void;
   clearSuccessData: () => void;
+  clearResetSuccessData: () => void;
 
   // Async Actions via userUseCases
   loadData: (token: string) => Promise<void>;
   createUser: (token: string, data: CreateUserDto) => Promise<CreateUserResponse>;
   updateUser: (token: string, id: string, data: UpdateUserDto) => Promise<User>;
   deleteUser: (token: string, id: string) => Promise<void>;
+  resetPassword: (token: string, userId: string, newPassword?: string) => Promise<ResetPasswordResponse>;
   checkUsername: (token: string, username: string) => Promise<void>;
   generateUsername: (token: string, name: string) => Promise<string>;
 }
+
 
 let checkDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -60,6 +67,7 @@ export const useUserStore = create<UserState>((set, get) => ({
   isSubmitting: false,
   submitError: null,
   successData: null,
+  resetSuccessData: null,
   usernameStatus: { checking: false },
 
   setSearchValue: (searchValue) => set({ searchValue }),
@@ -67,6 +75,7 @@ export const useUserStore = create<UserState>((set, get) => ({
   setSelectedUser: (selectedUser) => set({ selectedUser }),
   setSubmitError: (submitError) => set({ submitError }),
   clearSuccessData: () => set({ successData: null }),
+  clearResetSuccessData: () => set({ resetSuccessData: null }),
 
   loadData: async (token: string) => {
     if (!token) return;
@@ -125,6 +134,33 @@ export const useUserStore = create<UserState>((set, get) => ({
       throw err;
     }
   },
+
+  resetPassword: async (token: string, userId: string, newPassword?: string) => {
+    set({ isSubmitting: true, submitError: null });
+    try {
+      const resp = await userUseCases.resetPassword(token, userId, newPassword);
+      set((state) => ({
+        users: state.users.map((u) =>
+          u.id === userId || u._id === userId
+            ? {
+                ...u,
+                defaultPassword: resp.tempPassword,
+                isDefaultPassword: true,
+              }
+            : u
+        ),
+        resetSuccessData: resp,
+        isSubmitting: false,
+        activeModal: 'resetSuccess',
+      }));
+      return resp;
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Error al restablecer contraseña';
+      set({ submitError: message, isSubmitting: false });
+      throw err;
+    }
+  },
+
 
   checkUsername: async (token: string, username: string) => {
     const trimmed = username.trim();

@@ -5,6 +5,7 @@ import type {
   UpdateUserDto,
   CreateUserResponse,
   CheckUsernameResponse,
+  ResetPasswordResponse,
 } from '../../entities';
 
 export interface IUserRepository {
@@ -15,4 +16,6 @@ export interface IUserRepository {
   createUser(token: string, data: CreateUserDto): Promise<CreateUserResponse>;
   updateUser(token: string, id: string, data: UpdateUserDto): Promise<User>;
   deleteUser(token: string, id: string): Promise<void>;
+  resetPassword(token: string, userId: string, newPassword?: string): Promise<ResetPasswordResponse>;
 }
+

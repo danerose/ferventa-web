@@ -1,4 +1,4 @@
-import type { User, Role, CreateUserDto, UpdateUserDto, CreateUserResponse, CheckUsernameResponse } from '@/app/domain';
+import type { User, Role, CreateUserDto, UpdateUserDto, CreateUserResponse, CheckUsernameResponse, ResetPasswordResponse } from '@/app/domain';
 
 export class APIUserRepository {
   private baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
@@ -118,4 +118,21 @@ export class APIUserRepository {
     if (res.status === 401) throw new Error('UNAUTHORIZED');
     if (!res.ok || !json.success) throw new Error(json.message || 'Error al eliminar usuario');
   }
+
+  async resetPassword(token: string, userId: string, newPassword?: string): Promise<ResetPasswordResponse> {
+    const payload: Record<string, unknown> = {};
+    if (newPassword && newPassword.trim()) {
+      payload.newPassword = newPassword.trim();
+    }
+    const res = await this.fetchWithAuth(`${this.baseUrl}/users/${userId}/password`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify(payload),
+    });
+    const json = await res.json();
+    if (res.status === 401) throw new Error('UNAUTHORIZED');
+    if (!res.ok || !json.success) throw new Error(json.message || 'Error al restablecer contraseña');
+    return json.data as ResetPasswordResponse;
+  }
 }
+

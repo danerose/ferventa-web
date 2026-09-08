@@ -33,7 +33,7 @@ import type {
   UpdateSpecialOrderStatusPayload,
   CancelSpecialOrderPayload,
 } from '@/app/domain';
-import { formatCurrency, formatDate } from '@/core/utils';
+import { formatCurrency, formatDate, buildSpecialOrderWhatsAppMessage } from '@/core/utils';
 
 import { useShallow } from 'zustand/react/shallow';
 
@@ -42,6 +42,7 @@ export const SpecialOrdersPage: React.FC = () => {
   const user = useAuthStore((s) => s.user);
   const accessToken = useAuthStore((s) => s.accessToken);
   const activeBranchId = useAuthStore((s) => s.activeBranchId);
+  const activeBranchName = useAuthStore((s) => s.activeBranchName);
   const clearAuth = useAuthStore((s) => s.clearAuth);
 
   // Store state & actions
@@ -429,7 +430,14 @@ export const SpecialOrdersPage: React.FC = () => {
                 };
 
                 const cleanPhone = order.customer.phone.replace(/\D/g, '');
-                const waMessage = `Hola ${order.customer.name}, le avisamos que su pedido ${order.folio} (${order.itemDescription}) se encuentra en estatus: "${SPECIAL_ORDER_STATUS_LABELS[order.status]}". Saldo pendiente: ${formatCurrency(order.remainingBalance)}.`;
+                const waMessage = buildSpecialOrderWhatsAppMessage({
+                  customerName: order.customer.name,
+                  folio: order.folio,
+                  itemDescription: order.itemDescription,
+                  status: order.status,
+                  remainingBalance: order.remainingBalance,
+                  branchName: activeBranchName,
+                });
                 const waUrl = `https://wa.me/52${cleanPhone}?text=${encodeURIComponent(waMessage)}`;
 
                 const isCancelled = order.status === SpecialOrderStatus.CANCELLED;

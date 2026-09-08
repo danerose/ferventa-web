@@ -22,8 +22,9 @@ import {
   SERVICE_STATUS_LABELS,
 } from '@/core/enums';
 import type { AdminMaintenanceOrder } from '@/app/domain';
-import { formatDate, formatCurrency } from '@/core/utils';
+import { formatDate, formatCurrency, buildMaintenanceWhatsAppMessage } from '@/core/utils';
 import { cleanPhoneDigits } from '@/core/utils/formatters/formatPhoneNumber';
+import { useActiveBranch } from '@/app/presentation/hooks';
 
 export interface MaintenanceDetailDrawerProps {
   isOpen: boolean;
@@ -52,6 +53,7 @@ export const MaintenanceDetailDrawer: React.FC<MaintenanceDetailDrawerProps> = (
   onLinkSale,
   onUnlinkSale,
 }) => {
+  const { activeBranchName } = useActiveBranch();
   const [newNote, setNewNote] = useState('');
   const [isSubmittingNote, setIsSubmittingNote] = useState(false);
   const [statusUpdating, setStatusUpdating] = useState(false);
@@ -141,7 +143,17 @@ export const MaintenanceDetailDrawer: React.FC<MaintenanceDetailDrawerProps> = (
   const phoneDigits = cleanPhoneDigits(order.customer.phone || '');
 
   // WhatsApp quick link
-  const waMessage = `Hola ${order.customer.name}, le saludamos de Taller Ferventa. Le informamos que su vehículo ${order.vehicle.brand} ${order.vehicle.model} (Serie: ${order.vehicle.serialNumberLastFour}) se encuentra en estatus: ${SERVICE_STATUS_LABELS[order.status] || order.status}.${order.status === ServiceStatus.Completed ? ' ¡Su vehículo ya está listo para ser recogido!' : ''}`;
+  const waMessage = buildMaintenanceWhatsAppMessage({
+    customerName: order.customer.name,
+    vehicle: {
+      brand: order.vehicle.brand,
+      model: order.vehicle.model,
+      serialNumberLastFour: order.vehicle.serialNumberLastFour,
+    },
+    status: order.status,
+    branchName: activeBranchName,
+    serviceRequested: order.serviceRequested,
+  });
   const waUrl = phoneDigits ? `https://wa.me/52${phoneDigits}?text=${encodeURIComponent(waMessage)}` : undefined;
 
   // Milestone timeline calculation

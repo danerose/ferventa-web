@@ -10,6 +10,10 @@ export interface IAuthRepository {
   saveSession(session: { user: AuthUser; accessToken: string; refreshToken: string }): void;
   getActiveBranchId(): string | null;
   setActiveBranchId(id: string | null): void;
+  getActiveBranchName(): string | null;
+  saveActiveBranch(id: string | null, name?: string | null): void;
+  getProfile(token: string): Promise<AuthUser>;
+  changePassword(token: string, currentPassword: string, newPassword: string): Promise<void>;
 }
 
 export class AuthRepository implements IAuthRepository {
@@ -62,4 +66,21 @@ export class AuthRepository implements IAuthRepository {
   setActiveBranchId(id: string | null): void {
     this.local.saveActiveBranchId(id);
   }
+
+  getActiveBranchName(): string | null {
+    return this.local.getActiveBranchName();
+  }
+
+  saveActiveBranch(id: string | null, name?: string | null): void {
+    this.local.saveActiveBranch(id, name);
+  }
+
+  async getProfile(token: string): Promise<AuthUser> {
+    return this.remote.getProfile(token);
+  }
+
+  async changePassword(token: string, currentPassword: string, newPassword: string): Promise<void> {
+    return this.remote.changePassword(token, currentPassword, newPassword);
+  }
 }
+

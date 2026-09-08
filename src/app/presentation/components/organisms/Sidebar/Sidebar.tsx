@@ -12,7 +12,9 @@ const clientPortalRepo = new APIClientPortalRepository();
 export interface SidebarProps {
   onLogout: () => void;
   userName: string;
+  onChangePassword?: () => void;
 }
+
 
 // Nav items visible to ALL authenticated users
 const COMMON_NAV_ITEMS = [
@@ -77,12 +79,13 @@ function getRoleLabel(user: { role?: unknown } | null | undefined): string {
   return ROLE_LABELS[roleName.toLowerCase()] || roleName || 'Usuario';
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ onLogout, userName }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ onLogout, userName, onChangePassword }) => {
   const location = useLocation();
   const user = useAuthStore((s) => s.user);
   const accessToken = useAuthStore((s) => s.accessToken);
   const activeBranchId = useAuthStore((s) => s.activeBranchId);
-  const setActiveBranchId = useAuthStore((s) => s.setActiveBranchId);
+  const setActiveBranch = useAuthStore((s) => s.setActiveBranch);
+  const setBranchesStore = useAuthStore((s) => s.setBranches);
   const [branches, setBranches] = React.useState<Branch[]>([]);
 
   const isAdmin = isAdminUser(user);
@@ -93,6 +96,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onLogout, userName }) => {
         const data = await adminRepo.getBranches();
         if (data && data.length > 0) {
           setBranches(data);
+          setBranchesStore(data);
           return;
         }
       } catch {
@@ -102,7 +106,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ onLogout, userName }) => {
       try {
         const publicData = await clientPortalRepo.getPublicBranches();
         if (publicData && publicData.length > 0) {
-          setBranches(publicData.map((b) => ({ ...b, id: b.id })));
+          const mapped = publicData.map((b) => ({ ...b, id: b.id }));
+          setBranches(mapped);
+          setBranchesStore(mapped);
         }
       } catch {
         // ignore
@@ -110,7 +116,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onLogout, userName }) => {
     };
 
     fetchBranches();
-  }, [accessToken]);
+  }, [accessToken, setBranchesStore]);
 
   const availableBranches = React.useMemo(() => {
     if (branches.length === 0) return [];
@@ -128,9 +134,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ onLogout, userName }) => {
 
   React.useEffect(() => {
     if (availableBranches.length > 0 && (!activeBranchId || !availableBranches.some(b => b.id === activeBranchId))) {
-      setActiveBranchId(availableBranches[0].id);
+      setActiveBranch(availableBranches[0].id, availableBranches[0].name);
     }
-  }, [availableBranches, activeBranchId, setActiveBranchId]);
+  }, [availableBranches, activeBranchId, setActiveBranch]);
 
   const navItems = isAdmin
     ? [...COMMON_NAV_ITEMS, ...ADMIN_ONLY_NAV_ITEMS]
@@ -201,7 +207,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ onLogout, userName }) => {
           <select
             value={activeBranchId || availableBranches[0].id}
             onChange={(e) => {
-              setActiveBranchId(e.target.value);
+              const selected = availableBranches.find((b) => b.id === e.target.value);
+              setActiveBranch(e.target.value, selected?.name);
               window.location.reload();
             }}
             style={{
@@ -293,6 +300,42 @@ export const Sidebar: React.FC<SidebarProps> = ({ onLogout, userName }) => {
             <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '11px' }}>{getRoleLabel(user)}</p>
           </div>
         </div>
+
+        {onChangePassword && (
+          <button
+            onClick={onChangePassword}
+            style={{
+              width: '100%',
+              background: 'transparent',
+              border: '1px solid rgba(255,255,255,0.12)',
+              borderRadius: '8px',
+              padding: '6px 12px',
+              marginBottom: '8px',
+              color: 'rgba(255,255,255,0.65)',
+              fontSize: '12px',
+              fontWeight: '500',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+              transition: 'background 0.15s, color 0.15s, border-color 0.15s',
+            }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.08)';
+              (e.currentTarget as HTMLButtonElement).style.color = '#ffffff';
+              (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.25)';
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
+              (e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.65)';
+              (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.12)';
+            }}
+          >
+            <Icon name="Key" size="xs" />
+            Cambiar Contraseña
+          </button>
+        )}
 
         <button
           onClick={onLogout}

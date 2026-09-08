@@ -137,7 +137,7 @@ export const MaintenanceManagementPage: React.FC = () => {
   useEffect(() => {
     if (!accessToken) return;
     fetchMaintenances(accessToken, activeScope, undefined, weekRefDate);
-    userRepository.getUsers(accessToken).then(setUsersList).catch(() => {});
+    userRepository.getUsers(accessToken).then(setUsersList).catch(() => { });
   }, [accessToken, activeScope, weekRefDate, fetchMaintenances]);
 
   // Debounced search / filter reload (skips initial mount duplicate fetch)
@@ -555,11 +555,10 @@ export const MaintenanceManagementPage: React.FC = () => {
                 <button
                   key={tab.id}
                   onClick={() => setActiveScope(tab.id)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
-                    isActive
-                      ? 'bg-base-100 text-primary shadow-xs'
-                      : 'text-base-content/70 hover:text-base-content hover:bg-base-100/50'
-                  }`}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${isActive
+                    ? 'bg-base-100 text-primary shadow-xs'
+                    : 'text-base-content/70 hover:text-base-content hover:bg-base-100/50'
+                    }`}
                 >
                   <Icon name={tab.icon} size="xs" />
                   <span>{tab.label}</span>
@@ -655,11 +654,10 @@ export const MaintenanceManagementPage: React.FC = () => {
             as="button"
             type="button"
             onClick={() => setFilter('status', 'all')}
-            className={`w-full text-left p-4 rounded-DEFAULT border transition-all cursor-pointer shadow-xs ${
-              filters.status === 'all' || !filters.status
-                ? 'bg-primary/5 border-primary ring-2 ring-primary/40 shadow-sm'
-                : 'bg-base-100 border-base-300 hover:border-primary/50 hover:bg-base-200/40'
-            }`}
+            className={`w-full text-left p-4 rounded-DEFAULT border transition-all cursor-pointer shadow-xs ${filters.status === 'all' || !filters.status
+              ? 'bg-primary/5 border-primary ring-2 ring-primary/40 shadow-sm'
+              : 'bg-base-100 border-base-300 hover:border-primary/50 hover:bg-base-200/40'
+              }`}
             title="Ver todos los vehículos"
           >
             <Flex align="center" gap="md">
@@ -671,8 +669,8 @@ export const MaintenanceManagementPage: React.FC = () => {
                   {activeScope === 'history'
                     ? 'Todas las Órdenes'
                     : activeScope === 'delivered_recent'
-                    ? 'Entregados Esta Semana'
-                    : 'Vehículos Activos'}
+                      ? 'Entregados Esta Semana'
+                      : 'Vehículos Activos'}
                 </Text>
                 <Heading level={3} className="text-2xl font-black tracking-tight mt-0.5">
                   {activeScope === 'history' ? maintenances.length : stats.total}
@@ -687,11 +685,10 @@ export const MaintenanceManagementPage: React.FC = () => {
               as="button"
               type="button"
               onClick={() => setFilter('status', filters.status === ServiceStatus.NotStarted ? 'all' : ServiceStatus.NotStarted)}
-              className={`w-full text-left p-4 rounded-DEFAULT border transition-all cursor-pointer shadow-xs ${
-                filters.status === ServiceStatus.NotStarted
-                  ? 'bg-base-200 border-base-content/50 ring-2 ring-base-content/30 shadow-sm'
-                  : 'bg-base-100 border-base-300 hover:border-base-content/40 hover:bg-base-200/40'
-              }`}
+              className={`w-full text-left p-4 rounded-DEFAULT border transition-all cursor-pointer shadow-xs ${filters.status === ServiceStatus.NotStarted
+                ? 'bg-base-200 border-base-content/50 ring-2 ring-base-content/30 shadow-sm'
+                : 'bg-base-100 border-base-300 hover:border-base-content/40 hover:bg-base-200/40'
+                }`}
               title="Filtrar por No Comenzado"
             >
               <Flex align="center" gap="md">
@@ -716,11 +713,10 @@ export const MaintenanceManagementPage: React.FC = () => {
               as="button"
               type="button"
               onClick={() => setFilter('status', filters.status === ServiceStatus.InProgress ? 'all' : ServiceStatus.InProgress)}
-              className={`w-full text-left p-4 rounded-DEFAULT border transition-all cursor-pointer shadow-xs ${
-                filters.status === ServiceStatus.InProgress
-                  ? 'bg-warning/10 border-warning ring-2 ring-warning/40 shadow-sm'
-                  : 'bg-base-100 border-base-300 hover:border-warning/50 hover:bg-warning/5'
-              }`}
+              className={`w-full text-left p-4 rounded-DEFAULT border transition-all cursor-pointer shadow-xs ${filters.status === ServiceStatus.InProgress
+                ? 'bg-warning/10 border-warning ring-2 ring-warning/40 shadow-sm'
+                : 'bg-base-100 border-base-300 hover:border-warning/50 hover:bg-warning/5'
+                }`}
               title="Filtrar por En Proceso"
             >
               <Flex align="center" gap="md">
@@ -745,11 +741,10 @@ export const MaintenanceManagementPage: React.FC = () => {
               as="button"
               type="button"
               onClick={() => setFilter('status', filters.status === ServiceStatus.Completed ? 'all' : ServiceStatus.Completed)}
-              className={`w-full text-left p-4 rounded-DEFAULT border transition-all cursor-pointer shadow-xs ${
-                filters.status === ServiceStatus.Completed
-                  ? 'bg-success/10 border-success ring-2 ring-success/40 shadow-sm'
-                  : 'bg-base-100 border-base-300 hover:border-success/50 hover:bg-success/5'
-              }`}
+              className={`w-full text-left p-4 rounded-DEFAULT border transition-all cursor-pointer shadow-xs ${filters.status === ServiceStatus.Completed
+                ? 'bg-success/10 border-success ring-2 ring-success/40 shadow-sm'
+                : 'bg-base-100 border-base-300 hover:border-success/50 hover:bg-success/5'
+                }`}
               title="Filtrar por Terminado / Listos para entrega"
             >
               <Flex align="center" gap="md">
@@ -777,11 +772,10 @@ export const MaintenanceManagementPage: React.FC = () => {
                 setStalledFilterMode((prev) => (prev === 'only' ? 'exclude' : 'only'));
                 setFilter('status', 'all');
               }}
-              className={`w-full text-left p-4 rounded-DEFAULT border transition-all cursor-pointer shadow-xs ${
-                stalledFilterMode === 'only'
-                  ? 'bg-warning/15 border-warning ring-2 ring-warning/50 shadow-sm'
-                  : 'bg-base-100 border-base-300 hover:border-warning/50 hover:bg-warning/5'
-              }`}
+              className={`w-full text-left p-4 rounded-DEFAULT border transition-all cursor-pointer shadow-xs ${stalledFilterMode === 'only'
+                ? 'bg-warning/15 border-warning ring-2 ring-warning/50 shadow-sm'
+                : 'bg-base-100 border-base-300 hover:border-warning/50 hover:bg-warning/5'
+                }`}
               title="Filtrar motos varadas con más de 1 semana en taller"
             >
               <Flex align="center" gap="md">
@@ -806,11 +800,10 @@ export const MaintenanceManagementPage: React.FC = () => {
               as="button"
               type="button"
               onClick={() => setFilter('status', filters.status === ServiceStatus.Delivered ? 'all' : ServiceStatus.Delivered)}
-              className={`w-full text-left p-4 rounded-DEFAULT border transition-all cursor-pointer shadow-xs ${
-                filters.status === ServiceStatus.Delivered
-                  ? 'bg-info/10 border-info ring-2 ring-info/40 shadow-sm'
-                  : 'bg-base-100 border-base-300 hover:border-info/50 hover:bg-info/5'
-              }`}
+              className={`w-full text-left p-4 rounded-DEFAULT border transition-all cursor-pointer shadow-xs ${filters.status === ServiceStatus.Delivered
+                ? 'bg-info/10 border-info ring-2 ring-info/40 shadow-sm'
+                : 'bg-base-100 border-base-300 hover:border-info/50 hover:bg-info/5'
+                }`}
               title="Filtrar por Entregados al cliente"
             >
               <Flex align="center" gap="md">
@@ -913,19 +906,19 @@ export const MaintenanceManagementPage: React.FC = () => {
                   <Icon name="AlertTriangle" size="sm" />
                 </Box>
                 <Box>
-                  <Text size="sm" weight="bold" className="text-warning-content">
+                  <Text size="sm" weight="bold" className="text-warning">
                     {stalledFilterMode === 'only'
                       ? `Mostrando ${stalledActiveOrders.length} moto(s) varada(s) que llevan más de una semana en el taller.`
                       : stalledFilterMode === 'include'
-                      ? `Se están incluyendo ${stalledActiveOrders.length} moto(s) varada(s) junto con las órdenes de esta semana.`
-                      : `Atención: Hay ${stalledActiveOrders.length} moto(s) varada(s) que llevan más de una semana en el taller.`}
+                        ? `Se están incluyendo ${stalledActiveOrders.length} moto(s) varada(s) junto con las órdenes de esta semana.`
+                        : `Atención: Hay ${stalledActiveOrders.length} moto(s) varada(s) que llevan más de una semana en el taller.`}
                   </Text>
                   <Text size="xs" variant="muted">
                     {stalledFilterMode === 'only'
                       ? 'Estas motos fueron recibidas en semanas anteriores y aún no se entregan.'
                       : stalledFilterMode === 'include'
-                      ? 'Las motos varadas aparecen marcadas con la etiqueta "Varada (+X d)".'
-                      : 'Fueron recibidas antes de esta semana y siguen activas sin entregarse.'}
+                        ? 'Las motos varadas aparecen marcadas con la etiqueta "Varada (+X d)".'
+                        : 'Fueron recibidas antes de esta semana y siguen activas sin entregarse.'}
                   </Text>
                 </Box>
               </Flex>
@@ -1018,14 +1011,14 @@ export const MaintenanceManagementPage: React.FC = () => {
               {filters.search
                 ? `No se encontraron mantenimientos para "${filters.search}"`
                 : filters.status && filters.status !== 'all'
-                ? `No hay órdenes en estado "${SERVICE_STATUS_LABELS[filters.status as ServiceStatus] || filters.status}".`
-                : activeScope === 'delivered_recent'
-                ? 'No hay vehículos entregados en los últimos 7 días.'
-                : activeScope === 'history'
-                ? 'No hay órdenes en el historial para los filtros seleccionados.'
-                : stalledFilterMode === 'only'
-                ? 'No hay motos varadas en el taller.'
-                : `No hay órdenes recibidas en esta semana (${weekLabel}).`}
+                  ? `No hay órdenes en estado "${SERVICE_STATUS_LABELS[filters.status as ServiceStatus] || filters.status}".`
+                  : activeScope === 'delivered_recent'
+                    ? 'No hay vehículos entregados en los últimos 7 días.'
+                    : activeScope === 'history'
+                      ? 'No hay órdenes en el historial para los filtros seleccionados.'
+                      : stalledFilterMode === 'only'
+                        ? 'No hay motos varadas en el taller.'
+                        : `No hay órdenes recibidas en esta semana (${weekLabel}).`}
             </Text>
           </Box>
         ) : (

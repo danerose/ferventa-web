@@ -13,6 +13,7 @@ import {
 import type { AdminMaintenanceOrder } from '@/app/domain';
 import { formatCurrency } from '@/core/utils';
 import { cleanPhoneDigits } from '@/core/utils/formatters/formatPhoneNumber';
+import { useActiveBranch } from '@/app/presentation/hooks';
 
 export interface NotifyMaintenanceModalProps {
   isOpen: boolean;
@@ -29,6 +30,7 @@ export const NotifyMaintenanceModal: React.FC<NotifyMaintenanceModalProps> = ({
   onConfirm,
   loading,
 }) => {
+  const { workshopName } = useActiveBranch();
   const [message, setMessage] = useState('');
   const [isEdited, setIsEdited] = useState(false);
 
@@ -38,10 +40,11 @@ export const NotifyMaintenanceModal: React.FC<NotifyMaintenanceModalProps> = ({
         ? formatCurrency(order.laborCost || order.laborPrice || 0)
         : 'Por definir en caja';
 
-      const defaultMsg = `*VEHÍCULO LISTO PARA ENTREGA - TALLER FERVENTA* 🚗✨\n\nHola *${order.customer.name}*, le informamos que el servicio de *${order.serviceRequested || 'Mantenimiento General'}* para su vehículo *${order.vehicle.brand} ${order.vehicle.model}* (Serie: *${order.vehicle.serialNumberLastFour}*) ha concluido con éxito.\n\n💰 *Mano de obra estimada:* ${laborFormatted}\n📍 *Estatus:* Listo para ser entregado en sucursal.\n\n¡Ya puede pasar a recogerlo en nuestro horario de atención!`;
+      const workshopUpper = workshopName.toUpperCase();
+      const defaultMsg = `*VEHÍCULO LISTO PARA ENTREGA - ${workshopUpper}* 🚗✨\n\nHola *${order.customer.name}*, le saludamos del *${workshopName}*. Le informamos que el servicio de *${order.serviceRequested || 'Mantenimiento General'}* para su vehículo *${order.vehicle.brand} ${order.vehicle.model}* (Serie: *${order.vehicle.serialNumberLastFour}*) ha concluido con éxito.\n\n💰 *Mano de obra estimada:* ${laborFormatted}\n📍 *Estatus:* Listo para ser entregado en sucursal.\n\n¡Ya puede pasar a recogerlo en nuestro horario de atención!`;
       setMessage(defaultMsg);
     }
-  }, [order, isEdited]);
+  }, [order, isEdited, workshopName]);
 
   useEffect(() => {
     if (!isOpen) {

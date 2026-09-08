@@ -14,7 +14,17 @@ export interface User {
   role: Role;
   isActive: boolean;
   branches?: string[];
+  defaultPassword?: string | null;
+  isDefaultPassword?: boolean;
 }
+
+export interface ResetPasswordResponse {
+  user: User;
+  tempPassword: string;
+  message: string;
+  whatsappUrl?: string;
+}
+
 
 export interface CreateUserDto {
   name: string;

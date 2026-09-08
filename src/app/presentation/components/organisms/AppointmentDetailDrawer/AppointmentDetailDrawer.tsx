@@ -13,6 +13,8 @@ import {
 } from '@/app/presentation/components';
 import { STATUS_LABELS, STATUS_STYLES } from '@/core/constants';
 import type { AdminAppointment } from '@/app/domain';
+import { formatBranchWorkshopName } from '@/core/utils';
+import { useActiveBranch } from '@/app/presentation/hooks';
 
 export interface AppointmentDetailDrawerProps {
   appt: AdminAppointment | null;
@@ -58,6 +60,7 @@ export const AppointmentDetailDrawer: React.FC<AppointmentDetailDrawerProps> = (
   onRescheduleApprovedClick,
   onCancelClick,
 }) => {
+  const { activeBranchName } = useActiveBranch();
   const [laborCost, setLaborCost] = useState<number | ''>(0);
   const [receptionNotes, setReceptionNotes] = useState('');
   const [isReceiving, setIsReceiving] = useState(false);
@@ -448,7 +451,7 @@ export const AppointmentDetailDrawer: React.FC<AppointmentDetailDrawerProps> = (
       {/* Print Layout for Appointment Voucher */}
       <div className="printable-document hidden print:block fixed inset-0 bg-white z-[9999] p-8 text-black font-sans min-h-screen">
         <div className="text-center mb-8 border-b pb-4">
-          <h1 className="text-2xl font-bold">FERVENTA - AUTOPARTES Y TALLER</h1>
+          <h1 className="text-2xl font-bold">{formatBranchWorkshopName(appt.branchName || activeBranchName).toUpperCase()}</h1>
           <p className="text-gray-600">Comprobante de Cita</p>
           <p className="text-sm text-gray-500 mt-2">Folio: {appt.id.slice(-6).toUpperCase()}</p>
           {appt.branchName && <p className="text-sm text-gray-500 font-medium">Sucursal: {appt.branchName}</p>}

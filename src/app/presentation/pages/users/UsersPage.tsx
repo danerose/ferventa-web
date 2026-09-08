@@ -56,11 +56,14 @@ export const UsersPage: React.FC = () => {
     submitError,
     successData,
     clearSuccessData,
+    resetSuccessData,
+    clearResetSuccessData,
     usernameStatus,
     loadData,
     createUser,
     updateUser,
     deleteUser,
+    resetPassword,
     checkUsername,
     generateUsername,
   } = useUserStore(
@@ -79,11 +82,14 @@ export const UsersPage: React.FC = () => {
       submitError: s.submitError,
       successData: s.successData,
       clearSuccessData: s.clearSuccessData,
+      resetSuccessData: s.resetSuccessData,
+      clearResetSuccessData: s.clearResetSuccessData,
       usernameStatus: s.usernameStatus,
       loadData: s.loadData,
       createUser: s.createUser,
       updateUser: s.updateUser,
       deleteUser: s.deleteUser,
+      resetPassword: s.resetPassword,
       checkUsername: s.checkUsername,
       generateUsername: s.generateUsername,
     }))
@@ -114,6 +120,57 @@ export const UsersPage: React.FC = () => {
   const [editForm, setEditForm] = useState<UpdateUserDto>({});
   const [editFieldErrors, setEditFieldErrors] = useState<Record<string, string>>({});
   const [copiedMessage, setCopiedMessage] = useState(false);
+
+  // ── Password Visibility & Reset State ─────────────────────────────────
+  const [visiblePasswords, setVisiblePasswords] = useState<Record<string, boolean>>({});
+  const [copiedPasswordUserId, setCopiedPasswordUserId] = useState<string | null>(null);
+  const [resetPasswordInput, setResetPasswordInput] = useState('');
+  const [showResetInput, setShowResetInput] = useState(false);
+  const [copiedResetMessage, setCopiedResetMessage] = useState(false);
+  const [copiedResetPassword, setCopiedResetPassword] = useState(false);
+
+  const togglePasswordVisibility = (userId: string) => {
+    setVisiblePasswords((prev) => ({ ...prev, [userId]: !prev[userId] }));
+  };
+
+  const handleCopyPassword = (userId: string, pass: string) => {
+    navigator.clipboard.writeText(pass);
+    setCopiedPasswordUserId(userId);
+    setTimeout(() => setCopiedPasswordUserId(null), 2000);
+  };
+
+  const handleOpenResetModal = (targetUser: User) => {
+    setSelectedUser(targetUser);
+    setResetPasswordInput('');
+    setShowResetInput(false);
+    setActiveModal('resetPassword');
+  };
+
+  const handleConfirmResetPassword = async () => {
+    if (!selectedUser?.id || !accessToken) return;
+    try {
+      await resetPassword(accessToken, selectedUser.id, resetPasswordInput);
+    } catch {
+      // Handled in store
+    }
+  };
+
+  const handleCopyResetMessage = () => {
+    if (resetSuccessData?.message) {
+      navigator.clipboard.writeText(resetSuccessData.message);
+      setCopiedResetMessage(true);
+      setTimeout(() => setCopiedResetMessage(false), 2000);
+    }
+  };
+
+  const handleCopyResetPassword = () => {
+    if (resetSuccessData?.tempPassword) {
+      navigator.clipboard.writeText(resetSuccessData.tempPassword);
+      setCopiedResetPassword(true);
+      setTimeout(() => setCopiedResetPassword(false), 2000);
+    }
+  };
+
 
   const generateDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -378,6 +435,9 @@ export const UsersPage: React.FC = () => {
                       Rol
                     </Box>
                     <Box as="th" className="py-3 px-4 text-left text-xs font-semibold uppercase">
+                      Contraseña / Acceso
+                    </Box>
+                    <Box as="th" className="py-3 px-4 text-left text-xs font-semibold uppercase">
                       Estado
                     </Box>
                     <Box as="th" className="py-3 px-4 text-center text-xs font-semibold uppercase">
@@ -390,6 +450,8 @@ export const UsersPage: React.FC = () => {
                     filteredUsers.map((u) => {
                       const roleKey = u.role?.name?.toLowerCase() || '';
                       const roleColor = USER_ROLE_COLORS[roleKey] || USER_ROLE_COLORS[UserRole.User];
+                      const isDefault = !!u.isDefaultPassword;
+                      const hasDefaultPassword = !!u.defaultPassword;
 
                       return (
                         <Box as="tr" key={u.id} className="border-b border-base-200 hover:bg-base-200/30 transition-colors">
@@ -408,12 +470,56 @@ export const UsersPage: React.FC = () => {
                             </Badge>
                           </Box>
                           <Box as="td" className="py-3 px-4">
+                            {isDefault && hasDefaultPassword ? (
+                              <Flex align="center" gap="xs" className="flex-wrap">
+                                <span className="font-mono bg-amber-500/10 text-amber-800 dark:text-amber-200 border border-amber-500/25 px-2 py-0.5 rounded text-xs">
+                                  {visiblePasswords[u.id] ? u.defaultPassword : '••••••••'}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => togglePasswordVisibility(u.id)}
+                                  className="p-1 rounded text-base-content/60 hover:text-base-content hover:bg-base-200 transition-colors"
+                                  title={visiblePasswords[u.id] ? 'Ocultar contraseña' : 'Ver contraseña'}
+                                >
+                                  <Icon name={visiblePasswords[u.id] ? 'EyeOff' : 'Eye'} size="xs" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleCopyPassword(u.id, u.defaultPassword!)}
+                                  className="p-1 rounded text-base-content/60 hover:text-base-content hover:bg-base-200 transition-colors"
+                                  title="Copiar contraseña"
+                                >
+                                  <Icon
+                                    name={copiedPasswordUserId === u.id ? 'Check' : 'Copy'}
+                                    size="xs"
+                                    className={copiedPasswordUserId === u.id ? 'text-success' : ''}
+                                  />
+                                </button>
+                                <Badge variant="soft" color="warning" size="xs">
+                                  Temporal
+                                </Badge>
+                              </Flex>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 text-xs text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full font-medium">
+                                <Icon name="Lock" size="xs" className="shrink-0" />
+                                Contraseña privada
+                              </span>
+                            )}
+                          </Box>
+                          <Box as="td" className="py-3 px-4">
                             <Badge variant="soft" color={u.isActive ? 'success' : 'error'} size="xs">
                               {u.isActive ? 'Activo' : 'Inactivo'}
                             </Badge>
                           </Box>
                           <Box as="td" className="py-3 px-4 text-center">
                             <Flex justify="center" gap="xs">
+                              <TertiaryButton
+                                size="xs"
+                                onClick={() => handleOpenResetModal(u)}
+                                title="Restablecer contraseña"
+                              >
+                                <Icon name="Key" size="xs" />
+                              </TertiaryButton>
                               <TertiaryButton
                                 size="xs"
                                 onClick={() => handleOpenEditModal(u)}
@@ -437,7 +543,7 @@ export const UsersPage: React.FC = () => {
                     })
                   ) : (
                     <Box as="tr">
-                      <Box as="td" colSpan={6} className="py-12 text-center">
+                      <Box as="td" colSpan={7} className="py-12 text-center">
                         <Text variant="muted">
                           {searchValue
                             ? `No se encontraron usuarios con "${searchValue}".`
@@ -448,6 +554,7 @@ export const UsersPage: React.FC = () => {
                   )}
                 </Box>
               </Box>
+
             )}
           </Box>
         </Box>
@@ -540,7 +647,7 @@ export const UsersPage: React.FC = () => {
               Contraseña (Opcional)
             </Text>
             <TextInput
-              placeholder="Se autogenera si se deja vacía"
+              placeholder="Opcional: Se generará una automáticamente si se deja vacío"
               type="password"
               size="sm"
               value={formData.password}
@@ -893,6 +1000,209 @@ export const UsersPage: React.FC = () => {
           </Stack>
         )}
       </Modal>
+
+      {/* ── Reset Password Modal ─────────────────────────────────────────── */}
+      <Modal
+        isOpen={activeModal === 'resetPassword' && selectedUser !== null}
+        onClose={() => {
+          setActiveModal(null);
+          setSelectedUser(null);
+        }}
+        title={`Restablecer Contraseña: ${selectedUser?.name || ''}`}
+        maxWidth="480px"
+        headerVariant="warning"
+      >
+        <Stack spacing="md">
+          {submitError && (
+            <Box bg="base-200" rounded="DEFAULT" className="p-3 border border-error/30 text-error text-sm">
+              <Text variant="error">{submitError}</Text>
+            </Box>
+          )}
+
+          <Box className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3.5 flex gap-3 items-start">
+            <Icon name="Key" size="sm" className="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+            <Text size="xs" className="text-amber-800 dark:text-amber-200 leading-relaxed">
+              Al restablecer la contraseña, se invalidará la anterior y se asignará una clave provisional. Podrás enviársela directamente por WhatsApp o copiarla.
+            </Text>
+          </Box>
+
+          <Box bg="base-200" rounded="DEFAULT" className="p-3 border border-base-300">
+            <Text size="xs" variant="muted" className="block mb-1">
+              Usuario a restablecer:
+            </Text>
+            <Text size="sm" weight="bold">
+              {selectedUser?.name}{' '}
+              <Text as="span" variant="mono" className="text-primary text-xs font-normal">
+                (@{selectedUser?.username || '-'})
+              </Text>
+            </Text>
+            <Text size="xs" variant="muted">
+              {selectedUser?.email}
+            </Text>
+          </Box>
+
+          <Box>
+            <Flex justify="between" align="center" className="mb-1">
+              <Text as="label" size="xs" weight="semibold" variant="muted">
+                Nueva Contraseña (Opcional)
+              </Text>
+              <Text size="xs" variant="muted">
+                Dejar vacío para autogenerar
+              </Text>
+            </Flex>
+            <div className="relative flex items-center">
+              <TextInput
+                type={showResetInput ? 'text' : 'password'}
+                placeholder="Dejar en blanco para autogenerar"
+                size="sm"
+                value={resetPasswordInput}
+                onChange={(e) => setResetPasswordInput(e.target.value)}
+                className="pr-10"
+              />
+              <button
+                type="button"
+                tabIndex={-1}
+                onClick={() => setShowResetInput(!showResetInput)}
+                className="absolute right-3 top-2.5 text-base-content/40 hover:text-base-content"
+                title={showResetInput ? 'Ocultar' : 'Mostrar'}
+              >
+                <Icon name={showResetInput ? 'EyeOff' : 'Eye'} size="xs" />
+              </button>
+            </div>
+          </Box>
+
+          <Flex justify="end" gap="sm" className="pt-3 border-t border-base-300">
+            <SecondaryButton
+              size="sm"
+              onClick={() => {
+                setActiveModal(null);
+                setSelectedUser(null);
+              }}
+              disabled={isSubmitting}
+            >
+              Cancelar <KbdBadge keys="Esc" className="ml-1.5" />
+            </SecondaryButton>
+            <PrimaryButton
+              size="sm"
+              color="warning"
+              onClick={handleConfirmResetPassword}
+              loading={isSubmitting}
+              disabled={isSubmitting}
+              iconStart={<Icon name="Key" size="xs" />}
+            >
+              Restablecer Contraseña <KbdBadge keys="Enter ↵" className="ml-1.5" />
+            </PrimaryButton>
+          </Flex>
+        </Stack>
+      </Modal>
+
+      {/* ── Reset Password Success Modal ──────────────────────────────────── */}
+      <Modal
+        isOpen={activeModal === 'resetSuccess' && resetSuccessData !== null}
+        onClose={() => {
+          clearResetSuccessData();
+          setActiveModal(null);
+          setSelectedUser(null);
+        }}
+        title="¡Contraseña Restablecida Con Éxito!"
+        maxWidth="540px"
+        headerVariant="success"
+      >
+        {resetSuccessData && (
+          <Stack spacing="md">
+            <Box className="text-center">
+              <Box className="w-12 h-12 rounded-full bg-success/10 text-success flex items-center justify-center mx-auto mb-2">
+                <Icon name="Check" size="md" />
+              </Box>
+              <Text size="xs" variant="muted">
+                Se ha asignado una nueva contraseña temporal para el usuario.
+              </Text>
+            </Box>
+
+            <Box bg="base-200" rounded="DEFAULT" className="p-4 border border-base-300">
+              <Grid cols={{ base: 1, sm: 2 }} gap="sm" className="text-xs">
+                <Box>
+                  <Text size="xs" variant="muted" className="uppercase font-semibold">
+                    Usuario
+                  </Text>
+                  <Text weight="bold">{resetSuccessData.user.name}</Text>
+                  <Text variant="mono" size="xs" className="text-primary">
+                    @{resetSuccessData.user.username || '-'}
+                  </Text>
+                </Box>
+                <Box>
+                  <Text size="xs" variant="muted" className="uppercase font-semibold">
+                    Nueva Contraseña Temporal
+                  </Text>
+                  <Flex align="center" gap="xs" className="mt-1">
+                    <span className="font-mono bg-amber-500/10 text-amber-900 dark:text-amber-100 border border-amber-500/30 px-2 py-1 rounded text-sm font-bold">
+                      {resetSuccessData.tempPassword}
+                    </span>
+                    <TertiaryButton
+                      size="xs"
+                      onClick={handleCopyResetPassword}
+                      title="Copiar contraseña"
+                    >
+                      <Icon
+                        name={copiedResetPassword ? 'Check' : 'Copy'}
+                        size="xs"
+                        className={copiedResetPassword ? 'text-success' : ''}
+                      />
+                    </TertiaryButton>
+                  </Flex>
+                </Box>
+              </Grid>
+            </Box>
+
+            {resetSuccessData.message && (
+              <Box>
+                <Text size="xs" weight="semibold" variant="muted" className="mb-1 block">
+                  Mensaje generado:
+                </Text>
+                <Box bg="base-200" rounded="DEFAULT" className="p-3 text-xs max-h-36 overflow-y-auto whitespace-pre-wrap font-mono">
+                  {resetSuccessData.message}
+                </Box>
+              </Box>
+            )}
+
+            <Stack spacing="sm" className="pt-2 border-t border-base-300">
+              {resetSuccessData.whatsappUrl && (
+                <PrimaryButton
+                  size="sm"
+                  color="success"
+                  onClick={() => window.open(resetSuccessData.whatsappUrl, '_blank')}
+                  iconStart={<Icon name="MessageSquare" size="xs" />}
+                >
+                  Enviar credenciales por WhatsApp
+                </PrimaryButton>
+              )}
+
+              <Flex gap="sm">
+                <SecondaryButton
+                  size="sm"
+                  onClick={handleCopyResetMessage}
+                  className="flex-1"
+                  iconStart={<Icon name="Copy" size="xs" />}
+                >
+                  {copiedResetMessage ? '¡Mensaje Copiado!' : 'Copiar mensaje'}
+                </SecondaryButton>
+                <SecondaryButton
+                  size="sm"
+                  onClick={() => {
+                    clearResetSuccessData();
+                    setActiveModal(null);
+                    setSelectedUser(null);
+                  }}
+                  className="flex-1"
+                >
+                  Cerrar
+                </SecondaryButton>
+              </Flex>
+            </Stack>
+          </Stack>
+        )}
+      </Modal>
     </PageLayout>
   );
 };
+

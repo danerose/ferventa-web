@@ -76,6 +76,22 @@ export class AuthUseCases {
   setActiveBranchId(id: string | null): void {
     this.repository.setActiveBranchId(id);
   }
+
+  getActiveBranchName(): string | null {
+    return this.repository.getActiveBranchName();
+  }
+
+  saveActiveBranch(id: string | null, name?: string | null): void {
+    this.repository.saveActiveBranch(id, name);
+  }
+
+  getProfile(token: string): Promise<AuthUser> {
+    return this.repository.getProfile(token);
+  }
+
+  changePassword(token: string, currentPassword: string, newPassword: string): Promise<void> {
+    return this.repository.changePassword(token, currentPassword, newPassword);
+  }
 }
 
 export const authUseCases = new AuthUseCases(authRepository);
