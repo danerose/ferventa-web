@@ -76,7 +76,7 @@ export class APIAdminRepository {
   }
 
   async getBranches(): Promise<Branch[]> {
-    const res = await this.fetchWithAuth(`${this.baseUrl}/branches`);
+    const res = await this.fetchWithAuth(`${this.baseUrl}/branches/user`);
     const json = await res.json();
     if (res.status === 401) throw new Error('UNAUTHORIZED');
     if (!res.ok || !json.success) throw new Error(json.message || 'Error fetching branches');
