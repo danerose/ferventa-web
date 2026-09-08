@@ -15,7 +15,7 @@ import {
   KbdBadge,
 } from '@/app/presentation/components';
 import type { SpecialOrder, AddSpecialOrderPaymentPayload } from '@/app/domain';
-import { formatCurrency } from '@/core/utils';
+import { formatCurrency, cn } from '@/core/utils';
 
 export interface AddSpecialOrderPaymentModalProps {
   isOpen: boolean;
@@ -228,43 +228,33 @@ export const AddSpecialOrderPaymentModal: React.FC<AddSpecialOrderPaymentModalPr
             <Text size="xs" weight="semibold" className="text-base-content/70 mb-2 block">
               Método de Pago *
             </Text>
-            <Flex gap="xs" className="w-full mb-3">
-              <SecondaryButton
-                type="button"
-                onClick={() => setPaymentMethod('cash')}
-                className={`flex-1 flex items-center justify-center gap-1.5 text-xs py-2 ${
-                  paymentMethod === 'cash'
-                    ? 'btn-primary font-semibold'
-                    : ''
-                }`}
-              >
-                <Icon name="Banknote" size="xs" /> Efectivo
-              </SecondaryButton>
-
-              <SecondaryButton
-                type="button"
-                onClick={() => setPaymentMethod('card')}
-                className={`flex-1 flex items-center justify-center gap-1.5 text-xs py-2 ${
-                  paymentMethod === 'card'
-                    ? 'bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-700 font-semibold'
-                    : ''
-                }`}
-              >
-                <Icon name="CreditCard" size="xs" /> Tarjeta
-              </SecondaryButton>
-
-              <SecondaryButton
-                type="button"
-                onClick={() => setPaymentMethod('transfer')}
-                className={`flex-1 flex items-center justify-center gap-1.5 text-xs py-2 ${
-                  paymentMethod === 'transfer'
-                    ? 'bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-700 font-semibold'
-                    : ''
-                }`}
-              >
-                <Icon name="ArrowLeftRight" size="xs" /> Transferencia
-              </SecondaryButton>
-            </Flex>
+            <div className="grid grid-cols-3 gap-2 w-full mb-3">
+              {(
+                [
+                  { value: 'cash' as const, label: 'Efectivo', icon: 'Banknote' as const },
+                  { value: 'card' as const, label: 'Tarjeta', icon: 'CreditCard' as const },
+                  { value: 'transfer' as const, label: 'Transferencia', icon: 'ArrowLeftRight' as const },
+                ]
+              ).map((opt) => {
+                const isSelected = paymentMethod === opt.value;
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setPaymentMethod(opt.value)}
+                    className={cn(
+                      'flex items-center justify-center gap-1.5 text-xs py-2 px-3 h-auto min-h-[38px] rounded-DEFAULT border transition-all duration-150 cursor-pointer font-medium select-none',
+                      isSelected
+                        ? 'bg-primary text-primary-content border-primary font-semibold shadow-xs ring-2 ring-primary/20'
+                        : 'bg-base-100 border-base-300 text-base-content/70 hover:bg-base-200 hover:text-base-content hover:border-base-content/20'
+                    )}
+                  >
+                    <Icon name={opt.icon} size="xs" />
+                    <span>{opt.label}</span>
+                  </button>
+                );
+              })}
+            </div>
 
             <Grid cols={{ base: 1, md: 2 }} gap="md">
               <Box>

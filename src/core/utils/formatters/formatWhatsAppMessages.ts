@@ -75,27 +75,27 @@ export function buildSpecialOrderWhatsAppMessage(params: {
 
   switch (params.status) {
     case SpecialOrderStatus.READY_FOR_PICKUP:
-      return `Hola ${params.customerName}, le saludamos del ${workshop}. Con respecto a su pedido especial ${params.folio} (${params.itemDescription}): ¡le avisamos que ya está listo para ser recogido en sucursal!${balanceText} Puede pasar por él en nuestro horario de atención.`;
+      return `Hola ${params.customerName}, le saludamos del ${workshop}. Con respecto a su pedido ${params.folio} (${params.itemDescription}): ¡le avisamos que ya está listo para ser recogido en sucursal!${balanceText} Puede pasar por él en nuestro horario de atención.`;
 
     case SpecialOrderStatus.IN_BRANCH:
-      return `Hola ${params.customerName}, le saludamos del ${workshop}. Con respecto a su pedido especial ${params.folio} (${params.itemDescription}): ¡su pedido ya llegó a nuestra sucursal y está listo para entrega!${balanceText}`;
+      return `Hola ${params.customerName}, le saludamos del ${workshop}. Con respecto a su pedido ${params.folio} (${params.itemDescription}): ¡su pedido ya llegó a nuestra sucursal y está listo para entrega!${balanceText}`;
 
     case SpecialOrderStatus.IN_TRANSIT:
-      return `Hola ${params.customerName}, le saludamos del ${workshop}. Con respecto a su pedido especial ${params.folio} (${params.itemDescription}): su pedido va en camino hacia nuestra sucursal.${balanceText}`;
+      return `Hola ${params.customerName}, le saludamos del ${workshop}. Con respecto a su pedido ${params.folio} (${params.itemDescription}): su pedido va en camino hacia nuestra sucursal.${balanceText}`;
 
     case SpecialOrderStatus.ORDERED:
-      return `Hola ${params.customerName}, le saludamos del ${workshop}. Con respecto a su pedido especial ${params.folio} (${params.itemDescription}): su pedido ya fue solicitado a nuestro proveedor y viene en camino.${balanceText}`;
+      return `Hola ${params.customerName}, le saludamos del ${workshop}. Con respecto a su pedido ${params.folio} (${params.itemDescription}): su pedido ya fue solicitado a nuestro proveedor y viene en camino.${balanceText}`;
 
     case SpecialOrderStatus.ORDER_PLACED:
-      return `Hola ${params.customerName}, le saludamos del ${workshop}. Con respecto a su pedido especial ${params.folio} (${params.itemDescription}): hemos registrado su pedido con éxito y se encuentra en trámite.${balanceText}`;
+      return `Hola ${params.customerName}, le saludamos del ${workshop}. Con respecto a su pedido ${params.folio} (${params.itemDescription}): hemos registrado su pedido con éxito y se encuentra en trámite.${balanceText}`;
 
     case SpecialOrderStatus.DELIVERED:
-      return `Hola ${params.customerName}, le saludamos del ${workshop}. Con respecto a su pedido especial ${params.folio} (${params.itemDescription}): le confirmamos que ha sido entregado satisfactoriamente. ¡Muchas gracias por su preferencia!`;
+      return `Hola ${params.customerName}, le saludamos del ${workshop}. Con respecto a su pedido ${params.folio} (${params.itemDescription}): le confirmamos que ha sido entregado satisfactoriamente. ¡Muchas gracias por su preferencia!`;
 
     case SpecialOrderStatus.CANCELLED:
-      return `Hola ${params.customerName}, le saludamos del ${workshop}. Le informamos que su pedido especial ${params.folio} (${params.itemDescription}) ha sido cancelado. Si tiene dudas sobre su anticipo, por favor comuníquese con nosotros.`;
+      return `Hola ${params.customerName}, le saludamos del ${workshop}. Le informamos que su pedido ${params.folio} (${params.itemDescription}) ha sido cancelado. Si tiene dudas sobre su anticipo, por favor comuníquese con nosotros.`;
 
     default:
-      return `Hola ${params.customerName}, le saludamos del ${workshop}. Con respecto a su pedido especial ${params.folio} (${params.itemDescription}): se encuentra en estatus "${SPECIAL_ORDER_STATUS_LABELS[params.status] || params.status}".${balanceText}`;
+      return `Hola ${params.customerName}, le saludamos del ${workshop}. Con respecto a su pedido ${params.folio} (${params.itemDescription}): se encuentra en estatus "${SPECIAL_ORDER_STATUS_LABELS[params.status] || params.status}".${balanceText}`;
   }
 }
