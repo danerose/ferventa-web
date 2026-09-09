@@ -4,6 +4,7 @@ import type { Product } from '@/app/domain';
 
 export interface ServiceSupply {
   product: {
+    id?: string;
     _id: string;
     name: string;
     sku: string;
@@ -71,6 +72,7 @@ export interface SaleItemPayload {
   type: 'product' | 'service';
   productId?: string;
   serviceId?: string;
+  name?: string;
   quantity: number;
   unitPrice?: number;  // if provided, overrides catalog price
   discount?: number;

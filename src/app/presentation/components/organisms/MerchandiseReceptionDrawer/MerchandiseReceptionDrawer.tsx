@@ -81,6 +81,8 @@ export const MerchandiseReceptionDrawer: React.FC<MerchandiseReceptionDrawerProp
   const [selectedProductId, setSelectedProductId] = useState('');
   const [productSearchTerm, setProductSearchTerm] = useState('');
   const [isProductDropdownOpen, setIsProductDropdownOpen] = useState(false);
+  const [remoteProducts, setRemoteProducts] = useState<Product[]>([]);
+  const [isSearchingRemote, setIsSearchingRemote] = useState(false);
   const comboboxRef = useRef<HTMLDivElement>(null);
   const productInputRef = useRef<HTMLInputElement>(null);
   const quantityInputRef = useRef<HTMLInputElement>(null);
@@ -338,18 +340,61 @@ export const MerchandiseReceptionDrawer: React.FC<MerchandiseReceptionDrawerProp
     enabled: isOpen && !isQuickAddModalOpen,
   });
 
-  // Filter matching products as user types manually (strictly by Name or SKU, never DB UUID)
+  // Remote debounced search against entire inventory
+  useEffect(() => {
+    const term = productSearchTerm.trim();
+    if (!term || !isOpen || !accessToken || selectedProductId) {
+      setRemoteProducts([]);
+      setIsSearchingRemote(false);
+      return;
+    }
+
+    setIsSearchingRemote(true);
+    const timer = setTimeout(async () => {
+      try {
+        const res = await inventoryRepo.getProductsPaginated(accessToken, { search: term, limit: 30 });
+        const items = res.items || [];
+        setRemoteProducts(items);
+
+        if (items.length > 0) {
+          setLocalProducts((prev) => {
+            const existingIds = new Set(prev.map((p) => p.id));
+            const newItems = items.filter((p) => !existingIds.has(p.id));
+            return newItems.length > 0 ? [...prev, ...newItems] : prev;
+          });
+        }
+      } catch (err) {
+        console.error('Error al buscar productos en catálogo completo:', err);
+      } finally {
+        setIsSearchingRemote(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [productSearchTerm, isOpen, accessToken, selectedProductId]);
+
+  // Filter matching products as user types manually (merges local cache and remote database results)
   const filteredProducts = useMemo(() => {
     if (!productSearchTerm.trim()) {
       return localProducts.slice(0, 10);
     }
     const q = productSearchTerm.trim().toLowerCase();
-    return localProducts.filter(
+    const localMatches = localProducts.filter(
       (p) =>
         p.name.toLowerCase().includes(q) ||
         (p.sku && p.sku.toLowerCase().includes(q))
     );
-  }, [localProducts, productSearchTerm]);
+
+    const seen = new Set<string>();
+    const combined: Product[] = [];
+    for (const p of [...localMatches, ...remoteProducts]) {
+      if (!seen.has(p.id)) {
+        seen.add(p.id);
+        combined.push(p);
+      }
+    }
+    return combined;
+  }, [localProducts, remoteProducts, productSearchTerm]);
 
   // Reset highlightedIndex when filteredProducts changes
   useEffect(() => {
@@ -872,13 +917,19 @@ export const MerchandiseReceptionDrawer: React.FC<MerchandiseReceptionDrawerProp
                         selectedProduct && 'border-primary/50 bg-primary/5 font-semibold text-base-content'
                       )}
                     />
-                    {productSearchTerm && (
+                    {isSearchingRemote ? (
+                      <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1 text-primary text-xs font-semibold z-10 pointer-events-none">
+                        <span className="loading loading-spinner loading-xs text-primary" />
+                        <span className="hidden sm:inline text-[10px]">Buscando...</span>
+                      </div>
+                    ) : productSearchTerm ? (
                       <button
                         type="button"
                         onClick={() => {
                           setProductSearchTerm('');
                           setSelectedProductId('');
                           setMissingProductInfo(null);
+                          setRemoteProducts([]);
                           setIsProductDropdownOpen(false);
                         }}
                         className="absolute right-2.5 top-1/2 -translate-y-1/2 text-base-content/40 hover:text-base-content p-0.5 rounded z-10"
@@ -886,7 +937,7 @@ export const MerchandiseReceptionDrawer: React.FC<MerchandiseReceptionDrawerProp
                       >
                         <Icon name="X" size="xs" />
                       </button>
-                    )}
+                    ) : null}
                   </div>
 
                   {formErrors.productId && (
@@ -901,10 +952,18 @@ export const MerchandiseReceptionDrawer: React.FC<MerchandiseReceptionDrawerProp
                       {filteredProducts.length > 0 ? (
                         <>
                           <div className="p-2 px-3 text-[10px] font-bold uppercase tracking-wider text-base-content/50 bg-base-200/50 flex items-center justify-between">
-                            <span>
-                              {productSearchTerm.trim()
-                                ? `Coincidencias encontradas (${filteredProducts.length})`
-                                : 'Productos del catálogo'}
+                            <span className="flex items-center gap-2">
+                              <span>
+                                {productSearchTerm.trim()
+                                  ? `Coincidencias encontradas (${filteredProducts.length})`
+                                  : 'Productos del catálogo'}
+                              </span>
+                              {isSearchingRemote && (
+                                <span className="inline-flex items-center gap-1 text-primary text-[10px] font-normal normal-case">
+                                  <span className="loading loading-spinner loading-xs" />
+                                  Buscando más...
+                                </span>
+                              )}
                             </span>
                             <span className="text-[9px] font-normal lowercase opacity-70">
                               Usa ↑ ↓ y Enter
@@ -968,6 +1027,12 @@ export const MerchandiseReceptionDrawer: React.FC<MerchandiseReceptionDrawerProp
                             );
                           })}
                         </>
+                      ) : isSearchingRemote ? (
+                        <div className="p-6 text-center text-xs text-base-content/70 flex flex-col items-center justify-center gap-2">
+                          <span className="loading loading-spinner loading-sm text-primary" />
+                          <span className="font-semibold">Buscando productos en el catálogo completo...</span>
+                          <span className="text-[11px] text-base-content/50">Consultando inventario por SKU y nombre</span>
+                        </div>
                       ) : (
                         /* NO EXACT MATCHES: Render "Producto parece no existir" + Closest Match right inside dropdown! */
                         <div className="p-4 bg-amber-500/10 dark:bg-amber-500/15 border-t border-amber-500/20 text-base-content space-y-3">
@@ -1039,7 +1104,7 @@ export const MerchandiseReceptionDrawer: React.FC<MerchandiseReceptionDrawerProp
                   )}
 
                   {/* ⚠️ Inline Non-existent Product notice when input has text but product doesn't exist (visible only when dropdown is closed) ⚠️ */}
-                  {!isProductDropdownOpen && !selectedProductId && productSearchTerm.trim().length > 0 && filteredProducts.length === 0 && (
+                  {!isProductDropdownOpen && !isSearchingRemote && !selectedProductId && productSearchTerm.trim().length > 0 && filteredProducts.length === 0 && (
                     <Box className="mt-2.5 p-3.5 rounded-xl bg-amber-500/10 dark:bg-amber-500/15 border-2 border-amber-500/30 text-base-content shadow-xs animate-in fade-in zoom-in-95 duration-150">
                       <Flex align="start" gap="sm">
                         <div className="w-7 h-7 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 flex items-center justify-center shrink-0 mt-0.5 shadow-xs">

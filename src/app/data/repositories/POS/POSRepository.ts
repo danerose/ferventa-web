@@ -67,6 +67,7 @@ export class APISalesRepository {
         };
         if (it.productId) itemObj.productId = it.productId;
         if (it.serviceId) itemObj.serviceId = it.serviceId;
+        if (it.name) itemObj.name = it.name;
         if (it.unitPrice !== undefined) itemObj.unitPrice = it.unitPrice;
         if (it.discount !== undefined) itemObj.discount = it.discount;
         return itemObj;

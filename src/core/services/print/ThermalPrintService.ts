@@ -41,7 +41,7 @@ export const thermalPrintService = {
     const now = sale?.createdAt ? new Date(sale.createdAt) : new Date();
     const dateStr = now.toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' });
     const timeStr = now.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false });
-    
+
     const saleIdSuffix = sale?.id ? sale.id.slice(-6) : '000001';
     const folio = sale?.folio || (isTest ? 'NV-000425' : `NV-${saleIdSuffix.padStart(6, '0')}`);
     const cashier = sellerName || sale?.seller?.name || 'Cajero';
@@ -50,25 +50,39 @@ export const thermalPrintService = {
     // Mock items for test or real items from sale
     const items: PrintItem[] = isTest
       ? [
-          { qty: 1, name: 'Aceite Sintético 10W-40 4T', price: 220.0, subtotal: 220.0 },
-          { qty: 1, name: '(SERV) Servicio de Afinación Mayor', price: 300.0, subtotal: 300.0 },
-        ]
+        { qty: 1, name: 'Aceite Sintético 10W-40 4T', price: 220.0, subtotal: 220.0 },
+        { qty: 1, name: '(SERV) Servicio de Afinación Mayor', price: 300.0, subtotal: 300.0 },
+      ]
       : (sale?.items || []).map((raw) => {
-          const i = (typeof raw === 'object' && raw !== null) ? (raw as Record<string, unknown>) : {};
-          const qty = Number(i.quantity) || 1;
-          const productObj = typeof i.product === 'object' && i.product !== null ? (i.product as { name?: string }) : null;
-          const serviceObj = typeof i.service === 'object' && i.service !== null ? (i.service as { name?: string }) : null;
-          const name = String(i.name || productObj?.name || serviceObj?.name || 'Artículo');
-          const unitPrice = typeof i.unitPrice === 'number' ? i.unitPrice : typeof i.priceSnapshot === 'number' ? i.priceSnapshot : 0;
-          const subtotal = typeof i.subtotal === 'number' ? i.subtotal : unitPrice * qty;
+        const i = (typeof raw === 'object' && raw !== null) ? (raw as Record<string, unknown>) : {};
+        const qty = Number(i.quantity) || 1;
+        const productObj = typeof i.product === 'object' && i.product !== null ? (i.product as { name?: string }) : null;
+        const serviceObj = typeof i.service === 'object' && i.service !== null ? (i.service as { name?: string }) : null;
+        let name = String(i.name || productObj?.name || serviceObj?.name || 'Artículo');
+        const isConsumable = Boolean(
+          i.isConsumable ||
+          i.parentCartId ||
+          name.includes('--')
+        );
+        if (isConsumable && !name.includes('--')) {
+          name = `-- ${name}`;
+        }
+        const isNoAplica = Boolean(i.isNoAplica);
+        const rawPrice = typeof i.unitPrice === 'number'
+          ? i.unitPrice
+          : typeof i.priceSnapshot === 'number'
+            ? i.priceSnapshot
+            : Number((productObj as Record<string, unknown>)?.sellingPrice ?? (serviceObj as Record<string, unknown>)?.basePrice ?? 0);
+        const unitPrice = isNoAplica ? 0 : rawPrice;
+        const subtotal = typeof i.subtotal === 'number' ? (isNoAplica ? 0 : i.subtotal) : unitPrice * qty;
 
-          return {
-            qty,
-            name,
-            price: unitPrice,
-            subtotal,
-          };
-        });
+        return {
+          qty,
+          name,
+          price: unitPrice,
+          subtotal,
+        };
+      });
 
     const subtotal = isTest ? 520.0 : (sale?.subtotal ?? items.reduce((a, b) => a + b.subtotal, 0));
     const discount = isTest ? 0.0 : (sale?.discount ?? 0);
@@ -76,10 +90,10 @@ export const thermalPrintService = {
     const paymentMethodLabel = isTest
       ? 'EFECTIVO'
       : sale?.paymentMethod === 'card'
-      ? 'TARJETA'
-      : sale?.paymentMethod === 'transfer'
-      ? 'TRANSFERENCIA'
-      : 'EFECTIVO';
+        ? 'TARJETA'
+        : sale?.paymentMethod === 'transfer'
+          ? 'TRANSFERENCIA'
+          : 'EFECTIVO';
 
     const policiesLines = (settings.policiesText || '')
       .split('\n')
@@ -203,23 +217,22 @@ export const thermalPrintService = {
             <div class="sep-dash">${SEPARATOR_DASH}</div>
 
             ${items
-              .map(
-                (item) => `
+        .map(
+          (item) => `
                 <div class="item-row">
                   <div class="row" style="font-size: 0.9em;">
                     <span class="bold" style="min-width: 20px;">${item.qty}</span>
                     <span class="item-name bold">${item.name}</span>
                     <span class="bold" style="white-space: nowrap;">$${item.subtotal.toFixed(2)}</span>
                   </div>
-                  ${
-                    item.qty > 1 || item.price !== item.subtotal / item.qty
-                      ? `<div style="font-size: 0.75em; color: #000; padding-left: 22px;">${item.qty} x $${item.price.toFixed(2)}</div>`
-                      : ''
-                  }
+                  ${item.qty > 1 || item.price !== item.subtotal / item.qty
+              ? `<div style="font-size: 0.75em; color: #000; padding-left: 22px;">${item.qty} x $${item.price.toFixed(2)}</div>`
+              : ''
+            }
                 </div>
               `
-              )
-              .join('')}
+        )
+        .join('')}
 
             <div class="sep-dash">${SEPARATOR_DASH}</div>
 
@@ -228,14 +241,13 @@ export const thermalPrintService = {
                 <span>SUBTOTAL:</span>
                 <span class="bold">$${subtotal.toFixed(2)}</span>
               </div>
-              ${
-                discount > 0
-                  ? `<div class="row">
+              ${discount > 0
+        ? `<div class="row">
                       <span>DESCUENTO:</span>
                       <span class="bold">-$${discount.toFixed(2)}</span>
                     </div>`
-                  : ''
-              }
+        : ''
+      }
               <div class="row bold" style="font-size: 1.15em; border-top: 1px solid #000; padding-top: 2px; margin-top: 2px;">
                 <span>TOTAL:</span>
                 <span>$${total.toFixed(2)} MXN</span>
@@ -246,32 +258,30 @@ export const thermalPrintService = {
               </div>
             </div>
 
-            ${
-              settings.showPolicies && settings.policiesText
-                ? `
+            ${settings.showPolicies && settings.policiesText
+        ? `
                 <div class="sep-double">${SEPARATOR_DOUBLE}</div>
                 <div class="center bold" style="font-size: 0.9em; margin-bottom: 2px;">${settings.policiesTitle || 'IMPORTANTE'}</div>
                 <div style="font-size: 0.75em; line-height: 1.2;">
                   ${policiesLines}
                 </div>
               `
-                : ''
-            }
+        : ''
+      }
 
             <div class="center" style="margin-top: 5px; border-top: 1px solid #000; padding-top: 3px;">
               <div class="bold" style="font-size: 0.9em;">${settings.footerMessage || '¡GRACIAS POR SU PREFERENCIA!'}</div>
               ${settings.footerSubtext ? `<div class="bold" style="font-size: 0.8em; margin-top: 1px;">${settings.footerSubtext}</div>` : ''}
             </div>
 
-            ${
-              settings.showCutLine
-                ? `
+            ${settings.showCutLine
+        ? `
                 <div class="center" style="margin-top: 6px; font-size: 0.75em; color: #000;">
                   - - - - CORTE DE TICKET - - - -
                 </div>
               `
-                : ''
-            }
+        : ''
+      }
             <div style="height: 6mm;"></div>
           </div>
         </body>

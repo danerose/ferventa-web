@@ -128,8 +128,8 @@ const CartItemRow: React.FC<CartItemRowProps> = ({
     ? typeof cartItem.product.brand === 'object' && cartItem.product.brand?.name
       ? cartItem.product.brand.name
       : typeof cartItem.product.brand === 'string'
-      ? cartItem.product.brand
-      : ''
+        ? cartItem.product.brand
+        : ''
     : '';
 
   return (
@@ -143,7 +143,7 @@ const CartItemRow: React.FC<CartItemRowProps> = ({
           )}
           {cartItem.parentCartId && (
             <span className="text-[10px] bg-info/10 text-info px-1.5 py-0.5 rounded font-bold border border-info/20 shrink-0">
-              Insumo de servicio
+              Consumible
             </span>
           )}
           {cartItemBrand && (
@@ -528,28 +528,34 @@ export const POSPage: React.FC = () => {
     }
 
     try {
-      const items = cart
-        .filter(item => !item.isNoAplica)
-        .map(item => {
-          if (item.type === 'product') {
-            return {
-              type: 'product' as const,
-              productId: item.product?.id,
-              quantity: item.quantity,
-              unitPrice: item.unitPrice,
-              discount: 0,
-            };
-          } else {
-            const sId = item.service?.id;
-            return {
-              type: 'service' as const,
-              ...(sId ? { serviceId: sId } : { name: item.name }),
-              quantity: item.quantity,
-              unitPrice: item.unitPrice,
-              discount: 0,
-            };
-          }
-        });
+      const items = cart.map(item => {
+        const isConsumable = Boolean(item.parentCartId);
+        const price = item.isNoAplica ? 0 : item.unitPrice;
+        const displayName = isConsumable
+          ? (item.name.startsWith('--') ? item.name : ` -- ${item.name}`)
+          : item.name;
+
+        if (item.type === 'product') {
+          return {
+            type: 'product' as const,
+            productId: item.product?.id || (item.product as any)?._id,
+            name: displayName,
+            quantity: item.quantity,
+            unitPrice: price,
+            discount: 0,
+          };
+        } else {
+          const sId = item.service?.id || (item.service as any)?._id;
+          return {
+            type: 'service' as const,
+            ...(sId ? { serviceId: sId } : {}),
+            name: displayName,
+            quantity: item.quantity,
+            unitPrice: price,
+            discount: 0,
+          };
+        }
+      });
 
       // If full discount, set unitPrice 0
       const finalItems = isFullDiscount
@@ -561,13 +567,43 @@ export const POSPage: React.FC = () => {
         paymentMethod,
       });
 
-      setLastCompletedSale(createdSale);
+      // Prepare enriched sale for ticket printing to guarantee consumable names and 0 pesos appear only when isNoAplica is true
+      const saleForPrint: Sale = {
+        ...createdSale,
+        id: createdSale?.id || (createdSale as any)?._id || `sale-${Date.now()}`,
+        folio: createdSale?.folio,
+        items: cart.map(ci => {
+          const isConsumable = Boolean(ci.parentCartId);
+          const hasNoAplica = Boolean(ci.isNoAplica);
+          const basePrice = ci.unitPrice > 0 ? ci.unitPrice : (ci.originalPrice ?? 0);
+          const finalPrice = hasNoAplica ? 0 : basePrice;
+          const displayName = isConsumable
+            ? (ci.name.startsWith('--') ? ci.name : ` -- ${ci.name}`)
+            : ci.name;
+
+          return {
+            ...ci,
+            name: displayName,
+            unitPrice: finalPrice,
+            subtotal: finalPrice * ci.quantity,
+            isConsumable,
+            isNoAplica: hasNoAplica,
+          };
+        }),
+        subtotal: isFullDiscount ? 0 : cart.reduce((acc, ci) => acc + (ci.isNoAplica ? 0 : ci.unitPrice) * ci.quantity, 0),
+        total: isFullDiscount ? 0 : (createdSale?.total ?? (isFullDiscount ? 0 : total)),
+        paymentMethod,
+        createdAt: createdSale?.createdAt || new Date().toISOString(),
+        branch: { id: activeBranchId || '', name: activeBranchName || '' },
+      };
+
+      setLastCompletedSale(saleForPrint);
       setActiveModal('checkoutSuccess');
 
       // Impresión térmica directa y optimizada (compatible con Safari / macOS y USB/Bluetooth)
       if (autoPrintOnSale) {
         thermalPrintService.print({
-          sale: createdSale,
+          sale: saleForPrint,
           branchName: activeBranchName,
           sellerName: user?.name,
           settings: usePrinterSettingsStore.getState(),
@@ -679,11 +715,10 @@ export const POSPage: React.FC = () => {
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
-                  className={`px-5 py-2 rounded-lg text-sm font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
-                    activeTab === tab
-                      ? 'bg-primary text-primary-content shadow-xs'
-                      : 'text-base-content/70 hover:text-base-content hover:bg-base-200'
-                  }`}
+                  className={`px-5 py-2 rounded-lg text-sm font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${activeTab === tab
+                    ? 'bg-primary text-primary-content shadow-xs'
+                    : 'text-base-content/70 hover:text-base-content hover:bg-base-200'
+                    }`}
                 >
                   {tab === 'products' ? (
                     <span className="flex items-center gap-1.5">
@@ -731,19 +766,18 @@ export const POSPage: React.FC = () => {
                           typeof product.brand === 'object' && product.brand?.name
                             ? product.brand.name
                             : typeof product.brand === 'string'
-                            ? product.brand
-                            : '';
+                              ? product.brand
+                              : '';
 
                         return (
                           <div
                             key={product.id}
                             ref={isSelected ? highlightedCardRef : null}
                             onClick={() => setSelectedIndex(idx)}
-                            className={`rounded-xl p-4 flex flex-col gap-2.5 transition-all duration-150 cursor-pointer relative border ${
-                              isSelected
-                                ? 'border-primary ring-2 ring-primary/20 bg-primary/5 shadow-md'
-                                : 'border-base-300 bg-base-200/40 hover:bg-base-200/80 hover:border-base-300'
-                            }`}
+                            className={`rounded-xl p-4 flex flex-col gap-2.5 transition-all duration-150 cursor-pointer relative border ${isSelected
+                              ? 'border-primary ring-2 ring-primary/20 bg-primary/5 shadow-md'
+                              : 'border-base-300 bg-base-200/40 hover:bg-base-200/80 hover:border-base-300'
+                              }`}
                           >
                             {isSelected && (
                               <div className="absolute -top-2.5 right-2.5 z-10">
@@ -850,11 +884,10 @@ export const POSPage: React.FC = () => {
                             key={service.id}
                             ref={isSelected ? highlightedCardRef : null}
                             onClick={() => setSelectedIndex(idx)}
-                            className={`rounded-xl p-4 flex flex-col gap-2.5 h-full transition-all duration-150 cursor-pointer relative border ${
-                              isSelected
-                                ? 'border-amber-500 ring-2 ring-amber-500/20 bg-amber-500/5 shadow-md'
-                                : 'border-base-300 bg-base-200/40 hover:bg-base-200/80 hover:border-base-300'
-                            }`}
+                            className={`rounded-xl p-4 flex flex-col gap-2.5 h-full transition-all duration-150 cursor-pointer relative border ${isSelected
+                              ? 'border-amber-500 ring-2 ring-amber-500/20 bg-amber-500/5 shadow-md'
+                              : 'border-base-300 bg-base-200/40 hover:bg-base-200/80 hover:border-base-300'
+                              }`}
                           >
                             {isSelected && (
                               <div className="absolute -top-2.5 right-2.5 z-10">
@@ -932,11 +965,10 @@ export const POSPage: React.FC = () => {
                   <div
                     key={c.id}
                     onClick={() => switchCart(c.id)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all cursor-pointer shrink-0 border ${
-                      isActive
-                        ? 'bg-primary text-primary-content border-primary shadow-xs'
-                        : 'bg-base-100 text-base-content/70 border-base-300 hover:bg-base-200'
-                    }`}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all cursor-pointer shrink-0 border ${isActive
+                      ? 'bg-primary text-primary-content border-primary shadow-xs'
+                      : 'bg-base-100 text-base-content/70 border-base-300 hover:bg-base-200'
+                      }`}
                   >
                     {editingCartLabel === c.id ? (
                       <input
@@ -961,16 +993,14 @@ export const POSPage: React.FC = () => {
                       </span>
                     )}
                     {itemCount > 0 && (
-                      <span className={`text-[10px] font-bold rounded-full px-1.5 min-w-4 text-center leading-tight ${
-                        isActive ? 'bg-primary-content/20 text-primary-content' : 'bg-base-300 text-base-content'
-                      }`}>
+                      <span className={`text-[10px] font-bold rounded-full px-1.5 min-w-4 text-center leading-tight ${isActive ? 'bg-primary-content/20 text-primary-content' : 'bg-base-300 text-base-content'
+                        }`}>
                         {itemCount}
                       </span>
                     )}
                     {idx <= 8 && (
-                      <span className={`text-[9px] opacity-60 px-1 py-0.5 rounded font-mono ${
-                        isActive ? 'bg-primary-content/20' : 'bg-base-200'
-                      }`}>
+                      <span className={`text-[9px] opacity-60 px-1 py-0.5 rounded font-mono ${isActive ? 'bg-primary-content/20' : 'bg-base-200'
+                        }`}>
                         Alt+{idx + 1}
                       </span>
                     )}

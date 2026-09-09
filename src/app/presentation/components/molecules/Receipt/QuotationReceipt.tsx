@@ -79,8 +79,9 @@ export const QuotationReceipt: React.FC<QuotationReceiptProps> = ({
             const childItems = items.filter(child => child.parentCartId === item.cartId);
 
             const renderRow = (cartItem: CartItem, isChild: boolean) => {
-              const itemTotal = isFullDiscount ? 0 : cartItem.subtotal;
-              const itemPrice = isFullDiscount ? 0 : cartItem.unitPrice;
+              const isZeroPrice = isFullDiscount || Boolean(cartItem.isNoAplica);
+              const itemTotal = isZeroPrice ? 0 : cartItem.subtotal;
+              const itemPrice = isZeroPrice ? 0 : cartItem.unitPrice;
 
               return (
                 <tr
@@ -121,7 +122,7 @@ export const QuotationReceipt: React.FC<QuotationReceiptProps> = ({
                       </div>
                     )}
                     {isChild && (
-                      <div style={{ marginTop: '4px' }}>
+                      <div style={{ marginTop: '4px', display: 'flex', gap: '4px', alignItems: 'center' }}>
                         <span style={{
                           fontSize: '10px',
                           color: '#2563eb',
@@ -132,8 +133,22 @@ export const QuotationReceipt: React.FC<QuotationReceiptProps> = ({
                           borderRadius: '4px',
                           display: 'inline-block'
                         }}>
-                          Insumo
+                          Consumible
                         </span>
+                        {cartItem.isNoAplica && (
+                          <span style={{
+                            fontSize: '10px',
+                            color: '#15803d',
+                            fontWeight: 600,
+                            border: '1px solid #bbf7d0',
+                            background: '#f0fdf4',
+                            padding: '2px 6px',
+                            borderRadius: '4px',
+                            display: 'inline-block'
+                          }}>
+                            No aplica costo ($0.00)
+                          </span>
+                        )}
                       </div>
                     )}
                   </td>

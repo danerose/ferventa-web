@@ -292,7 +292,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
   },
 
   addServiceToCart: (service) => {
-    const { activeCartId } = get();
+    const { activeCartId, allProductsForSupplies } = get();
     const activeCart = getActiveCart(get());
 
     const serviceItem: CartItem = {
@@ -307,19 +307,38 @@ export const usePOSStore = create<POSState>((set, get) => ({
       isNoAplica: false,
     };
 
-    const supplyItems: CartItem[] = service.supplies.map(supply => ({
-      cartId: makeCartId(),
-      parentCartId: serviceItem.cartId,
-      type: 'product',
-      product: supply.product as unknown as Product,
-      name: supply.product.name,
-      sku: supply.product.sku,
-      quantity: supply.quantity,
-      unitPrice: supply.product.sellingPrice,
-      originalPrice: supply.product.sellingPrice,
-      subtotal: supply.product.sellingPrice * supply.quantity,
-      isNoAplica: false,
-    }));
+    const supplyItems: CartItem[] = service.supplies.map(supply => {
+      const prodId = supply.product.id || supply.product._id;
+      const catalogProd = allProductsForSupplies.find(
+        p => p.id === prodId || (p as any)._id === prodId
+      );
+      const prodName = supply.product.name || catalogProd?.name || 'Insumo de servicio';
+      const prodSku = supply.product.sku || catalogProd?.sku || '';
+      const prodPrice = (supply.product.sellingPrice && supply.product.sellingPrice > 0)
+        ? supply.product.sellingPrice
+        : (catalogProd?.sellingPrice ?? (catalogProd as any)?.price ?? (supply.product as any)?.price ?? 0);
+
+      return {
+        cartId: makeCartId(),
+        parentCartId: serviceItem.cartId,
+        type: 'product',
+        product: {
+          ...(catalogProd || {}),
+          ...supply.product,
+          id: prodId,
+          name: prodName,
+          sku: prodSku,
+          sellingPrice: prodPrice,
+        } as unknown as Product,
+        name: prodName,
+        sku: prodSku,
+        quantity: supply.quantity,
+        unitPrice: prodPrice,
+        originalPrice: prodPrice,
+        subtotal: prodPrice * supply.quantity,
+        isNoAplica: false,
+      };
+    });
 
     const newItems = [...activeCart.items, serviceItem, ...supplyItems];
     const newCarts = updateActiveCart(get(), cart => ({ ...cart, items: newItems }));
@@ -341,19 +360,24 @@ export const usePOSStore = create<POSState>((set, get) => ({
       isNoAplica: false,
     };
 
-    const supplyItems: CartItem[] = supplies.map(s => ({
-      cartId: makeCartId(),
-      parentCartId: serviceItem.cartId,
-      type: 'product',
-      product: s.product,
-      name: s.product.name,
-      sku: s.product.sku,
-      quantity: s.quantity,
-      unitPrice: s.unitPrice,
-      originalPrice: s.product.sellingPrice,
-      subtotal: s.unitPrice * s.quantity,
-      isNoAplica: false,
-    }));
+    const supplyItems: CartItem[] = supplies.map(s => {
+      const price = typeof s.unitPrice === 'number' && s.unitPrice >= 0
+        ? s.unitPrice
+        : (s.product?.sellingPrice ?? (s.product as any)?.price ?? 0);
+      return {
+        cartId: makeCartId(),
+        parentCartId: serviceItem.cartId,
+        type: 'product',
+        product: s.product,
+        name: s.product.name,
+        sku: s.product.sku,
+        quantity: s.quantity,
+        unitPrice: price,
+        originalPrice: s.product?.sellingPrice || price,
+        subtotal: price * s.quantity,
+        isNoAplica: false,
+      };
+    });
 
     const newItems = [...activeCart.items, serviceItem, ...supplyItems];
     const newCarts = updateActiveCart(get(), cart => ({ ...cart, items: newItems }));
@@ -400,6 +424,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
       return {
         ...item,
         unitPrice: price,
+        originalPrice: price > 0 ? price : item.originalPrice,
         subtotal: item.isNoAplica ? 0 : item.quantity * price,
       };
     });
@@ -413,11 +438,13 @@ export const usePOSStore = create<POSState>((set, get) => ({
     const newItems = activeCart.items.map((item) => {
       if (item.cartId !== cartId) return item;
       const isNoAplica = val !== undefined ? val : !item.isNoAplica;
+      const basePrice = item.originalPrice > 0 ? item.originalPrice : (item.unitPrice > 0 ? item.unitPrice : 0);
+      const finalPrice = isNoAplica ? 0 : basePrice;
       return {
         ...item,
         isNoAplica,
-        unitPrice: isNoAplica ? 0 : item.unitPrice === 0 ? item.originalPrice : item.unitPrice,
-        subtotal: item.quantity * (isNoAplica ? 0 : item.unitPrice === 0 ? item.originalPrice : item.unitPrice),
+        unitPrice: finalPrice,
+        subtotal: item.quantity * finalPrice,
       };
     });
     const newCarts = updateActiveCart(get(), cart => ({ ...cart, items: newItems }));

@@ -41,12 +41,15 @@ export class APIServicesRepository {
       isActive: Boolean(raw.isActive ?? true),
       supplies: rawSupplies.map((s: Record<string, unknown>) => {
         const prod = (s.product && typeof s.product === 'object') ? (s.product as Record<string, unknown>) : {};
+        const prodId = String(prod._id ?? prod.id ?? s.product ?? s.productId ?? '');
+        const price = Number(prod.sellingPrice ?? prod.price ?? prod.priceSnapshot ?? prod.costPrice ?? 0);
         return {
           product: {
-            _id: String(prod._id ?? s.product ?? ''),
+            id: prodId,
+            _id: prodId,
             name: String(prod.name ?? ''),
             sku: String(prod.sku ?? ''),
-            sellingPrice: Number(prod.sellingPrice ?? 0),
+            sellingPrice: price,
           },
           quantity: Number(s.quantity ?? 1),
         };
