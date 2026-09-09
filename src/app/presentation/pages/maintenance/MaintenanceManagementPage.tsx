@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useAuthStore } from '@/app/presentation/stores';
 import { useMaintenanceStore, type MaintenanceScope } from '@/app/presentation/stores/maintenance/maintenance.store';
-import { adminRepository, userRepository } from '@/core/di/container';
+import { maintenanceUseCases, userUseCases } from '@/core/di/container';
 import type { AdminMaintenanceOrder, User } from '@/app/domain';
 import {
   PageLayout,
@@ -137,7 +137,7 @@ export const MaintenanceManagementPage: React.FC = () => {
   useEffect(() => {
     if (!accessToken) return;
     fetchMaintenances(accessToken, activeScope, undefined, weekRefDate);
-    userRepository.getUsers(accessToken).then(setUsersList).catch(() => { });
+    userUseCases.getUsers(accessToken).then(setUsersList).catch(() => { });
   }, [accessToken, activeScope, weekRefDate, fetchMaintenances]);
 
   // Debounced search / filter reload (skips initial mount duplicate fetch)
@@ -200,7 +200,7 @@ export const MaintenanceManagementPage: React.FC = () => {
   const handleAssignMechanic = async (orderId: string, mechanicId: string) => {
     if (!accessToken) return;
     try {
-      await adminRepository.updateMaintenance(accessToken, orderId, {
+      await maintenanceUseCases.updateMaintenanceOrder(orderId, {
         assignedMechanic: mechanicId || undefined,
       });
       addToast('success', 'Mecánico asignado correctamente.');

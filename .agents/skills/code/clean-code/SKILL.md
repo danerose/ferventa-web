@@ -46,14 +46,30 @@ Dependencies **must always point inward** (toward domain). Nothing in `domain/` 
 | `data/datasources` | `core/services` (e.g. `NetworkService`), `data/model` | `domain/*`, `presentation/*` |
 
 When a component needs data, the path is always:
-`Component (.tsx) → Store (Zustand) → UseCase → Repository Interface → Repository Implementation → DataSource`.
-Skipping any step (e.g. a store calling a `Repository` directly, or a page calling `new APIRepository()`) is an architectural violation.
+`Component (.tsx) → Store (Zustand) → UseCase → Repository Interface → Repository Implementation → DataSource (Remote/Local) → NetworkService / Storage`.
+Skipping any step (e.g. a store calling a `Repository` directly, a repository calling `fetch()` directly, or a page calling `new APIRepository()`) is an architectural violation.
+
+### Strict Repository & Domain Rules:
+1. **Repositories Represent Domain Aggregates, NEVER User Roles:**
+   - Prohibited: `AdminRepository`, `MechanicRepository`, `ReceptionistRepository`.
+   - Required: `AppointmentRepository`, `MaintenanceRepository`, `BranchRepository`, `InventoryRepository`, `SalesRepository`.
+   - A repository models a business boundary (Bounded Context), not the identity or permissions of who executes the action.
+2. **Repositories Delegate I/O to DataSources and Use `NetworkService`:**
+   - Repositories must NEVER call `fetch()`, declare private `baseUrl` or `fetchWithAuth`, or read `localStorage` directly.
+   - Remote I/O is performed by `RemoteDataSource` using `NetworkService`.
+   - Local persistence (tokens, cache, active branch) is performed by `LocalDataSource` using typed storage wrappers.
+3. **Repository Interfaces Reside in `domain/repository/`:**
+   - Contracts (`IAppointmentRepository`, `IAuthRepository`) belong strictly in `domain/repository/{Name}/`.
+   - It is a severe violation of Dependency Inversion to declare repository interfaces inside `data/repositories/`.
+4. **DataSources Return Models (DTOs), Repositories Map to Entities:**
+   - `RemoteDataSource` returns typed models (`AppointmentModel`, `ProductModel`).
+   - `Repository` translates models into immutable domain entities (`Appointment`, `Product`) via `.toEntity()` mappers.
 
 ### Strict Presentation Rules:
 1. **Pages (.tsx) MUST ONLY consume Stores**:
    - Never instantiate a repository (`new APISalesRepository()`) inside a `.tsx` file or call repositories directly.
-   - All data fetching, caching, search debouncing, and business state mutations live inside the feature's dedicated Zustand store.
-2. **Every Feature MUST Have Its Own Store**:
+   - All data fetching, caching, search debouncing, and business state mutations live inside the feature's dedicated Zustand store via UseCases.
+2. **Every Feature MUST Have Its Own Store & Use Cases**:
    - Avoid using `useState` or `useEffect` for business logic (such as debounce timers `setTimeout`, toast array management, or paginated lists).
    - In `.tsx` components, `useState` is strictly reserved for ephemeral UI state (e.g., `isModalOpen`, `activeDropdownTab`).
 3. **Grouped and Hierarchical Imports**:
@@ -64,16 +80,30 @@ Skipping any step (e.g. a store calling a `Repository` directly, or a page calli
 
 ---
 
-## 2. Dependency Injection Without Heavy Containers
+## 2. Dependency Injection and Single-Responsibility UseCases
 
-Heavy DI containers (like `inversify` or `tsyringe`) are not required — they introduce unnecessary complexity. Instead, the mandatory pattern is: **every class receives its dependencies via constructor parameters**. Classes never instantiate their own dependencies or import global singletons internally.
+### Single-Responsibility UseCase Rule:
+A Use Case (*Interactor*) represents **ONE single business interaction/action** (Single Responsibility Principle).
+- **PROHIBITED (Anti-pattern)**: Monolithic "UseCase Mirrors" (e.g. `export class BranchUseCases { getBranches(); createBranch(); updateBranch(); ... }`). These merely duplicate the repository interface and violate SRP.
+- **MANDATORY**: Each Use Case lives in its own file (`src/app/domain/usecases/{domain}/{Action}UseCase.ts`) and exposes an `execute(...)` method.
+- **Facading**: Domain barrels or aggregate facades may be created solely for backward-compatibility, but they MUST delegate to individual UseCase instances.
+
+### Strict `erasableSyntaxOnly` Constructor Pattern:
+Due to TypeScript `"erasableSyntaxOnly": true`, **parameter properties in constructors are strictly prohibited** (e.g. `constructor(private readonly repo: IRepo)` causes compiler error `TS1294`). All properties must be declared as explicit class fields:
 
 ```ts
-// domain/usecases/auth/AuthUseCases.ts
-export class AuthUseCases {
-  constructor(private readonly authRepository: IAuthRepository) {}
+// domain/usecases/auth/LoginUseCase.ts
+export class LoginUseCase {
+  private readonly authRepository: IAuthRepository;
 
-  login(credentials: LoginCredentials): Promise<User> {
+  constructor(authRepository: IAuthRepository) {
+    this.authRepository = authRepository;
+  }
+
+  async execute(credentials: LoginCredentials): Promise<User> {
+    if (!credentials.usernameOrEmail?.trim()) {
+      throw new Error('El usuario es requerido');
+    }
     return this.authRepository.login(credentials);
   }
 }
@@ -82,10 +112,13 @@ export class AuthUseCases {
 ```ts
 // data/repositories/Auth/AuthRepository.ts
 export class AuthRepository implements IAuthRepository {
-  constructor(
-    private readonly remote: AuthRemoteDataSource,
-    private readonly local: AuthLocalDataSource,
-  ) {}
+  private readonly remote: AuthRemoteDataSource;
+  private readonly local: AuthLocalDataSource;
+
+  constructor(remote: AuthRemoteDataSource, local: AuthLocalDataSource) {
+    this.remote = remote;
+    this.local = local;
+  }
 
   async login(credentials: LoginCredentials): Promise<User> {
     const model = await this.remote.login(credentials);
@@ -99,14 +132,11 @@ All wiring ("who instantiates whom") is centralized in **a single composition ro
 
 ```ts
 // core/di/container.ts
-const authRemoteDataSource = new AuthRemoteDataSource(networkService);
-const authLocalDataSource = new AuthLocalDataSource();
-const authRepository = new AuthRepository(authRemoteDataSource, authLocalDataSource);
-
-export const authUseCases = new AuthUseCases(authRepository);
+export const loginUseCase = new LoginUseCase(authRepository);
+export const authUseCases = new AuthUseCases(authRepository); // Backward-compatible facade
 ```
 
-Stores import pre-wired instances like `authUseCases` directly from `core/di/container.ts`. Stores never instantiate dependencies and never import `AuthRepository` or `AuthRemoteDataSource`.
+Stores import pre-wired use cases (e.g. `loginUseCase` or `authUseCases`) directly from `core/di/container.ts`. Stores never instantiate dependencies and never import `AuthRepository` or `AuthRemoteDataSource`.
 
 ---
 
@@ -149,6 +179,10 @@ if (user.isAdmin) { ... }
 ```
 
 The same applies to magic numbers (`if (items.length > 10)`), routes (`'/dashboard'`), API endpoints, and any literals representing business logic — place them in `core/constants` or `core/enums`.
+
+### Strict Centralized API Endpoints:
+Endpoints must NEVER be written as hardcoded template literals inside repository or datasource methods (`fetch('${this.baseUrl}/appointments/${id}/approve')`).
+All paths must be registered in `src/core/constants/endpoints/api.endpoints.ts` (`API_ENDPOINTS.APPOINTMENTS.APPROVE(id)`). This guarantees single-point changes and zero URL drift.
 
 ---
 
@@ -259,23 +293,51 @@ export const useAuthStore = create<AuthState>((set) => ({
 
 ---
 
-## 8. Final Checklist Before Completing a Task
+## 8. Declarative Role-Based Access Control (RBAC)
+
+All views, routes, actions, and sensitive UI elements must enforce access control according to the role permissions matrix derived from `API_DOCS.md`.
+
+### Rules for RBAC:
+1. **Never compare role strings inline:**
+   - ❌ `if (user.role === 'admin')` or `if (role === 'administrator')`
+   - ✅ `if (hasRole(user, [UserRole.Admin]))` or `if (hasPermission(user, PERMISSIONS.APPOINTMENTS_DELETE))`
+2. **Protect Routes with Typed Roles:**
+   - Use `<ProtectedRoute allowedRoles={[UserRole.Admin, UserRole.Seller]}>`. Unauthorized users must be redirected to their default allowed view or a Forbidden page.
+3. **Protect Sensitive UI Elements with `<Authorize>`:**
+   ```tsx
+   <Authorize roles={[UserRole.Admin]} permissions={[PERMISSIONS.APPOINTMENTS_DELETE]} fallback={null}>
+     <DeleteAppointmentButtonAtom onClick={handleDelete} />
+   </Authorize>
+   ```
+4. **Dynamic Sidebars / Navigations:**
+   - Filter menu items dynamically with `hasRole(user, item.allowedRoles)` or `item.permission`. Never hardcode role-visibility lists or show unauthorized routes.
+
+---
+
+## 9. Final Checklist Before Completing a Task
 
 - [ ] Are all repeated strings/numbers extracted into `enum`, `const`, or an entity getter?
+- [ ] Are all API endpoints referenced from `core/constants/endpoints/api.endpoints.ts` (zero hardcoded URLs)?
 - [ ] Are all `.tsx` files free of inline utility functions, calculations, or data formatting?
 - [ ] Are `useState` and `useEffect` used solely for ephemeral, local UI states rather than domain logic?
 - [ ] Does every store communicate through use cases rather than importing repositories/datasources directly?
-- [ ] Are stores free of internal helper utility functions?
-- [ ] Do classes (`UseCases`, `Repository`) receive their dependencies via constructor injection?
+- [ ] Are all repositories representing domain aggregates rather than user roles (no `AdminRepository`)?
+- [ ] Do all repositories delegate remote I/O to DataSources and `NetworkService` (zero direct `fetch()` or `localStorage`)?
+- [ ] Are repository interfaces placed in `domain/repository/` rather than `data/`?
+- [ ] Are views and actions protected by RBAC (`ProtectedRoute`, `<Authorize>`, `useAuthorization`)?
+- [ ] Do classes (`UseCases`, `Repository`, `DataSource`) receive their dependencies via constructor injection?
 - [ ] Are instances created with `new` restricted strictly to `core/di/container.ts`?
 
 ---
 
-## 9. Audit Patterns for Existing Code
+## 10. Audit Patterns for Existing Code
 
 - `useState(` in `.tsx` — verify against Section 4 whether it is purely ephemeral UI state.
 - `useEffect(` in `.tsx` — almost always belongs as a store action.
 - `=== '` or `== "` — literal string comparison, prime candidate for an enum.
+- `role === 'admin'` or `user.role ===` — manual string role check, candidate for `hasRole` / `hasPermission`.
+- `fetch(` in `repositories/` or `components/` — violation of `DataSource` and `NetworkService` layering.
+- `localStorage.getItem(` in `repositories/` — violation of `LocalDataSource` layering.
 - `function ` or `const .* = (.*) =>` inside `.tsx` (other than the exported component itself).
-- `import.*Repository` or `import.*DataSource` inside `stores/`.
-- `new AuthRepository(`, `new .*UseCases(` outside `core/di/container.ts`.
+- `import.*Repository` or `import.*DataSource` inside `stores/` or `pages/`.
+- `new .*Repository(`, `new .*UseCases(` outside `core/di/container.ts`.

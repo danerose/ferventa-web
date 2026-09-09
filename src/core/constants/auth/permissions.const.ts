@@ -1,0 +1,161 @@
+import { UserRole } from '@/core/enums';
+
+export const PERMISSIONS = {
+  // Users & Sessions
+  USERS_VIEW: 'users.view',
+  USERS_MANAGE: 'users.manage',
+  SESSIONS_VIEW: 'sessions.view',
+  SESSIONS_REVOKE: 'sessions.revoke',
+
+  // Branches
+  BRANCHES_VIEW: 'branches.view',
+  BRANCHES_MANAGE: 'branches.manage',
+
+  // Appointments & Schedule
+  APPOINTMENTS_VIEW: 'appointments.view',
+  APPOINTMENTS_CREATE: 'appointments.create',
+  APPOINTMENTS_STATUS: 'appointments.status',
+  APPOINTMENTS_RECEPTION: 'appointments.reception',
+  APPOINTMENTS_DELETE: 'appointments.delete',
+  SCHEDULE_MANAGE: 'schedule.manage',
+
+  // Maintenance Orders
+  MAINTENANCE_VIEW: 'maintenance.view',
+  MAINTENANCE_CREATE: 'maintenance.create',
+  MAINTENANCE_WORK: 'maintenance.work',
+  MAINTENANCE_COMPLETE: 'maintenance.complete',
+  MAINTENANCE_DELETE: 'maintenance.delete',
+
+  // Customers & Vehicles
+  CUSTOMERS_VIEW: 'customers.view',
+  CUSTOMERS_MANAGE: 'customers.manage',
+  CUSTOMERS_DELETE: 'customers.delete',
+  VEHICLES_VIEW: 'vehicles.view',
+  VEHICLES_MANAGE: 'vehicles.manage',
+  VEHICLES_DELETE: 'vehicles.delete',
+
+  // Inventory
+  INVENTORY_VIEW: 'inventory.view',
+  INVENTORY_MANAGE: 'inventory.manage',
+
+  // POS / Sales
+  POS_VIEW: 'pos.view',
+  POS_SALE_CREATE: 'pos.sale_create',
+  POS_SALE_CANCEL: 'pos.sale_cancel',
+
+  // Quotations
+  QUOTES_VIEW: 'quotes.view',
+  QUOTES_MANAGE: 'quotes.manage',
+
+  // Predefined Services
+  SERVICES_VIEW: 'services.view',
+  SERVICES_MANAGE: 'services.manage',
+
+  // Special Orders
+  ORDERS_VIEW: 'orders.view',
+  ORDERS_CREATE: 'orders.create',
+  ORDERS_PAYMENT: 'orders.payment',
+  ORDERS_STATUS: 'orders.status',
+  ORDERS_CANCEL: 'orders.cancel',
+
+  // Attendance
+  ATTENDANCE_CLOCK: 'attendance.clock',
+  ATTENDANCE_VIEW_ALL: 'attendance.view_all',
+  ATTENDANCE_ADMIN: 'attendance.admin',
+
+  // Reports & Dashboard
+  REPORTS_FINANCIAL: 'reports.financial',
+  DASHBOARD_OPERATIONS: 'dashboard.operations',
+} as const;
+
+export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
+
+/**
+ * Role to Permissions Matrix derived directly from API_DOCS.md
+ */
+export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
+  [UserRole.Admin]: Object.values(PERMISSIONS),
+
+  [UserRole.Receptionist]: [
+    PERMISSIONS.BRANCHES_VIEW,
+    PERMISSIONS.APPOINTMENTS_VIEW,
+    PERMISSIONS.APPOINTMENTS_CREATE,
+    PERMISSIONS.APPOINTMENTS_STATUS,
+    PERMISSIONS.APPOINTMENTS_RECEPTION,
+    PERMISSIONS.SCHEDULE_MANAGE,
+    PERMISSIONS.MAINTENANCE_VIEW,
+    PERMISSIONS.MAINTENANCE_CREATE,
+    PERMISSIONS.CUSTOMERS_VIEW,
+    PERMISSIONS.CUSTOMERS_MANAGE,
+    PERMISSIONS.VEHICLES_VIEW,
+    PERMISSIONS.VEHICLES_MANAGE,
+    PERMISSIONS.INVENTORY_VIEW,
+    PERMISSIONS.SERVICES_VIEW,
+    PERMISSIONS.ATTENDANCE_CLOCK,
+    PERMISSIONS.DASHBOARD_OPERATIONS,
+  ],
+
+  [UserRole.Mechanic]: [
+    PERMISSIONS.BRANCHES_VIEW,
+    PERMISSIONS.MAINTENANCE_VIEW,
+    PERMISSIONS.MAINTENANCE_WORK,
+    PERMISSIONS.MAINTENANCE_COMPLETE,
+    PERMISSIONS.VEHICLES_VIEW,
+    PERMISSIONS.INVENTORY_VIEW,
+    PERMISSIONS.SERVICES_VIEW,
+    PERMISSIONS.ATTENDANCE_CLOCK,
+  ],
+
+  [UserRole.Warehouse]: [
+    PERMISSIONS.BRANCHES_VIEW,
+    PERMISSIONS.INVENTORY_VIEW,
+    PERMISSIONS.INVENTORY_MANAGE,
+    PERMISSIONS.ORDERS_VIEW,
+    PERMISSIONS.ORDERS_STATUS,
+    PERMISSIONS.ATTENDANCE_CLOCK,
+  ],
+
+  [UserRole.Cashier]: [
+    PERMISSIONS.BRANCHES_VIEW,
+    PERMISSIONS.INVENTORY_VIEW,
+    PERMISSIONS.POS_VIEW,
+    PERMISSIONS.POS_SALE_CREATE,
+    PERMISSIONS.ORDERS_VIEW,
+    PERMISSIONS.ORDERS_CREATE,
+    PERMISSIONS.ORDERS_PAYMENT,
+    PERMISSIONS.ORDERS_STATUS,
+    PERMISSIONS.CUSTOMERS_VIEW,
+    PERMISSIONS.ATTENDANCE_CLOCK,
+  ],
+
+  [UserRole.Seller]: [
+    PERMISSIONS.BRANCHES_VIEW,
+    PERMISSIONS.APPOINTMENTS_VIEW,
+    PERMISSIONS.APPOINTMENTS_CREATE,
+    PERMISSIONS.MAINTENANCE_VIEW,
+    PERMISSIONS.MAINTENANCE_CREATE,
+    PERMISSIONS.CUSTOMERS_VIEW,
+    PERMISSIONS.CUSTOMERS_MANAGE,
+    PERMISSIONS.VEHICLES_VIEW,
+    PERMISSIONS.VEHICLES_MANAGE,
+    PERMISSIONS.INVENTORY_VIEW,
+    PERMISSIONS.POS_VIEW,
+    PERMISSIONS.POS_SALE_CREATE,
+    PERMISSIONS.QUOTES_VIEW,
+    PERMISSIONS.QUOTES_MANAGE,
+    PERMISSIONS.ORDERS_VIEW,
+    PERMISSIONS.ORDERS_CREATE,
+    PERMISSIONS.ORDERS_PAYMENT,
+    PERMISSIONS.SERVICES_VIEW,
+    PERMISSIONS.ATTENDANCE_CLOCK,
+  ],
+
+  [UserRole.Customer]: [
+    PERMISSIONS.BRANCHES_VIEW,
+  ],
+
+  [UserRole.User]: [
+    PERMISSIONS.BRANCHES_VIEW,
+    PERMISSIONS.ATTENDANCE_CLOCK,
+  ],
+};

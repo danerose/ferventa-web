@@ -1,4 +1,5 @@
-import type { Holiday } from '@/app/domain';
+import type { Holiday } from '../Schedule/Schedule';
+
 
 export interface Vehicle {
   brand: string;
@@ -8,18 +9,20 @@ export interface Vehicle {
   color?: string;
 }
 
-export interface Appointment {
-  id?: string;
+export type { Appointment } from '../Appointment/Appointment';
+
+export interface BookAppointmentPayload {
   customerName: string;
   customerPhone: string;
   customerEmail: string;
   vehicle: Vehicle;
   serviceRequested: string;
-  scheduledAt: string; // ISO string
+  scheduledAt: string;
   notes?: string;
-  status?: 'pending' | 'approved' | 'rejected' | 'cancelled' | 'completed' | 'rescheduled';
   branchName?: string;
 }
+
+
 
 export interface MaintenanceTrackHistory {
   stage: 'reception' | 'disassembly' | 'maintenance' | 'completed' | 'delivered';

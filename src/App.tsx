@@ -2,6 +2,9 @@ import React, { useEffect, Suspense, lazy } from 'react';
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { useAuthStore, useThemeStore } from '@/app/presentation/stores';
 import { APP_ROUTES } from '@/core/constants';
+import { UserRole } from '@/core/enums';
+import { useAuthorization } from '@/core/hooks';
+import { ForbiddenPage } from '@/app/presentation/pages/forbidden/ForbiddenPage';
 
 // Code-splitting via React.lazy with direct paths to eliminate monolithic bundle
 const ClientPortalPage = lazy(() => import('@/app/presentation/pages/clientPortal/ClientPortalPage').then(m => ({ default: m.ClientPortalPage })));
@@ -23,10 +26,25 @@ const PageLoader = () => (
   </div>
 );
 
-// Protected Route Component with granular selector
-const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+// Protected Route Component with granular RBAC
+interface ProtectedRouteProps {
+  children: React.ReactNode;
+  allowedRoles?: readonly UserRole[] | UserRole[];
+}
+
+const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
   const isAuth = useAuthStore((s) => !!s.accessToken);
-  return isAuth ? <>{children}</> : <Navigate to={APP_ROUTES.LOGIN} replace />;
+  const { hasRole } = useAuthorization();
+
+  if (!isAuth) {
+    return <Navigate to={APP_ROUTES.LOGIN} replace />;
+  }
+
+  if (allowedRoles && allowedRoles.length > 0 && !hasRole(allowedRoles)) {
+    return <ForbiddenPage />;
+  }
+
+  return <>{children}</>;
 };
 
 export function App() {
@@ -81,91 +99,113 @@ export function App() {
           }
         />
         <Route path={APP_ROUTES.ADMIN.ROOT} element={<Navigate to={APP_ROUTES.ADMIN.CITAS} replace />} />
+        
+        {/* Citas: Admin, Recepción, Vendedor */}
         <Route
           path={APP_ROUTES.ADMIN.CITAS}
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={[UserRole.Admin, UserRole.Receptionist, UserRole.Seller]}>
               <AdminDashboardPage onLogout={handleLogout} />
             </ProtectedRoute>
           }
         />
+
+        {/* Operaciones / Dashboard: Admin, Recepción */}
         <Route
           path={APP_ROUTES.ADMIN.OPERACIONES}
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={[UserRole.Admin, UserRole.Receptionist]}>
               <OperationsDashboardPage />
             </ProtectedRoute>
           }
         />
+
+        {/* Punto de Venta: Admin, Cajero, Vendedor */}
         <Route
           path={APP_ROUTES.ADMIN.POS}
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={[UserRole.Admin, UserRole.Cashier, UserRole.Seller]}>
               <POSPage />
             </ProtectedRoute>
           }
         />
+
+        {/* Inventario: Admin, Almacén, Vendedor, Cajero */}
         <Route
           path={APP_ROUTES.ADMIN.INVENTARIO}
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={[UserRole.Admin, UserRole.Warehouse, UserRole.Seller, UserRole.Cashier]}>
               <InventoryPage />
             </ProtectedRoute>
           }
         />
+
+        {/* Usuarios: Solo Admin */}
         <Route
           path={APP_ROUTES.ADMIN.USUARIOS}
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={[UserRole.Admin]}>
               <UsersPage />
             </ProtectedRoute>
           }
         />
+
+        {/* Horarios: Solo Staff (Admin, Recepción) */}
         <Route
           path={APP_ROUTES.ADMIN.HORARIOS}
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={[UserRole.Admin, UserRole.Receptionist]}>
               <ScheduleSettingsPage />
             </ProtectedRoute>
           }
         />
+
+        {/* Ajustes: Solo Admin */}
         <Route
           path={APP_ROUTES.ADMIN.SETTINGS}
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={[UserRole.Admin]}>
               <SettingsPage />
             </ProtectedRoute>
           }
         />
+
+        {/* Mantenimiento: Admin, Mecánico, Recepción, Vendedor */}
         <Route
           path={APP_ROUTES.ADMIN.MANTENIMIENTO}
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={[UserRole.Admin, UserRole.Mechanic, UserRole.Receptionist, UserRole.Seller]}>
               <MaintenanceManagementPage />
             </ProtectedRoute>
           }
         />
+
+        {/* Asistencia: Todo el personal */}
         <Route
           path={APP_ROUTES.ADMIN.ASISTENCIA}
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={[UserRole.Admin, UserRole.Receptionist, UserRole.Mechanic, UserRole.Warehouse, UserRole.Cashier, UserRole.Seller, UserRole.User]}>
               <AttendancePage />
             </ProtectedRoute>
           }
         />
+
+        {/* Pedidos Especiales: Admin, Vendedor, Cajero, Almacén */}
         <Route
           path={APP_ROUTES.ADMIN.PEDIDOS}
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={[UserRole.Admin, UserRole.Seller, UserRole.Cashier, UserRole.Warehouse]}>
               <SpecialOrdersPage />
             </ProtectedRoute>
           }
         />
+
         <Route path="/admin/orders" element={<Navigate to={APP_ROUTES.ADMIN.PEDIDOS} replace />} />
         <Route path="*" element={<Navigate to={APP_ROUTES.PORTAL} replace />} />
       </Routes>
     </Suspense>
   );
 }
+
 
 export default App;

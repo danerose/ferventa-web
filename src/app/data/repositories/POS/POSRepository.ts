@@ -59,10 +59,29 @@ export class APISalesRepository {
 
   /** POST /sales — register a sale (products, services or mixed) */
   async createSale(token: string, data: CreateSalePayload): Promise<Sale> {
+    const payload: Record<string, unknown> = {
+      items: data.items.map((it) => {
+        const itemObj: Record<string, unknown> = {
+          type: it.type || (it.serviceId ? 'service' : 'product'),
+          quantity: it.quantity,
+        };
+        if (it.productId) itemObj.productId = it.productId;
+        if (it.serviceId) itemObj.serviceId = it.serviceId;
+        if (it.unitPrice !== undefined) itemObj.unitPrice = it.unitPrice;
+        if (it.discount !== undefined) itemObj.discount = it.discount;
+        return itemObj;
+      }),
+      paymentMethod: data.paymentMethod,
+    };
+    if (data.customerId) payload.customerId = data.customerId;
+    if (data.quoteId) payload.quoteId = data.quoteId;
+    if (data.globalDiscount !== undefined) payload.globalDiscount = data.globalDiscount;
+    if (data.paymentReference) payload.paymentReference = data.paymentReference;
+
     const res = await this.fetchWithAuth(`${this.baseUrl}/sales`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify(data),
+      body: JSON.stringify(payload),
     });
     const json = await res.json();
     if (res.status === 401) throw new Error('UNAUTHORIZED');
@@ -105,10 +124,22 @@ export class APISalesRepository {
 
   /** POST /quotes — create a quotation */
   async createQuote(token: string, data: CreateSalePayload): Promise<{ pdfUrl: string }> {
+    const payload: Record<string, unknown> = {
+      items: data.items
+        .filter((item) => item.productId)
+        .map((item) => ({
+          productId: item.productId,
+          quantity: item.quantity,
+          discount: item.discount || 0,
+        })),
+    };
+    if (data.customerId) payload.customerId = data.customerId;
+    if (data.globalDiscount !== undefined) payload.globalDiscount = data.globalDiscount;
+
     const res = await this.fetchWithAuth(`${this.baseUrl}/quotes`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify(data),
+      body: JSON.stringify(payload),
     });
     const json = await res.json();
     if (res.status === 401) throw new Error('UNAUTHORIZED');

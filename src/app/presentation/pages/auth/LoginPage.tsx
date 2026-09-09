@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
 import { Icon, TextInput, PrimaryButton } from '@/app/presentation/components';
 import { useAuthStore } from '@/app/presentation/stores';
-import { APIAdminRepository } from '@/app/data';
+import { authUseCases } from '@/core/di/container';
 
-const adminRepo = new APIAdminRepository();
 
 export interface LoginPageProps {
   onLoginSuccess: () => void;
@@ -61,7 +60,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
     setError(null);
     setLoading(true);
     try {
-      const result = await adminRepo.login(usernameOrEmail, password);
+      const result = await authUseCases.login({ username: usernameOrEmail, password });
       setAuth(result.user, result.accessToken, result.refreshToken);
       onLoginSuccess();
     } catch (err: unknown) {

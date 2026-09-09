@@ -1,5 +1,6 @@
-import type { Appointment, MaintenanceTrack, OccupiedSlots, PublicBranch } from '@/app/domain';
+import type { Appointment, MaintenanceTrack, OccupiedSlots, PublicBranch, BookAppointmentPayload } from '@/app/domain';
 import type { ClientPortalRepository } from '@/app/domain';
+import { API_ENDPOINTS } from '@/core/constants/endpoints/api.endpoints';
 
 interface RawAppointment {
   id?: string;
@@ -102,7 +103,7 @@ export class APIClientPortalRepository implements ClientPortalRepository {
   }
 
   async getPublicBranches(): Promise<PublicBranch[]> {
-    const res = await fetch(`${this.baseUrl}/branches/public`);
+    const res = await fetch(`${this.baseUrl}${API_ENDPOINTS.BRANCHES.PUBLIC}`);
     const json = await res.json();
     if (!res.ok || !json.success) {
       throw new Error(json.message || 'Error al obtener sucursales');
@@ -110,13 +111,33 @@ export class APIClientPortalRepository implements ClientPortalRepository {
     return json.data;
   }
 
-  async bookAppointment(appointment: Appointment): Promise<Appointment> {
-    const response = await this.fetchWithBranch(`${this.baseUrl}/appointments/public`, {
+  async bookAppointment(appointment: BookAppointmentPayload): Promise<Appointment> {
+    const body: Record<string, unknown> = {
+      customerName: appointment.customerName,
+      customerPhone: appointment.customerPhone,
+      customerEmail: appointment.customerEmail,
+      serviceRequested: appointment.serviceRequested,
+      scheduledAt: appointment.scheduledAt,
+      status: 'pending',
+    };
+    if (appointment.notes) body.notes = appointment.notes;
+    if (appointment.branchName) body.branchName = appointment.branchName;
+    if (appointment.vehicle) {
+      body.vehicle = {
+        brand: appointment.vehicle.brand,
+        model: appointment.vehicle.model,
+        year: Number(appointment.vehicle.year) || new Date().getFullYear(),
+        serialNumberLastFour: appointment.vehicle.serialNumberLastFour,
+        ...(appointment.vehicle.color ? { color: appointment.vehicle.color } : {}),
+      };
+    }
+
+    const response = await this.fetchWithBranch(`${this.baseUrl}${API_ENDPOINTS.APPOINTMENTS.PUBLIC}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(appointment),
+      body: JSON.stringify(body),
     });
 
     const json = await response.json();
@@ -128,7 +149,7 @@ export class APIClientPortalRepository implements ClientPortalRepository {
   }
 
   async getAppointmentStatus(query: string): Promise<Appointment[]> {
-    const response = await this.fetchWithBranch(`${this.baseUrl}/appointments/public/status?q=${encodeURIComponent(query)}`);
+    const response = await this.fetchWithBranch(`${this.baseUrl}${API_ENDPOINTS.APPOINTMENTS.PUBLIC_STATUS}?q=${encodeURIComponent(query)}`);
     const json = await response.json();
     if (!response.ok || !json.success) {
       throw new Error(json.message || 'Error al obtener el estatus de las citas');
@@ -136,7 +157,7 @@ export class APIClientPortalRepository implements ClientPortalRepository {
 
     const data: RawAppointment[] = Array.isArray(json.data) ? json.data : (json.data ? [json.data] : []);
     return data.map((item: RawAppointment) => ({
-      id: item.id || item._id,
+      id: item.id || item._id || '',
       customerName: item.customerName || '',
       customerPhone: item.customerPhone || '',
       customerEmail: item.customerEmail || '',
@@ -151,7 +172,7 @@ export class APIClientPortalRepository implements ClientPortalRepository {
 
   async getMaintenanceTrack(query: string): Promise<MaintenanceTrack | null> {
     try {
-      const response = await this.fetchWithBranch(`${this.baseUrl}/maintenance/track/public?q=${encodeURIComponent(query)}`);
+      const response = await this.fetchWithBranch(`${this.baseUrl}${API_ENDPOINTS.MAINTENANCE.TRACK_PUBLIC}?q=${encodeURIComponent(query)}`);
       if (!response.ok) {
         return null;
       }
@@ -195,7 +216,7 @@ export class APIClientPortalRepository implements ClientPortalRepository {
 
   async getOccupiedSlots(startDate: string, endDate: string): Promise<OccupiedSlots> {
     const response = await this.fetchWithBranch(
-      `${this.baseUrl}/appointments/occupied-slots?startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`
+      `${this.baseUrl}${API_ENDPOINTS.APPOINTMENTS.OCCUPIED_SLOTS}?startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`
     );
     const json = await response.json();
     if (!response.ok || !json.success) {

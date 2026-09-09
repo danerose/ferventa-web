@@ -16,7 +16,7 @@ import {
   Badge,
 } from '@/app/presentation/components';
 import { useAuthStore } from '@/app/presentation/stores';
-import { userRepository, adminRepository, attendanceRepository } from '@/core/di/container';
+import { userUseCases, branchUseCases, attendanceRepository } from '@/core/di/container';
 import { AttendanceWidget } from '@/app/presentation/components';
 import { UserBreakdownModal } from '@/app/presentation/components';
 import { EditAttendanceModal } from '@/app/presentation/components';
@@ -177,8 +177,8 @@ export const AttendancePage: React.FC = () => {
       setIsUsersLoading(true);
       try {
         if (!accessToken) return;
-        const rawUsers = await userRepository.getUsers(accessToken);
-        const allBranches = await adminRepository.getBranches();
+        const rawUsers = await userUseCases.getUsers(accessToken);
+        const allBranches = await branchUseCases.getBranches();
         setBranches(allBranches || []);
 
         const activeUsersOnly = (rawUsers || []).filter((u: User) => u.isActive !== false);

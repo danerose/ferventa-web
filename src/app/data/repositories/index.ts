@@ -1,4 +1,3 @@
-export * from './Admin/AdminRepository';
 export * from './Attendance/AttendanceRepository';
 export * from './Auth/AuthRepository';
 export * from './ClientPortal/ClientPortalRepository';
@@ -7,3 +6,8 @@ export * from './POS/POSRepository';
 export * from './Services/ServicesRepository';
 export * from './SpecialOrders/SpecialOrdersRepository';
 export * from './User/UserRepository';
+export * from './Branch/BranchRepository';
+export * from './Appointment/AppointmentRepository';
+export * from './Schedule/ScheduleRepository';
+export * from './Maintenance/MaintenanceRepository';
+export * from './Customer/CustomerRepository';

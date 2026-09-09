@@ -1,3 +1,16 @@
+/**
+ * @deprecated THIS FILE IS DEPRECATED AND PRESERVED SOLELY AS A HISTORICAL REFERENCE.
+ * All functions have been extracted into domain-driven repositories:
+ * - BranchRepository
+ * - AppointmentRepository
+ * - ScheduleRepository
+ * - MaintenanceRepository
+ * - CustomerRepository
+ * - AuthRepository
+ *
+ * DO NOT IMPORT OR INSTANTIATE APIAdminRepository.
+ */
+
 import type {
   AuthUser,
   AdminAppointment,

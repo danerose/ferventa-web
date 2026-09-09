@@ -3,11 +3,11 @@ import type {
   PredefinedService,
   Sale,
   Branch,
+  IBranchRepository,
 } from '@/app/domain';
 import type {
   APIInventoryRepository,
   APISalesRepository,
-  APIAdminRepository,
   APIClientPortalRepository,
   APIServicesRepository,
 } from '@/app/data/repositories';
@@ -15,27 +15,27 @@ import type {
 export class POSUseCases {
   private readonly inventoryRepo: APIInventoryRepository;
   private readonly salesRepo: APISalesRepository;
-  private readonly adminRepo: APIAdminRepository;
+  private readonly branchRepo: IBranchRepository;
   private readonly clientPortalRepo: APIClientPortalRepository;
   private readonly servicesRepo: APIServicesRepository;
 
   constructor(
     inventoryRepo: APIInventoryRepository,
     salesRepo: APISalesRepository,
-    adminRepo: APIAdminRepository,
+    branchRepo: IBranchRepository,
     clientPortalRepo: APIClientPortalRepository,
     servicesRepo: APIServicesRepository
   ) {
     this.inventoryRepo = inventoryRepo;
     this.salesRepo = salesRepo;
-    this.adminRepo = adminRepo;
+    this.branchRepo = branchRepo;
     this.clientPortalRepo = clientPortalRepo;
     this.servicesRepo = servicesRepo;
   }
 
   async getBranches(): Promise<Branch[]> {
     try {
-      const data = await this.adminRepo.getBranches();
+      const data = await this.branchRepo.getBranches();
       if (data?.length) return data;
     } catch {
       // ignore fallback

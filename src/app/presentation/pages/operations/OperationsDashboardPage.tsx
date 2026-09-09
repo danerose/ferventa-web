@@ -23,7 +23,9 @@ import { usePrinterSettingsStore } from '@/app/presentation/stores';
 import { thermalPrintService } from '@/core/services';
 import {
   salesRepository as salesRepo,
-  adminRepository as adminRepo,
+  maintenanceUseCases,
+  appointmentUseCases,
+  branchUseCases,
   inventoryRepository as inventoryRepo,
 } from '@/core/di/container';
 import type { Sale, Branch, AdminMaintenanceOrder, Product, AdminAppointment } from '@/app/domain';
@@ -401,9 +403,9 @@ export const OperationsDashboardPage: React.FC = () => {
         const [todayData, ydData, maintenancesData, productsData, appointmentsData] = await Promise.all([
           salesRepo.getSales(accessToken, { startDate: today, endDate: today }).catch(() => []),
           salesRepo.getSales(accessToken, { startDate: yesterday, endDate: yesterday }).catch(() => []),
-          adminRepo.getMaintenances(accessToken).catch(() => []),
+          maintenanceUseCases.getMaintenanceOrders().catch(() => []),
           inventoryRepo.getProducts(accessToken).catch(() => []),
-          adminRepo.getAppointments(accessToken, { status: 'pending' }).catch(() => []),
+          appointmentUseCases.getAppointments({ status: 'pending' }).catch(() => []),
         ]);
 
         const filterBranch = (sales: Sale[]) => {
@@ -490,7 +492,7 @@ export const OperationsDashboardPage: React.FC = () => {
 
   useEffect(() => {
     if (!isAdmin || !accessToken) return;
-    adminRepo.getBranches().then((b: Branch[]) => setAllBranches(b || [])).catch(() => { });
+    branchUseCases.getBranches().then((b: Branch[]) => setAllBranches(b || [])).catch(() => { });
   }, [isAdmin, accessToken]);
 
   const getDateRange = useCallback((period: SalesPeriod) => {

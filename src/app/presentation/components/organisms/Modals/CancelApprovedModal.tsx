@@ -1,12 +1,12 @@
-import React from 'react';
-import { Modal, PrimaryButton, SecondaryButton, Icon, KbdBadge } from '@/app/presentation/components';
+import React, { useState, useEffect } from 'react';
+import { Modal, PrimaryButton, SecondaryButton, Icon, KbdBadge, Textarea } from '@/app/presentation/components';
 import type { AdminAppointment } from '@/app/domain';
 
 export interface CancelApprovedModalProps {
   isOpen: boolean;
   appt: AdminAppointment | null;
   onClose: () => void;
-  onConfirm: () => void;
+  onConfirm: (reason?: string) => void;
   updating: boolean;
 }
 
@@ -35,7 +35,19 @@ export const CancelApprovedModal: React.FC<CancelApprovedModalProps> = ({
   onConfirm,
   updating,
 }) => {
+  const [reason, setReason] = useState('');
+
+  useEffect(() => {
+    if (isOpen) {
+      setReason('');
+    }
+  }, [isOpen, appt]);
+
   if (!appt) return null;
+
+  const handleConfirm = () => {
+    onConfirm(reason.trim() || undefined);
+  };
 
   const footer = (
     <>
@@ -43,7 +55,7 @@ export const CancelApprovedModal: React.FC<CancelApprovedModalProps> = ({
         Volver <KbdBadge keys="Esc" className="ml-1.5" />
       </SecondaryButton>
       <PrimaryButton
-        onClick={onConfirm}
+        onClick={handleConfirm}
         disabled={updating}
         loading={updating}
         color="error"
@@ -80,6 +92,20 @@ export const CancelApprovedModal: React.FC<CancelApprovedModalProps> = ({
               })()}
             </p>
           </div>
+        </div>
+
+        <div>
+          <label className="text-xs font-semibold text-base-content/80 mb-1.5 block">
+            Motivo de la Cancelación (Opcional)
+          </label>
+          <Textarea
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder="Ej. El cliente llamó para cancelar por cambio de planes..."
+            rows={3}
+            disabled={updating}
+            className="w-full text-xs"
+          />
         </div>
       </div>
     </Modal>

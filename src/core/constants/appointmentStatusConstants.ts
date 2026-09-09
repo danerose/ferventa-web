@@ -5,6 +5,7 @@ export const STATUS_LABELS: Record<string, string> = {
   cancelled: 'Cancelada',
   completed: 'Completada',
   rescheduled: 'Reagendada',
+  no_show: 'No Asistió',
 };
 
 export const STATUS_STYLES: Record<string, { background: string; color: string; border: string }> = {
@@ -14,6 +15,7 @@ export const STATUS_STYLES: Record<string, { background: string; color: string; 
   cancelled: { background: '#f8fafc', color: '#475569', border: '1px solid #e2e8f0' },
   completed: { background: '#eff6ff', color: '#1d4ed8', border: '1px solid #dbeafe' },
   rescheduled: { background: '#f5f3ff', color: '#5b21b6', border: '1px solid #8b5cf630' },
+  no_show: { background: '#fff7ed', color: '#c2410c', border: '1px solid #ffedd5' },
 };
 
 export const STATUS_ACCENT: Record<string, string> = {
@@ -23,4 +25,5 @@ export const STATUS_ACCENT: Record<string, string> = {
   cancelled: '#94a3b8',
   completed: '#3b82f6',
   rescheduled: '#8b5cf6',
+  no_show: '#ea580c',
 };

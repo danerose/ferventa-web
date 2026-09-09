@@ -71,10 +71,10 @@ src/
 ## 4. Reglas Inquebrantables (No Negociables)
 
 1. **Flujo de Dependencias Unidireccional:**
-   `Componente (.tsx) → Store (Zustand) → UseCase → IRepository → Repository (data) → DataSource`.
-   Ningún componente ni store puede saltarse este flujo para invocar un repositorio o datasource directamente.
+   `Componente (.tsx) → Store (Zustand) → UseCase → IRepository → Repository (data) → DataSource (local/remote) → NetworkService / Storage`.
+   Ningún componente ni store puede saltarse este flujo para invocar un repositorio o datasource directamente. Los repositorios delegan I/O a DataSources y consumen `NetworkService`; nunca hacen `fetch()` directo ni leen `localStorage` por su cuenta.
 2. **Inyección de Dependencias por Constructor:**
-   Toda clase (`UseCase`, `Repository`) recibe sus dependencias por constructor. Queda prohibido el uso de `new` fuera del Composition Root: [core/di/container.ts](file:///c:/Users/Alexis/Documents/Development/Ssvel/Ferventa/ferventa-web/src/core/di/container.ts).
+   Toda clase (`UseCase`, `Repository`, `DataSource`) recibe sus dependencias por constructor. Queda prohibido el uso de `new` fuera del Composition Root: [core/di/container.ts](file:///c:/Users/Alexis/Documents/Development/Ssvel/Ferventa/ferventa-web/src/core/di/container.ts).
 3. **Cero Tags Nativos Fuera de Atoms y Primitives:**
    Queda estrictamente prohibido usar `<button>`, `<input>`, `<a>`, `<span>`, `<h1>`-`<h6>`, `<p>`, etc., dentro de Molecules, Organisms, Templates o Pages. Si se necesita un elemento nativo, debe consumirse un Atom existente o crearse uno nuevo.
 4. **Dark/Light Mode First — Cero Colores Estáticos:**
@@ -89,6 +89,12 @@ src/
    Un átomo representa un único diseño visual, no una familia de diseños controlada por un `variantMap` de colores o estilos.
 9. **Cumplimiento Estricto del Árbol de Referencia Canónico (`project-structure` ## 2):**
    La estructura de directorios y archivos debe cumplir obligatoriamente con el árbol definido en [project-structure/SKILL.md ## 2. Complete Reference Tree](file:///c:/Users/Alexis/Documents/Development/Ssvel/Ferventa/ferventa-web/.agents/skills/project/structure/SKILL.md). Si faltan capas de infraestructura, servicios (ej. `NetworkService`), contratos, modelos DTO, datasources locales/remotos, o el contenedor de dependencias (`container.ts`), **es mandatorio crearlos** para lograr el 100% de apego a la arquitectura.
+10. **Prohibición de Repositorios Nombrados por Rol ("God Repositories"):**
+    Queda estrictamente prohibido crear repositorios o carpetas basados en roles de usuario (`AdminRepository`, `MechanicRepository`). Los repositorios representan agregados de dominio o contextos delimitados (ej. `AppointmentRepository`, `MaintenanceRepository`, `InventoryRepository`, `BranchRepository`).
+11. **Catálogo Centralizado de Endpoints (Cero URLs Hardcodeadas):**
+    Queda estrictamente prohibido hardcodear rutas o URLs de API en cadenas de texto dentro de métodos (`fetchWithAuth('/appointments/...')`). Toda ruta debe residir en `src/core/constants/endpoints/api.endpoints.ts`.
+12. **Control de Acceso Basado en Roles (RBAC) Obligatorio:**
+    Toda ruta protegida, vista y acción sensible debe ser validada mediante tokens de permisos o roles tipados (`UserRole`), utilizando `ProtectedRoute` con `allowedRoles`, el hook `useAuthorization()` o el componente `<Authorize>`. Prohibido el acceso no restringido a rutas de administración y la comparación manual de strings de roles.
 
 ---
 

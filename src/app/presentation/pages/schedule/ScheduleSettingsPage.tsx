@@ -2,11 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Icon, PageLayout, PrimaryButton, SecondaryButton, TextInput, Modal, AlertModal, ConfirmModal, KbdBadge } from '@/app/presentation/components';
 import { useAuthStore } from '@/app/presentation/stores';
-import { APIAdminRepository } from '@/app/data';
+import { scheduleUseCases } from '@/core/di/container';
 import type { Schedule, Holiday } from '@/app/domain';
-
-
-const adminRepo = new APIAdminRepository();
 
 export const ScheduleSettingsPage: React.FC = () => {
   const navigate = useNavigate();
@@ -41,8 +38,8 @@ export const ScheduleSettingsPage: React.FC = () => {
     setLoading(true);
     try {
       const [schData, holData] = await Promise.all([
-        adminRepo.getSchedule(),
-        adminRepo.getHolidays()
+        scheduleUseCases.getSchedule(),
+        scheduleUseCases.getHolidays()
       ]);
 
       // Initialize with default if empty
@@ -78,7 +75,7 @@ export const ScheduleSettingsPage: React.FC = () => {
   const handleSaveSchedule = async () => {
     setSavingSchedule(true);
     try {
-      await adminRepo.updateSchedule(schedules);
+      await scheduleUseCases.updateSchedule(schedules);
       setAlertState({ isOpen: true, title: 'Éxito', message: 'Horario guardado correctamente.', isError: false });
     } catch {
       setAlertState({ isOpen: true, title: 'Error', message: 'Error al guardar horario.', isError: true });
@@ -92,9 +89,9 @@ export const ScheduleSettingsPage: React.FC = () => {
     setSavingHoliday(true);
     try {
       if (editingHolidayId) {
-        await adminRepo.deleteHoliday(editingHolidayId);
+        await scheduleUseCases.deleteHoliday(editingHolidayId);
       }
-      await adminRepo.createHoliday(holidayDate, holidayDesc);
+      await scheduleUseCases.createHoliday(holidayDate, holidayDesc);
       closeHolidayModal();
       fetchData(); // reload
     } catch {
@@ -122,7 +119,7 @@ export const ScheduleSettingsPage: React.FC = () => {
     if (!confirmDeleteId) return;
     setDeletingHoliday(true);
     try {
-      await adminRepo.deleteHoliday(confirmDeleteId);
+      await scheduleUseCases.deleteHoliday(confirmDeleteId);
       fetchData(); // reload
     } catch {
       setAlertState({ isOpen: true, title: 'Error', message: 'Error al eliminar festivo.', isError: true });

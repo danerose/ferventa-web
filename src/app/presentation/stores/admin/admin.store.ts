@@ -9,6 +9,7 @@ export type DashboardModalType =
   | 'approveRescheduled'
   | 'addAppointment'
   | 'cancelApproved'
+  | 'noShow'
   | 'complete'
   | null;
 

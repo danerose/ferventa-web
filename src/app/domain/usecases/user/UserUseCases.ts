@@ -1,4 +1,4 @@
-import type { IUserRepository } from '../../repository';
+import type { IUserRepository, IBranchRepository } from '../../repository';
 import type {
   User,
   Role,
@@ -10,17 +10,13 @@ import type {
   ResetPasswordResponse,
 } from '../../entities';
 
-export interface IAdminBranchProvider {
-  getBranches(): Promise<Branch[]>;
-}
-
 export class UserUseCases {
   private readonly userRepository: IUserRepository;
-  private readonly adminRepository: IAdminBranchProvider;
+  private readonly branchRepository: IBranchRepository;
 
-  constructor(userRepository: IUserRepository, adminRepository: IAdminBranchProvider) {
+  constructor(userRepository: IUserRepository, branchRepository: IBranchRepository) {
     this.userRepository = userRepository;
-    this.adminRepository = adminRepository;
+    this.branchRepository = branchRepository;
   }
 
   getUsers(token: string): Promise<User[]> {
@@ -32,7 +28,7 @@ export class UserUseCases {
   }
 
   getBranches(): Promise<Branch[]> {
-    return this.adminRepository.getBranches();
+    return this.branchRepository.getBranches();
   }
 
   generateUsername(token: string, name: string): Promise<string> {

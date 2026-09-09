@@ -99,7 +99,7 @@ export const ClientPortalPage: React.FC<ClientPortalPageProps> = ({ onOpenAdmin 
           {/* Appointment Form Column */}
           <section id="agendar-seccion" className="lg:col-span-5">
             <Box className="lg:sticky lg:top-20">
-              <AppointmentForm />
+              <AppointmentForm isStaff={false} />
             </Box>
           </section>
 

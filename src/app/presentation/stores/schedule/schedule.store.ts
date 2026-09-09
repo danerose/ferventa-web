@@ -1,8 +1,7 @@
 import { create } from 'zustand';
-import { APIAdminRepository } from '@/app/data';
+import { scheduleUseCases } from '@/core/di/container';
 import type { Schedule, Holiday } from '@/app/domain';
 
-const adminRepo = new APIAdminRepository();
 
 interface ScheduleState {
   schedules: Schedule[];
@@ -36,8 +35,8 @@ export const useScheduleStore = create<ScheduleState>((set) => ({
     set({ loading: true, error: null });
     try {
       const [schData, holData] = await Promise.all([
-        adminRepo.getSchedule(),
-        adminRepo.getHolidays(),
+        scheduleUseCases.getSchedule(),
+        scheduleUseCases.getHolidays(),
       ]);
 
       const initialSchedule = schData.length === 0 ? DEFAULT_SCHEDULE : schData;
@@ -51,7 +50,7 @@ export const useScheduleStore = create<ScheduleState>((set) => ({
   saveSchedule: async (newSchedules: Schedule[]) => {
     set({ isSaving: true, error: null });
     try {
-      await adminRepo.updateSchedule(newSchedules);
+      await scheduleUseCases.updateSchedule(newSchedules);
       set({ schedules: newSchedules, isSaving: false });
       return true;
     } catch (err: unknown) {
@@ -64,8 +63,8 @@ export const useScheduleStore = create<ScheduleState>((set) => ({
   createHoliday: async (data) => {
     set({ isSaving: true, error: null });
     try {
-      await adminRepo.createHoliday(data.date, data.description);
-      const updatedHolidays = await adminRepo.getHolidays();
+      await scheduleUseCases.createHoliday(data.date, data.description);
+      const updatedHolidays = await scheduleUseCases.getHolidays();
       set({ holidays: updatedHolidays, isSaving: false });
       return true;
     } catch (err: unknown) {
@@ -78,7 +77,7 @@ export const useScheduleStore = create<ScheduleState>((set) => ({
   deleteHoliday: async (id) => {
     set({ isSaving: true, error: null });
     try {
-      await adminRepo.deleteHoliday(id);
+      await scheduleUseCases.deleteHoliday(id);
       set((state) => ({
         holidays: state.holidays.filter((h) => h.id !== id),
         isSaving: false,

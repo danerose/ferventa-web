@@ -1,7 +1,5 @@
 import { create } from 'zustand';
-import { APIAttendanceRepository } from '@/app/data';
-import { APIUserRepository } from '@/app/data';
-import { APIAdminRepository } from '@/app/data';
+import { attendanceRepository, userUseCases, branchUseCases } from '@/core/di/container';
 import type {
   AttendanceRecord,
   AttendancePeriodSummary,
@@ -10,9 +8,6 @@ import type {
 import type { User } from '@/app/domain';
 import type { Branch } from '@/app/domain';
 
-const attendanceRepo = new APIAttendanceRepository();
-const userRepo = new APIUserRepository();
-const adminRepo = new APIAdminRepository();
 
 interface AttendanceState {
   records: AttendanceRecord[];
@@ -58,7 +53,7 @@ export const useAttendanceStore = create<AttendanceState>((set) => ({
   fetchMyRecords: async (startDate?: string, endDate?: string) => {
     set({ loading: true, error: null });
     try {
-      const records = await attendanceRepo.getMyRecords(startDate, endDate);
+      const records = await attendanceRepository.getMyRecords(startDate, endDate);
       set({ records, loading: false });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Error al cargar registros';
@@ -69,7 +64,7 @@ export const useAttendanceStore = create<AttendanceState>((set) => ({
   fetchAdminRecords: async (filters) => {
     set({ loading: true, error: null });
     try {
-      const records = await attendanceRepo.getAdminRecords(filters);
+      const records = await attendanceRepository.getAdminRecords(filters);
       set({ records, loading: false });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Error al cargar registros administrativos';
@@ -80,7 +75,7 @@ export const useAttendanceStore = create<AttendanceState>((set) => ({
   fetchAdminSummary: async (filters) => {
     set({ loading: true, error: null });
     try {
-      const summary = await attendanceRepo.getAdminSummary(filters);
+      const summary = await attendanceRepository.getAdminSummary(filters);
       set({ summary, loading: false });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Error al cargar resumen del periodo';
@@ -93,8 +88,8 @@ export const useAttendanceStore = create<AttendanceState>((set) => ({
     set({ loading: true, error: null });
     try {
       const [users, branches] = await Promise.all([
-        userRepo.getUsers(accessToken),
-        adminRepo.getBranches(),
+        userUseCases.getUsers(accessToken),
+        branchUseCases.getBranches(),
       ]);
       set({ collaborators: users, branches: branches || [], loading: false });
     } catch (err: unknown) {
@@ -106,7 +101,7 @@ export const useAttendanceStore = create<AttendanceState>((set) => ({
   clockIn: async (note?: string, userId?: string) => {
     set({ isActionLoading: true, error: null });
     try {
-      const result = await attendanceRepo.clockIn(note, userId);
+      const result = await attendanceRepository.clockIn(note, userId);
       set({ isActionLoading: false });
       return { success: true, message: 'Entrada registrada exitosamente', record: result };
     } catch (err: unknown) {
@@ -119,7 +114,7 @@ export const useAttendanceStore = create<AttendanceState>((set) => ({
   clockOut: async (note?: string, userId?: string) => {
     set({ isActionLoading: true, error: null });
     try {
-      const result = await attendanceRepo.clockOut(note, userId);
+      const result = await attendanceRepository.clockOut(note, userId);
       set({ isActionLoading: false });
       return { success: true, message: 'Salida registrada exitosamente', record: result };
     } catch (err: unknown) {
@@ -132,7 +127,7 @@ export const useAttendanceStore = create<AttendanceState>((set) => ({
   updateRecord: async (id: string, data: { clockIn?: string; clockOut?: string; adminNotes?: string }) => {
     set({ isActionLoading: true, error: null });
     try {
-      const updated = await attendanceRepo.updateRecord(id, data);
+      const updated = await attendanceRepository.updateRecord(id, data);
       set((state) => ({
         records: state.records.map((r) => (r.id === id ? updated : r)),
         isActionLoading: false,

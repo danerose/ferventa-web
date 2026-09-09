@@ -49,6 +49,7 @@ export type { TextAtomProps as TextProps, TextAtomProps } from './atoms/Typograp
 
 // ─── Molecules ───────────────────────────────────────────────────────────────
 export * from './molecules/Card/AppointmentCard';
+export * from './molecules/CustomerVehicleSelector/CustomerVehicleSelector';
 export * from './molecules/DateTimePicker/DateTimePicker';
 export * from './molecules/Modal/AlertModal';
 export * from './molecules/Modal/ConfirmModal';
@@ -70,6 +71,7 @@ export * from './organisms/Modals/AddAppointmentModal';
 export * from './organisms/Modals/ApproveAppointmentModal';
 export * from './organisms/Modals/ApproveRescheduledModal';
 export * from './organisms/Modals/CancelApprovedModal';
+export * from './organisms/Modals/NoShowModal';
 export * from './organisms/Modals/CompleteAppointmentModal';
 export * from './organisms/Modals/AddSpecialOrderPaymentModal';
 export * from './organisms/Modals/CancelSpecialOrderModal';
@@ -105,3 +107,6 @@ export type { GridProps } from './primitives/Grid/GridPrimitive';
 
 export { StackPrimitive, StackPrimitive as Stack } from './primitives/Stack/StackPrimitive';
 export type { StackProps } from './primitives/Stack/StackPrimitive';
+
+export { Authorize } from './primitives/Authorize/Authorize';
+export type { AuthorizeProps } from './primitives/Authorize/Authorize';

@@ -39,10 +39,14 @@ export class APIAttendanceRepository {
    * Registrar entrada (Clock In)
    */
   async clockIn(note?: string, userId?: string): Promise<AttendanceRecord> {
+    const payload: Record<string, unknown> = {};
+    if (note) payload.note = note;
+    if (userId) payload.userId = userId;
+
     const res = await this.fetchWithAuth(`${this.baseUrl}/attendance/clock-in`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ note, userId }),
+      body: JSON.stringify(payload),
     });
     const json = await res.json();
     if (res.status === 401) throw new Error('No autorizado. Por favor vuelve a iniciar sesión.');
@@ -57,10 +61,14 @@ export class APIAttendanceRepository {
    * Registrar salida (Clock Out)
    */
   async clockOut(note?: string, userId?: string): Promise<AttendanceRecord> {
+    const payload: Record<string, unknown> = {};
+    if (note) payload.note = note;
+    if (userId) payload.userId = userId;
+
     const res = await this.fetchWithAuth(`${this.baseUrl}/attendance/clock-out`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ note, userId }),
+      body: JSON.stringify(payload),
     });
     const json = await res.json();
     if (res.status === 401) throw new Error('No autorizado. Por favor vuelve a iniciar sesión.');
@@ -74,10 +82,14 @@ export class APIAttendanceRepository {
    * Iniciar descanso / comida
    */
   async startBreak(note?: string, userId?: string): Promise<AttendanceRecord> {
+    const payload: Record<string, unknown> = {};
+    if (note) payload.note = note;
+    if (userId) payload.userId = userId;
+
     const res = await this.fetchWithAuth(`${this.baseUrl}/attendance/break/start`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ note, userId }),
+      body: JSON.stringify(payload),
     });
     const json = await res.json();
     if (res.status === 401) throw new Error('No autorizado. Por favor vuelve a iniciar sesión.');
@@ -90,11 +102,9 @@ export class APIAttendanceRepository {
   /**
    * Finalizar descanso / comida
    */
-  async endBreak(userId?: string): Promise<AttendanceRecord> {
+  async endBreak(_userId?: string): Promise<AttendanceRecord> {
     const res = await this.fetchWithAuth(`${this.baseUrl}/attendance/break/end`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId }),
     });
     const json = await res.json();
     if (res.status === 401) throw new Error('No autorizado. Por favor vuelve a iniciar sesión.');

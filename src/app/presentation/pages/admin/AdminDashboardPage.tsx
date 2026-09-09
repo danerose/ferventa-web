@@ -11,6 +11,7 @@ import {
   RescheduleAppointmentModal,
   ApproveRescheduledModal,
   CancelApprovedModal,
+  NoShowModal,
   AddAppointmentModal,
   CompleteAppointmentModal,
   DirectReceptionModal,
@@ -29,7 +30,11 @@ import { useAuthStore } from '@/app/presentation/stores';
 import { useAdminDashboardStore } from '@/app/presentation/stores';
 import { formatScheduledAt } from '@/core/utils/formatters/formatScheduledAt';
 import { MODULE_THEMES } from '@/core';
-import { adminRepository as adminRepo, clientPortalRepository as clientRepo } from '@/core/di/container';
+import {
+  appointmentUseCases,
+  maintenanceUseCases,
+  clientPortalRepository as clientRepo,
+} from '@/core/di/container';
 import type { AdminAppointment, AdminMaintenanceOrder, Holiday, WorkingHours, BusySlot } from '@/app/domain';
 
 
@@ -39,6 +44,7 @@ const FILTER_TABS = [
   { value: 'approved', label: 'Aprobadas' },
   { value: 'rescheduled', label: 'Reagendadas' },
   { value: 'completed', label: 'Completadas' },
+  { value: 'no_show', label: 'No Asistió' },
   { value: 'rejected', label: 'Rechazadas' },
   { value: 'cancelled', label: 'Canceladas' },
 ];
@@ -185,7 +191,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onLogout
     setUpdatingId(selectedAppt.id);
     setActiveModal(null);
     try {
-      await adminRepo.updateAppointment(accessToken, selectedAppt.id, {
+      await appointmentUseCases.updateAppointment(selectedAppt.id, {
         status: 'completed',
       });
       updateAppointmentInStates(selectedAppt.id, { status: 'completed' });
@@ -208,19 +214,19 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onLogout
     if (!accessToken) return;
     setUpdatingId(appt.id);
     try {
-      const result = await adminRepo.checkInAppointment(accessToken, appt.id, checkInData?.receptionNotes);
+      const result = await appointmentUseCases.checkInAppointment(appt.id, checkInData?.receptionNotes);
 
       if (checkInData) {
         if (checkInData.serviceRequested || checkInData.notes || checkInData.receptionNotes) {
-          await adminRepo.updateAppointment(accessToken, appt.id, {
+          await appointmentUseCases.updateAppointment(appt.id, {
             serviceRequested: checkInData.serviceRequested,
             notes: checkInData.notes,
             receptionNotes: checkInData.receptionNotes,
           }).catch(() => {});
         }
-        const maintId = result?.maintenance?.id;
+        const maintId = result?.maintenance?.id || result?.maintenanceOrderId;
         if (maintId) {
-          await adminRepo.updateMaintenance(accessToken, maintId, {
+          await maintenanceUseCases.updateMaintenanceOrder(maintId, {
             laborCost: checkInData.laborCost ?? 0,
             notes: checkInData.notes || checkInData.serviceRequested,
             receptionNotes: checkInData.receptionNotes,
@@ -263,7 +269,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onLogout
       setError(null);
       try {
         const querySearch = typeof search === 'string' ? search : searchValue;
-        const data = await adminRepo.getAppointments(accessToken, {
+        const data = await appointmentUseCases.getAppointments({
           status: statusFilter,
           search: querySearch.trim() || undefined,
         });
@@ -335,8 +341,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onLogout
       const saturday = new Date(monday);
       saturday.setUTCDate(monday.getUTCDate() + 5);
 
-      const data = await adminRepo.getAppointmentsTimeline(
-        accessToken,
+      const data = await appointmentUseCases.getAppointmentsTimeline(
         formatDateStr(monday),
         formatDateStr(saturday)
       );
@@ -503,6 +508,11 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onLogout
     setActiveModal('cancelApproved');
   };
 
+  const handleNoShowClick = (appt: AdminAppointment) => {
+    setSelectedAppt(appt);
+    setActiveModal('noShow');
+  };
+
   const handleRescheduleApprovedClick = (appt: AdminAppointment) => {
     setSelectedAppt(appt);
     setIsMessageEdited(false);
@@ -607,7 +617,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onLogout
     setUpdatingId(selectedAppt.id);
     setActiveModal(null);
     try {
-      await adminRepo.approveAppointment(accessToken, selectedAppt.id, modalMessage);
+      await appointmentUseCases.approveAppointment(selectedAppt.id, modalMessage);
       updateAppointmentInStates(selectedAppt.id, { status: 'approved' });
       addToast('success', 'Cita aprobada y abriendo WhatsApp.');
       if (selectedAppt.customerPhone) {
@@ -631,7 +641,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onLogout
     setUpdatingId(selectedAppt.id);
     setActiveModal(null);
     try {
-      await adminRepo.rejectAppointment(accessToken, selectedAppt.id, modalMessage);
+      await appointmentUseCases.rejectAppointment(selectedAppt.id, modalMessage);
       updateAppointmentInStates(selectedAppt.id, { status: 'rejected' });
       addToast('success', 'Cita rechazada y abriendo WhatsApp.');
       if (selectedAppt.customerPhone) {
@@ -661,7 +671,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onLogout
       const isoString = `${firstSug.date}T${firstSug.time}:00.000Z`;
       const originalDuration = selectedAppt.duration || 90;
 
-      await adminRepo.rescheduleAppointment(accessToken, selectedAppt.id, isoString, originalDuration, modalMessage);
+      await appointmentUseCases.rescheduleAppointment(selectedAppt.id, isoString, originalDuration, modalMessage);
 
       updateAppointmentInStates(selectedAppt.id, { status: 'rescheduled', scheduledAt: isoString });
       addToast('success', 'Propuesta de reagendación registrada.');
@@ -688,12 +698,12 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onLogout
       const finalIso = `${finalDate}T${finalTime}:00.000Z`;
 
       // Step 1: Update the appointment schedule
-      await adminRepo.updateAppointment(accessToken, selectedAppt.id, {
+      await appointmentUseCases.updateAppointment(selectedAppt.id, {
         scheduledAt: finalIso,
       });
 
       // Step 2: Approve the appointment and send the WhatsApp message
-      await adminRepo.approveAppointment(accessToken, selectedAppt.id, modalMessage);
+      await appointmentUseCases.approveAppointment(selectedAppt.id, modalMessage);
 
       updateAppointmentInStates(selectedAppt.id, { status: 'approved', scheduledAt: finalIso });
       addToast('success', 'Cita reagendada aprobada y abriendo WhatsApp.');
@@ -709,19 +719,38 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onLogout
     }
   };
 
-  const handleCancelApprovedConfirm = async () => {
+  const handleCancelApprovedConfirm = async (reason?: string) => {
     if (!accessToken || !selectedAppt) return;
 
     setUpdatingId(selectedAppt.id);
     setActiveModal(null);
     try {
-      // Update appointment status to cancelled
-      await adminRepo.updateAppointment(accessToken, selectedAppt.id, {
+      // Update appointment status to cancelled with optional notes/reason
+      await appointmentUseCases.updateAppointment(selectedAppt.id, {
         status: 'cancelled',
+        notes: reason || undefined,
       });
 
-      updateAppointmentInStates(selectedAppt.id, { status: 'cancelled' });
+      updateAppointmentInStates(selectedAppt.id, { status: 'cancelled', notes: reason || selectedAppt.notes });
       addToast('success', 'Cita cancelada exitosamente.');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Error';
+      if (msg === 'UNAUTHORIZED') { handleUnauthorized(); return; }
+      addToast('error', msg);
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const handleNoShowConfirm = async (notes?: string) => {
+    if (!accessToken || !selectedAppt) return;
+
+    setUpdatingId(selectedAppt.id);
+    setActiveModal(null);
+    try {
+      await appointmentUseCases.markNoShow(selectedAppt.id, notes);
+      updateAppointmentInStates(selectedAppt.id, { status: 'no_show', notes: notes || selectedAppt.notes });
+      addToast('success', 'Cita marcada como No Asistió.');
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Error';
       if (msg === 'UNAUTHORIZED') { handleUnauthorized(); return; }
@@ -912,6 +941,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onLogout
                       onRescheduleClick={handleRescheduleClick}
                       onCancelClick={handleCancelClick}
                       onRescheduleApprovedClick={handleRescheduleApprovedClick}
+                      onNoShowClick={handleNoShowClick}
                       onCompleteClick={handleCompleteClick}
                       onCheckInClick={(appointment) => setSelectedTimelineAppt(appointment)}
                       onCardClick={setSelectedTimelineAppt}
@@ -1020,6 +1050,14 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onLogout
         updating={updatingId === selectedAppt?.id}
       />
 
+      <NoShowModal
+        isOpen={activeModal === 'noShow'}
+        appt={selectedAppt}
+        onClose={() => setActiveModal(null)}
+        onConfirm={handleNoShowConfirm}
+        updating={updatingId === selectedAppt?.id}
+      />
+
       <CompleteAppointmentModal
         isOpen={activeModal === 'complete'}
         appt={selectedAppt}
@@ -1057,6 +1095,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onLogout
         onCompleteClick={handleCompleteClick}
         onCheckInClick={handleCheckInClick}
         onRescheduleApprovedClick={handleRescheduleApprovedClick}
+        onNoShowClick={handleNoShowClick}
         onCancelClick={handleCancelClick}
       />
 

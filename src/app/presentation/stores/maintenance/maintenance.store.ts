@@ -1,12 +1,11 @@
 import { create } from 'zustand';
-import { APIAdminRepository } from '@/app/data';
+import { maintenanceUseCases } from '@/core/di/container';
 import type { AdminMaintenanceOrder } from '@/app/domain';
 import type { MaintenanceStage } from '@/core/enums';
 
-const adminRepo = new APIAdminRepository();
-
 export type MaintenanceScope = 'active' | 'delivered_recent' | 'history';
 type MaintenanceOrderStatus = AdminMaintenanceOrder['status'];
+
 
 export interface MaintenanceFilterState {
   search: string;
@@ -105,7 +104,7 @@ export const useMaintenanceStore = create<MaintenanceState>((set, get) => ({
       const toParam = scope === 'history' ? currentFilters.to || undefined : undefined;
       const dateFieldParam = scope === 'history' ? currentFilters.dateField || undefined : undefined;
 
-      const data = await adminRepo.getMaintenances(accessToken, {
+      const data = await maintenanceUseCases.getMaintenanceOrders({
         scope,
         status: scope === 'history' && currentFilters.status !== 'all' ? currentFilters.status : undefined,
         search: currentFilters.search.trim() || undefined,
@@ -140,17 +139,16 @@ export const useMaintenanceStore = create<MaintenanceState>((set, get) => ({
     }
   },
 
-  updateMaintenanceStatus: async (accessToken: string, id: string, status: MaintenanceOrderStatus) => {
-    if (!accessToken) return false;
+  updateMaintenanceStatus: async (_accessToken: string, id: string, status: MaintenanceOrderStatus) => {
     set({ updatingId: id, error: null });
     try {
-      await adminRepo.updateMaintenance(accessToken, id, { status });
+      const updatedOrder = await maintenanceUseCases.updateMaintenanceStatus(id, status);
       set((state) => {
         const updatedList = state.maintenances.map((item) =>
-          item.id === id ? { ...item, status } : item
+          item.id === id ? updatedOrder : item
         );
         const updatedSelected = state.selectedOrder?.id === id
-          ? { ...state.selectedOrder, status }
+          ? updatedOrder
           : state.selectedOrder;
         return {
           maintenances: updatedList,
@@ -166,16 +164,18 @@ export const useMaintenanceStore = create<MaintenanceState>((set, get) => ({
     }
   },
 
-  updateMaintenanceLaborCost: async (accessToken: string, id: string, laborCost: number) => {
-    if (!accessToken) return false;
+  updateMaintenanceLaborCost: async (_accessToken: string, id: string, laborCost: number) => {
     try {
-      await adminRepo.updateMaintenance(accessToken, id, { laborCost });
+      const updatedOrder = await maintenanceUseCases.updateMaintenanceOrder(id, {
+        laborCost,
+        laborPrice: laborCost,
+      });
       set((state) => {
         const updatedList = state.maintenances.map((item) =>
-          item.id === id ? { ...item, laborCost, laborPrice: laborCost } : item
+          item.id === id ? updatedOrder : item
         );
         const updatedSelected = state.selectedOrder?.id === id
-          ? { ...state.selectedOrder, laborCost, laborPrice: laborCost }
+          ? updatedOrder
           : state.selectedOrder;
         return {
           maintenances: updatedList,
@@ -190,11 +190,11 @@ export const useMaintenanceStore = create<MaintenanceState>((set, get) => ({
     }
   },
 
-  addDiagnosticNote: async (accessToken: string, id: string, note: string) => {
-    if (!accessToken || !note.trim()) return false;
+  addDiagnosticNote: async (_accessToken: string, id: string, note: string) => {
+    if (!note.trim()) return false;
     set({ addingNote: true, error: null });
     try {
-      const updatedOrder = await adminRepo.addDiagnosticNote(accessToken, id, note.trim());
+      const updatedOrder = await maintenanceUseCases.addDiagnosticNote(id, note.trim());
       set((state) => ({
         maintenances: state.maintenances.map((item) =>
           item.id === id ? updatedOrder : item
@@ -210,11 +210,10 @@ export const useMaintenanceStore = create<MaintenanceState>((set, get) => ({
     }
   },
 
-  notifyCustomer: async (accessToken: string, id: string, notes?: string) => {
-    if (!accessToken) return false;
+  notifyCustomer: async (_accessToken: string, id: string, notes?: string) => {
     set({ notifying: true, error: null });
     try {
-      const updatedOrder = await adminRepo.notifyMaintenance(accessToken, id, notes);
+      const updatedOrder = await maintenanceUseCases.notifyMaintenance(id, notes);
       set((state) => ({
         maintenances: state.maintenances.map((item) =>
           item.id === id ? updatedOrder : item
@@ -230,11 +229,10 @@ export const useMaintenanceStore = create<MaintenanceState>((set, get) => ({
     }
   },
 
-  linkMaintenanceSale: async (accessToken: string, id: string, payload: { saleId?: string; folio?: string }) => {
-    if (!accessToken) return false;
+  linkMaintenanceSale: async (_accessToken: string, id: string, payload: { saleId?: string; folio?: string }) => {
     set({ updatingId: id, error: null });
     try {
-      const updatedOrder = await adminRepo.linkMaintenanceSale(accessToken, id, payload);
+      const updatedOrder = await maintenanceUseCases.linkMaintenanceSale(id, payload);
       set((state) => ({
         maintenances: state.maintenances.map((item) =>
           item.id === id ? updatedOrder : item
@@ -250,11 +248,10 @@ export const useMaintenanceStore = create<MaintenanceState>((set, get) => ({
     }
   },
 
-  unlinkMaintenanceSale: async (accessToken: string, id: string) => {
-    if (!accessToken) return false;
+  unlinkMaintenanceSale: async (_accessToken: string, id: string) => {
     set({ updatingId: id, error: null });
     try {
-      const updatedOrder = await adminRepo.unlinkMaintenanceSale(accessToken, id);
+      const updatedOrder = await maintenanceUseCases.unlinkMaintenanceSale(id);
       set((state) => ({
         maintenances: state.maintenances.map((item) =>
           item.id === id ? updatedOrder : item
@@ -276,10 +273,10 @@ export const useMaintenanceStore = create<MaintenanceState>((set, get) => ({
     stage: MaintenanceStage | string,
     files: File[]
   ) => {
-    if (!accessToken || files.length === 0) return false;
+    if (files.length === 0) return false;
     set({ uploadingEvidence: true, error: null });
     try {
-      await adminRepo.uploadMaintenanceEvidence(accessToken, orderId, stage, files);
+      await maintenanceUseCases.uploadEvidence(orderId, stage, files);
       await get().fetchMaintenances(accessToken);
       set({ uploadingEvidence: false });
       return true;

@@ -10,3 +10,4 @@ export * from './schedule/ScheduleSettingsPage';
 export * from './settings/SettingsPage';
 export * from './specialOrders/SpecialOrdersPage';
 export * from './users/UsersPage';
+export * from './forbidden/ForbiddenPage';

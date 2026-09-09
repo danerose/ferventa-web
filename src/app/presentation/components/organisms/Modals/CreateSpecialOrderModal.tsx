@@ -16,12 +16,10 @@ import {
   KbdBadge,
 } from '@/app/presentation/components';
 import { useAuthStore } from '@/app/presentation/stores';
-import { APIAdminRepository } from '@/app/data';
-import type { SpecialOrder, CreateSpecialOrderPayload } from '@/app/domain';
+import { customerUseCases } from '@/core/di/container';
+import type { SpecialOrder, CreateSpecialOrderPayload, CustomerLookupResult } from '@/app/domain';
 import { formatCurrency, cn, cleanPhoneDigits, formatPhoneInput } from '@/core/utils';
 
-
-const adminRepo = new APIAdminRepository();
 
 export interface CreateSpecialOrderModalProps {
   isOpen: boolean;
@@ -42,7 +40,7 @@ export const CreateSpecialOrderModal: React.FC<CreateSpecialOrderModalProps> = (
   const [customerEmail, setCustomerEmail] = useState('');
   const [existingCustomerId, setExistingCustomerId] = useState<string | undefined>();
   const [isSearchingPhone, setIsSearchingPhone] = useState(false);
-  const [foundCustomer, setFoundCustomer] = useState<{ id: string; name: string } | null>(null);
+  const [foundCustomer, setFoundCustomer] = useState<CustomerLookupResult | null>(null);
 
   // Step 2: Item & Pricing
   const [itemDescription, setItemDescription] = useState('');
@@ -106,7 +104,7 @@ export const CreateSpecialOrderModal: React.FC<CreateSpecialOrderModalProps> = (
       if (!accessToken) return;
       setIsSearchingPhone(true);
       try {
-        const customer = await adminRepo.getCustomerByPhone(accessToken, numericOnly);
+        const customer = await customerUseCases.getCustomerByPhone(numericOnly);
         if (customer) {
           setFoundCustomer(customer);
           setExistingCustomerId(customer.id);

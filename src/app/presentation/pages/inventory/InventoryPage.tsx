@@ -25,7 +25,7 @@ import { useAuthStore } from '@/app/presentation/stores';
 import { useInventoryStore } from '@/app/presentation/stores';
 import {
   inventoryRepository as inventoryRepo,
-  adminRepository as adminRepo,
+  branchUseCases,
   clientPortalRepository as clientPortalRepo,
   servicesRepository as servicesRepo,
 } from '@/core/di/container';
@@ -47,7 +47,7 @@ export const InventoryPage: React.FC = () => {
   useEffect(() => {
     const fetchBranches = async () => {
       try {
-        const data = await adminRepo.getBranches();
+        const data = await branchUseCases.getBranches();
         if (data && data.length > 0) {
           setBranches(data);
           return;

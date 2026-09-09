@@ -1,16 +1,24 @@
 import { NetworkService } from '@/core/services';
+import { API_ENDPOINTS } from '@/core/constants/endpoints/api.endpoints';
 import type { AuthUser } from '@/app/domain';
+import { AuthSessionModel } from '../../../model/Auth/AuthModel';
 
 export interface LoginCredentials {
-  email: string;
-  password: string;
+  email?: string;
+  username?: string;
+  password?: string;
+}
+
+export interface RawAuthSessionData {
+  accessToken: string;
+  refreshToken: string;
+  user: AuthUser;
 }
 
 export interface LoginResponseDto {
   success: boolean;
-  accessToken: string;
-  refreshToken: string;
-  user: AuthUser;
+  data: RawAuthSessionData;
+  message?: string;
 }
 
 export class AuthRemoteDataSource {
@@ -20,38 +28,50 @@ export class AuthRemoteDataSource {
     this.networkService = networkService;
   }
 
-  async login(credentials: LoginCredentials): Promise<LoginResponseDto> {
-    return this.networkService.post<LoginResponseDto>('/auth/login', credentials);
+  async login(credentials: LoginCredentials): Promise<AuthSessionModel> {
+    const rawVal = (credentials.email || credentials.username || '').trim();
+    const isEmail = rawVal.includes('@');
+    const body = isEmail
+      ? { email: rawVal, password: credentials.password }
+      : { username: rawVal, password: credentials.password };
+
+    const res = await this.networkService.post<LoginResponseDto>(API_ENDPOINTS.AUTH.LOGIN, body);
+
+    if (!res.data || !res.data.user) {
+      throw new Error(res.message || 'Error al iniciar sesión: datos no recibidos');
+    }
+
+    return new AuthSessionModel({
+      accessToken: res.data.accessToken,
+      refreshToken: res.data.refreshToken,
+      user: res.data.user,
+    });
   }
 
   async refreshToken(refreshToken: string): Promise<{ accessToken: string }> {
-    return this.networkService.post<{ accessToken: string }>('/auth/refresh', { refreshToken });
+    const res = await this.networkService.post<{ success: boolean; data: { accessToken: string }; message?: string }>(
+      API_ENDPOINTS.AUTH.REFRESH,
+      { refreshToken }
+    );
+    return res.data;
   }
 
   async getProfile(token: string): Promise<AuthUser> {
-    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-    const res = await fetch(`${baseUrl}/auth/me`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    const json = await res.json();
-    if (res.status === 401) throw new Error('UNAUTHORIZED');
-    if (!res.ok || !json.success) throw new Error(json.message || 'Error al obtener perfil');
-    return json.data as AuthUser;
+    const res = await this.networkService.get<{ success: boolean; data: AuthUser; message?: string }>(
+      API_ENDPOINTS.AUTH.ME,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    if (!res.data) {
+      throw new Error(res.message || 'Error al obtener perfil');
+    }
+    return res.data;
   }
 
   async changePassword(token: string, currentPassword: string, newPassword: string): Promise<void> {
-    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-    const res = await fetch(`${baseUrl}/auth/change-password`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ currentPassword, newPassword }),
-    });
-    const json = await res.json();
-    if (res.status === 401) throw new Error('UNAUTHORIZED');
-    if (!res.ok || !json.success) throw new Error(json.message || 'Error al actualizar contraseña');
+    await this.networkService.patch<{ success: boolean; message?: string }>(
+      API_ENDPOINTS.AUTH.CHANGE_PASSWORD,
+      { currentPassword, newPassword },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
   }
 }
-

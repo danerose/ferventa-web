@@ -92,33 +92,76 @@ src/
 │   ├── data/
 │   │   ├── datasources/
 │   │   │   ├── local/
-│   │   │   │   └── Auth/
-│   │   │   │       └── AuthLocalDataSource.ts
+│   │   │   │   ├── Auth/
+│   │   │   │   │   └── AuthLocalDataSource.ts
+│   │   │   │   └── Branch/
+│   │   │   │       └── BranchLocalDataSource.ts
 │   │   │   ├── remote/
-│   │   │   │   └── Auth/
-│   │   │   │       └── AuthRemoteDataSource.ts
+│   │   │   │   ├── Auth/
+│   │   │   │   │   └── AuthRemoteDataSource.ts
+│   │   │   │   ├── Appointment/
+│   │   │   │   │   └── AppointmentRemoteDataSource.ts
+│   │   │   │   ├── Maintenance/
+│   │   │   │   │   └── MaintenanceRemoteDataSource.ts
+│   │   │   │   └── Inventory/
+│   │   │   │       └── InventoryRemoteDataSource.ts
 │   │   │   └── index.ts
 │   │   ├── model/
 │   │   │   ├── Auth/
 │   │   │   │   └── AuthSessionModel.ts
+│   │   │   ├── Appointment/
+│   │   │   │   └── AppointmentModel.ts
+│   │   │   ├── Maintenance/
+│   │   │   │   └── MaintenanceOrderModel.ts
 │   │   │   └── index.ts
 │   │   ├── repositories/
 │   │   │   ├── Auth/
 │   │   │   │   └── AuthRepository.ts
+│   │   │   ├── Appointment/
+│   │   │   │   └── AppointmentRepository.ts
+│   │   │   ├── Maintenance/
+│   │   │   │   └── MaintenanceRepository.ts
 │   │   │   └── index.ts
 │   │   └── index.ts
 │   ├── domain/
 │   │   ├── entities/
 │   │   │   ├── Auth/
 │   │   │   │   └── AuthSession.ts
+│   │   │   ├── Appointment/
+│   │   │   │   └── Appointment.ts
+│   │   │   ├── Maintenance/
+│   │   │   │   └── MaintenanceOrder.ts
 │   │   │   └── index.ts
 │   │   ├── repository/
 │   │   │   ├── Auth/
 │   │   │   │   └── IAuthRepository.ts
+│   │   │   ├── Appointment/
+│   │   │   │   └── IAppointmentRepository.ts
+│   │   │   ├── Maintenance/
+│   │   │   │   └── IMaintenanceRepository.ts
 │   │   │   └── index.ts
 │   │   ├── usecases/
 │   │   │   ├── auth/
-│   │   │   │   └── AuthUseCases.ts
+│   │   │   │   ├── LoginUseCase.ts
+│   │   │   │   ├── LogoutUseCase.ts
+│   │   │   │   ├── GetSessionUseCase.ts
+│   │   │   │   ├── ChangePasswordUseCase.ts
+│   │   │   │   └── index.ts
+│   │   │   ├── appointment/
+│   │   │   │   ├── GetAppointmentsUseCase.ts
+│   │   │   │   ├── CreateAppointmentUseCase.ts
+│   │   │   │   ├── ApproveAppointmentUseCase.ts
+│   │   │   │   ├── RejectAppointmentUseCase.ts
+│   │   │   │   └── index.ts
+│   │   │   ├── branch/
+│   │   │   │   ├── GetBranchesUseCase.ts
+│   │   │   │   ├── CreateBranchUseCase.ts
+│   │   │   │   ├── GetActiveBranchUseCase.ts
+│   │   │   │   └── index.ts
+│   │   │   ├── maintenance/
+│   │   │   │   ├── GetMaintenanceOrdersUseCase.ts
+│   │   │   │   ├── UpdateMaintenanceStatusUseCase.ts
+│   │   │   │   └── index.ts
 │   │   │   └── index.ts
 │   │   └── index.ts
 │   └── presentation/
@@ -129,8 +172,10 @@ src/
 │       │   │       ├── SecondaryButtonAtom.tsx
 │       │   │       └── TertiaryButtonAtom.tsx
 │       │   ├── primitives/
-│       │   │   └── Flex/
-│       │   │       └── FlexPrimitive.tsx
+│       │   │   ├── Flex/
+│       │   │   │   └── FlexPrimitive.tsx
+│       │   │   └── Authorize/
+│       │   │       └── Authorize.tsx     // RBAC UI Guard
 │       │   ├── molecules/
 │       │   │   ├── Card/
 │       │   │   │   └── AppointmentCard.tsx
@@ -142,8 +187,10 @@ src/
 │       │   │       ├── ConfirmModal.tsx
 │       │   │       └── AlertModal.tsx
 │       │   ├── organisms/
-│       │   │   └── Form/
-│       │   │       └── LoginFormOrganism.tsx
+│       │   │   ├── Form/
+│       │   │   │   └── LoginFormOrganism.tsx
+│       │   │   └── Sidebar/
+│       │   │       └── Sidebar.tsx
 │       │   ├── templates/
 │       │   │   └── Section/
 │       │   │       └── ClientDetailsSectionTemplate.tsx
@@ -151,45 +198,59 @@ src/
 │       ├── stores/
 │       │   ├── auth/
 │       │   │   └── auth.store.ts
+│       │   ├── appointment/
+│       │   │   └── appointment.store.ts
+│       │   ├── maintenance/
+│       │   │   └── maintenance.store.ts
 │       │   └── index.ts
 │       ├── pages/
 │       │   ├── auth/
 │       │   │   └── LoginPage.tsx
+│       │   ├── appointments/
+│       │   │   └── AppointmentsPage.tsx
 │       │   └── index.ts
 │       └── index.ts
 ├── core/
 │   ├── constants/
 │   │   ├── routes/
 │   │   │   └── routes.const.ts
+│   │   ├── endpoints/
+│   │   │   └── api.endpoints.ts      // Centralized API Endpoints Catalog
+│   │   ├── auth/
+│   │   │   └── permissions.const.ts  // RBAC Permission Tokens & Role Matrix
 │   │   └── index.ts
 │   ├── enums/
-│   │   ├── UserRole/
+│   │   ├── role/
 │   │   │   └── UserRole.ts
 │   │   └── index.ts
 │   ├── hooks/
 │   │   ├── useBarcodeScanner.ts
-│   │   └── index.ts           // Sole barrel for core hooks: export * from './useBarcodeScanner'
+│   │   ├── useAuthorization.ts       // RBAC Reactive Hook
+│   │   ├── useActiveBranch.ts
+│   │   └── index.ts                  // Sole barrel for core hooks
 │   ├── types/
 │   │   ├── Size/
 │   │   │   └── Size.ts
 │   │   └── index.ts
 │   ├── services/
 │   │   ├── network/
-│   │   │   └── NetworkService.ts
+│   │   │   └── NetworkService.ts     // Consumed by Remote DataSources
 │   │   └── index.ts
 │   ├── di/
-│   │   └── container.ts       // Sole location using `new` for Repository/UseCase/DataSource
+│   │   └── container.ts              // Sole location using `new` for Repository/UseCase/DataSource
 │   └── utils/
 │       ├── date/
 │       │   └── date.util.ts
 │       ├── string/
 │       │   └── string.util.ts
+│       ├── auth/
+│       │   └── authorization.util.ts // Pure RBAC validation functions
 │       └── index.ts
 ├── App.tsx
 └── main.tsx
 ```
 
-This tree demonstrates the `auth` feature end-to-end as a blueprint. **Every new feature (clients, drivers, services...) must replicate this exact pattern**, placing its unit folder inside the corresponding existing layer (`entities/Client/`, `usecases/client/`, `stores/clients/`, etc.) and re-exporting through that layer's single `index.ts` — never creating private subfolder index files.
+This tree demonstrates the architecture end-to-end. **Every feature (Appointments, Maintenance, Inventory, POS, etc.) must replicate this exact pattern**, representing a domain aggregate (never a user role like `Admin`). Each unit folder lives inside the corresponding layer and re-exports through that layer's single `index.ts`.
 
 ---
 

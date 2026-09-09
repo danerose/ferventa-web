@@ -2,12 +2,10 @@ import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Icon } from '@/app/presentation/components';
 import { useAuthStore } from '@/app/presentation/stores';
-import { APIAdminRepository } from '@/app/data';
-import { APIClientPortalRepository } from '@/app/data';
+import { branchUseCases } from '@/core/di/container';
+import { UserRole, USER_ROLE_LABELS } from '@/core/enums';
+import { useAuthorization } from '@/core/hooks';
 import type { Branch } from '@/app/domain';
-
-const adminRepo = new APIAdminRepository();
-const clientPortalRepo = new APIClientPortalRepository();
 
 export interface SidebarProps {
   onLogout: () => void;
@@ -15,69 +13,87 @@ export interface SidebarProps {
   onChangePassword?: () => void;
 }
 
-
-// Nav items visible to ALL authenticated users
-const COMMON_NAV_ITEMS = [
-  { icon: 'LayoutDashboard', label: 'Dashboard', path: '/admin/operaciones' },
-  { icon: 'CalendarCheck', label: 'Citas', path: '/admin/citas' },
-  { icon: 'Wrench', label: 'Mantenimiento', path: '/admin/mantenimiento' },
-  { icon: 'ShoppingCart', label: 'Punto de Venta', path: '/admin/pos' },
-  { icon: 'PackageOpen', label: 'Pedidos', path: '/admin/pedidos' },
-  { icon: 'Package', label: 'Inventario', path: '/admin/inventario' },
-  { icon: 'Clock', label: 'Asistencia', path: '/admin/asistencia' },
-];
-
-// Nav items visible ONLY to admin
-const ADMIN_ONLY_NAV_ITEMS = [
-  { icon: 'Users', label: 'Usuarios', path: '/admin/usuarios' },
-];
-
-// Bottom nav items: all visible to admin, only none to regular users
-const ADMIN_ONLY_BOTTOM_ITEMS = [
-  { icon: 'Calendar', label: 'Horarios', path: '/admin/horarios' },
-  { icon: 'Settings', label: 'Ajustes', path: '/admin/settings' },
-];
-
-function isAdminUser(user: { role?: unknown } | null | undefined): boolean {
-  if (!user) return false;
-  const roleVal = user.role;
-  if (typeof roleVal === 'string') {
-    const r = roleVal.toLowerCase();
-    return r === 'admin' || r === 'administrator';
-  }
-  if (roleVal && typeof roleVal === 'object' && 'name' in roleVal) {
-    const r = String((roleVal as { name?: unknown }).name || '').toLowerCase();
-    return r === 'admin' || r === 'administrator';
-  }
-  return false;
+interface NavItemConfig {
+  icon: string;
+  label: string;
+  path: string;
+  allowedRoles: readonly UserRole[] | UserRole[];
 }
 
-function getRoleLabel(user: { role?: unknown } | null | undefined): string {
-  if (!user) return 'Usuario';
-  const roleVal = user.role;
-  let roleName = '';
-  if (typeof roleVal === 'string') {
-    roleName = roleVal;
-  } else if (roleVal && typeof roleVal === 'object' && 'name' in roleVal) {
-    roleName = String((roleVal as { name?: unknown }).name || '');
-  }
-  const ROLE_LABELS: Record<string, string> = {
-    admin: 'Administrador',
-    administrator: 'Administrador',
-    mechanic: 'Mecánico',
-    warehouse: 'Almacén',
-    receptionist: 'Recepción',
-    reception: 'Recepción',
-    cashier: 'Cajero',
-    seller: 'Vendedor',
-    vendor: 'Vendedor',
-    salesperson: 'Vendedor',
-    sales: 'Ventas',
-    customer: 'Cliente',
-    user: 'Usuario',
-  };
-  return ROLE_LABELS[roleName.toLowerCase()] || roleName || 'Usuario';
-}
+// Navigation items filtered by role
+const ALL_NAV_ITEMS: NavItemConfig[] = [
+  {
+    icon: 'LayoutDashboard',
+    label: 'Dashboard',
+    path: '/admin/operaciones',
+    allowedRoles: [UserRole.Admin, UserRole.Receptionist],
+  },
+  {
+    icon: 'CalendarCheck',
+    label: 'Citas',
+    path: '/admin/citas',
+    allowedRoles: [UserRole.Admin, UserRole.Receptionist, UserRole.Seller],
+  },
+  {
+    icon: 'Wrench',
+    label: 'Mantenimiento',
+    path: '/admin/mantenimiento',
+    allowedRoles: [UserRole.Admin, UserRole.Mechanic, UserRole.Receptionist, UserRole.Seller],
+  },
+  {
+    icon: 'ShoppingCart',
+    label: 'Punto de Venta',
+    path: '/admin/pos',
+    allowedRoles: [UserRole.Admin, UserRole.Cashier, UserRole.Seller],
+  },
+  {
+    icon: 'PackageOpen',
+    label: 'Pedidos',
+    path: '/admin/pedidos',
+    allowedRoles: [UserRole.Admin, UserRole.Seller, UserRole.Cashier, UserRole.Warehouse],
+  },
+  {
+    icon: 'Package',
+    label: 'Inventario',
+    path: '/admin/inventario',
+    allowedRoles: [UserRole.Admin, UserRole.Warehouse, UserRole.Seller, UserRole.Cashier],
+  },
+  {
+    icon: 'Clock',
+    label: 'Asistencia',
+    path: '/admin/asistencia',
+    allowedRoles: [
+      UserRole.Admin,
+      UserRole.Receptionist,
+      UserRole.Mechanic,
+      UserRole.Warehouse,
+      UserRole.Cashier,
+      UserRole.Seller,
+      UserRole.User,
+    ],
+  },
+  {
+    icon: 'Users',
+    label: 'Usuarios',
+    path: '/admin/usuarios',
+    allowedRoles: [UserRole.Admin],
+  },
+];
+
+const ALL_BOTTOM_ITEMS: NavItemConfig[] = [
+  {
+    icon: 'Calendar',
+    label: 'Horarios',
+    path: '/admin/horarios',
+    allowedRoles: [UserRole.Admin, UserRole.Receptionist],
+  },
+  {
+    icon: 'Settings',
+    label: 'Ajustes',
+    path: '/admin/settings',
+    allowedRoles: [UserRole.Admin],
+  },
+];
 
 export const Sidebar: React.FC<SidebarProps> = ({ onLogout, userName, onChangePassword }) => {
   const location = useLocation();
@@ -88,12 +104,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ onLogout, userName, onChangePa
   const setBranchesStore = useAuthStore((s) => s.setBranches);
   const [branches, setBranches] = React.useState<Branch[]>([]);
 
-  const isAdmin = isAdminUser(user);
+  const { role, hasRole } = useAuthorization();
+  const roleLabel = role ? (USER_ROLE_LABELS[role] || role) : 'Usuario';
 
   React.useEffect(() => {
     const fetchBranches = async () => {
       try {
-        const data = await adminRepo.getBranches();
+        const data = await branchUseCases.getUserBranches();
         if (data && data.length > 0) {
           setBranches(data);
           setBranchesStore(data);
@@ -104,7 +121,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onLogout, userName, onChangePa
       }
 
       try {
-        const publicData = await clientPortalRepo.getPublicBranches();
+        const publicData = await branchUseCases.getPublicBranches();
         if (publicData && publicData.length > 0) {
           const mapped = publicData.map((b) => ({ ...b, id: b.id }));
           setBranches(mapped);
@@ -126,23 +143,21 @@ export const Sidebar: React.FC<SidebarProps> = ({ onLogout, userName, onChangePa
           ? ((b as { id?: string; _id?: string }).id || (b as { id?: string; _id?: string })._id || '')
           : String(b)
       );
-      const filtered = branches.filter(b => userBranchIds.includes(b.id));
+      const filtered = branches.filter((b) => userBranchIds.includes(b.id));
       if (filtered.length > 0) return filtered;
     }
     return branches;
   }, [branches, user]);
 
   React.useEffect(() => {
-    if (availableBranches.length > 0 && (!activeBranchId || !availableBranches.some(b => b.id === activeBranchId))) {
+    if (availableBranches.length > 0 && (!activeBranchId || !availableBranches.some((b) => b.id === activeBranchId))) {
       setActiveBranch(availableBranches[0].id, availableBranches[0].name);
     }
   }, [availableBranches, activeBranchId, setActiveBranch]);
 
-  const navItems = isAdmin
-    ? [...COMMON_NAV_ITEMS, ...ADMIN_ONLY_NAV_ITEMS]
-    : COMMON_NAV_ITEMS;
+  const navItems = ALL_NAV_ITEMS.filter((item) => hasRole(item.allowedRoles));
+  const bottomItems = ALL_BOTTOM_ITEMS.filter((item) => hasRole(item.allowedRoles));
 
-  const bottomItems = isAdmin ? ADMIN_ONLY_BOTTOM_ITEMS : [];
 
   const navLinkStyle = (path: string) => ({
     display: 'flex' as const,
@@ -297,7 +312,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onLogout, userName, onChangePa
             <p style={{ color: 'white', fontSize: '13px', fontWeight: '600', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {userName}
             </p>
-            <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '11px' }}>{getRoleLabel(user)}</p>
+            <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '11px' }}>{roleLabel}</p>
           </div>
         </div>
 

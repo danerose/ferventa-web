@@ -21,11 +21,9 @@ import { useAuthStore } from '@/app/presentation/stores';
 import { useThemeStore } from '@/app/presentation/stores';
 import { usePrinterSettingsStore } from '@/app/presentation/stores';
 import { thermalPrintService } from '@/core/services';
-import { APIAdminRepository } from '@/app/data';
+import { branchUseCases } from '@/core/di/container';
 import { ThemeMode } from '@/core/enums/methods/ThemeMode';
 import type { Branch } from '@/app/domain';
-
-const adminRepo = new APIAdminRepository();
 
 type ActiveSettingsTab = 'system' | 'business' | 'printer';
 
@@ -71,7 +69,7 @@ export const SettingsPage: React.FC = () => {
   useEffect(() => {
     const loadBranches = async () => {
       try {
-        const list = await adminRepo.getBranches();
+        const list = await branchUseCases.getBranches();
         if (list && list.length > 0) {
           setBranches(list);
         }

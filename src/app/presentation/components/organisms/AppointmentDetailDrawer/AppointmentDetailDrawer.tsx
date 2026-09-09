@@ -28,6 +28,7 @@ export interface AppointmentDetailDrawerProps {
     checkInData?: { serviceRequested?: string; laborCost?: number; receptionNotes?: string; notes?: string }
   ) => Promise<void> | void;
   onRescheduleApprovedClick: (appt: AdminAppointment) => void;
+  onNoShowClick?: (appt: AdminAppointment) => void;
   onCancelClick: (appt: AdminAppointment) => void;
 }
 
@@ -58,6 +59,7 @@ export const AppointmentDetailDrawer: React.FC<AppointmentDetailDrawerProps> = (
   onCompleteClick,
   onCheckInClick,
   onRescheduleApprovedClick,
+  onNoShowClick,
   onCancelClick,
 }) => {
   const { activeBranchName } = useActiveBranch();
@@ -155,7 +157,7 @@ export const AppointmentDetailDrawer: React.FC<AppointmentDetailDrawerProps> = (
                   Serie
                 </span>
                 <span className="text-xs font-mono font-semibold text-primary block">
-                  {appt.vehicle?.serialNumberLastFour ? `***${appt.vehicle.serialNumberLastFour}` : 'N/A'}
+                  {appt.vehicle?.serialNumberLastFour ? `${appt.vehicle.serialNumberLastFour}` : 'N/A'}
                 </span>
               </div>
             </div>
@@ -413,7 +415,7 @@ export const AppointmentDetailDrawer: React.FC<AppointmentDetailDrawerProps> = (
                 ) : (
                   <Flex align="center" justify="center" gap="xs">
                     <Icon name="Wrench" size="xs" />
-                    <span className="text-sm font-bold">Recibir Vehículo (Check In)</span>
+                    <span className="text-sm font-bold">Check In</span>
                   </Flex>
                 )}
               </PrimaryButton>
@@ -431,6 +433,16 @@ export const AppointmentDetailDrawer: React.FC<AppointmentDetailDrawerProps> = (
                 disabled={isReceiving}
                 onClick={() => {
                   onClose();
+                  onNoShowClick?.(appt);
+                }}
+                className="w-full py-2 text-warning hover:bg-warning/10 border-transparent hover:border-warning/20"
+              >
+                Marcar No Asistió
+              </SecondaryButton>
+              <SecondaryButton
+                disabled={isReceiving}
+                onClick={() => {
+                  onClose();
                   onCancelClick(appt);
                 }}
                 className="w-full py-2 text-error hover:bg-error/10 border-transparent hover:border-error/20"
@@ -440,7 +452,7 @@ export const AppointmentDetailDrawer: React.FC<AppointmentDetailDrawerProps> = (
             </>
           )}
 
-          {(appt.status === 'completed' || appt.status === 'rejected' || appt.status === 'cancelled') && (
+          {(appt.status !== 'pending' && appt.status !== 'approved' && appt.status !== 'rescheduled') && (
             <div className="uppercase text-[11px] font-bold tracking-wider text-base-content/50 text-center py-2">
               Esta cita está finalizada ({STATUS_LABELS[appt.status] || appt.status})
             </div>
@@ -471,7 +483,7 @@ export const AppointmentDetailDrawer: React.FC<AppointmentDetailDrawerProps> = (
                 <p><strong>Marca:</strong> {appt.vehicle.brand}</p>
                 <p><strong>Modelo:</strong> {appt.vehicle.model}</p>
                 <p><strong>Año:</strong> {appt.vehicle.year}</p>
-                <p><strong>Serie (últimos 4):</strong> ***{appt.vehicle.serialNumberLastFour}</p>
+                <p><strong>Serie (últimos 4):</strong> {appt.vehicle.serialNumberLastFour}</p>
               </>
             ) : (
               <p>Vehículo genérico / No especificado</p>

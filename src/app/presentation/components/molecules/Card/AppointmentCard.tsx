@@ -12,6 +12,7 @@ export interface AppointmentCardProps {
   onRescheduleClick: (appt: AdminAppointment) => void;
   onCancelClick?: (appt: AdminAppointment) => void;
   onRescheduleApprovedClick?: (appt: AdminAppointment) => void;
+  onNoShowClick?: (appt: AdminAppointment) => void;
   onCompleteClick?: (appt: AdminAppointment) => void;
   onCheckInClick?: (appt: AdminAppointment) => void;
   onCardClick?: (appt: AdminAppointment) => void;
@@ -25,6 +26,7 @@ export const AppointmentCard: React.FC<AppointmentCardProps> = ({
   onRescheduleClick,
   onCancelClick,
   onRescheduleApprovedClick,
+  onNoShowClick,
   onCompleteClick,
   onCheckInClick,
   onCardClick,
@@ -37,9 +39,8 @@ export const AppointmentCard: React.FC<AppointmentCardProps> = ({
   return (
     <div
       onClick={() => onCardClick?.(appt)}
-      className={`bg-base-100 border border-base-300 rounded-xl p-5 pl-6 flex gap-5 relative overflow-hidden transition-all duration-150 ${
-        onCardClick ? 'cursor-pointer hover:shadow-md hover:border-primary/50' : 'cursor-default'
-      } ${updating ? 'opacity-60 pointer-events-none' : ''}`}
+      className={`bg-base-100 border border-base-300 rounded-xl p-5 pl-6 flex gap-5 relative overflow-hidden transition-all duration-150 ${onCardClick ? 'cursor-pointer hover:shadow-md hover:border-primary/50' : 'cursor-default'
+        } ${updating ? 'opacity-60 pointer-events-none' : ''}`}
     >
       {/* Left accent bar */}
       <div
@@ -95,7 +96,7 @@ export const AppointmentCard: React.FC<AppointmentCardProps> = ({
                 {[appt.vehicle.brand, appt.vehicle.model, appt.vehicle.year].filter(Boolean).join(' ')}
               </span>
               <span className="text-[11px] font-mono font-semibold text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded">
-                {"***" + appt.vehicle.serialNumberLastFour}
+                {"" + appt.vehicle.serialNumberLastFour}
               </span>
             </div>
           )}
@@ -175,8 +176,8 @@ export const AppointmentCard: React.FC<AppointmentCardProps> = ({
       )}
 
       {appt.status === 'approved' && (
-        <div className="w-48 shrink-0 flex flex-col gap-2 justify-center">
-          {/* Recibir Auto (Check-in) button */}
+        <div className="w-52 shrink-0 flex flex-col gap-1.5 justify-center">
+          {/* Check In button */}
           <PrimaryButton
             size="sm"
             color="success"
@@ -192,29 +193,41 @@ export const AppointmentCard: React.FC<AppointmentCardProps> = ({
             className="w-full text-xs font-bold"
           >
             <Icon name="Wrench" size="xs" className="mr-1.5" />
-            Recibir Auto (Check-in)
+            Check In
           </PrimaryButton>
 
-          {/* Reagendar button */}
-          <SecondaryButton
-            size="sm"
-            disabled={updating}
-            onClick={(e) => { e.stopPropagation(); onRescheduleApprovedClick?.(appt); }}
-            className="w-full text-xs font-medium"
-          >
-            <Icon name="Calendar" size="xs" className="mr-1.5" />
-            Reagendar
-          </SecondaryButton>
+          {/* Reagendar and No Asistió grid */}
+          <div className="grid grid-cols-2 gap-1.5">
+            <SecondaryButton
+              size="xs"
+              disabled={updating}
+              onClick={(e) => { e.stopPropagation(); onRescheduleApprovedClick?.(appt); }}
+              className="w-full text-[11px] font-semibold"
+            >
+              <Icon name="Calendar" size="xs" className="mr-1" />
+              Reagendar
+            </SecondaryButton>
+            <SecondaryButton
+              size="xs"
+              color="warning"
+              disabled={updating}
+              onClick={(e) => { e.stopPropagation(); onNoShowClick?.(appt); }}
+              className="w-full text-[11px] font-semibold"
+            >
+              <Icon name="UserX" size="xs" className="mr-1" />
+              No Asistió
+            </SecondaryButton>
+          </div>
 
           {/* Cancelar button */}
           <SecondaryButton
-            size="sm"
+            size="xs"
             color="error"
             disabled={updating}
             onClick={(e) => { e.stopPropagation(); onCancelClick?.(appt); }}
-            className="w-full text-xs font-medium"
+            className="w-full text-[11px] font-semibold"
           >
-            <Icon name="XCircle" size="xs" className="mr-1.5" />
+            <Icon name="XCircle" size="xs" className="mr-1" />
             Cancelar
           </SecondaryButton>
         </div>

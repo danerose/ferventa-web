@@ -1,20 +1,9 @@
 import type { AuthUser } from '@/app/domain';
+import type { IAuthRepository } from '@/app/domain/repository';
 import { AuthRemoteDataSource, type LoginCredentials } from '../../datasources/remote/Auth/AuthRemoteDataSource';
 import { AuthLocalDataSource } from '../../datasources/local/Auth/AuthLocalDataSource';
-import { AuthSessionModel } from '../../model/Auth/AuthModel';
 
-export interface IAuthRepository {
-  login(credentials: LoginCredentials): Promise<{ user: AuthUser; accessToken: string; refreshToken: string }>;
-  logout(): Promise<void>;
-  getSession(): { user: AuthUser | null; accessToken: string | null; refreshToken: string | null };
-  saveSession(session: { user: AuthUser; accessToken: string; refreshToken: string }): void;
-  getActiveBranchId(): string | null;
-  setActiveBranchId(id: string | null): void;
-  getActiveBranchName(): string | null;
-  saveActiveBranch(id: string | null, name?: string | null): void;
-  getProfile(token: string): Promise<AuthUser>;
-  changePassword(token: string, currentPassword: string, newPassword: string): Promise<void>;
-}
+export type { IAuthRepository };
 
 export class AuthRepository implements IAuthRepository {
   private readonly remote: AuthRemoteDataSource;
@@ -26,25 +15,32 @@ export class AuthRepository implements IAuthRepository {
   }
 
   async login(credentials: LoginCredentials): Promise<{ user: AuthUser; accessToken: string; refreshToken: string }> {
-    const res = await this.remote.login(credentials);
-    const model = new AuthSessionModel({
-      accessToken: res.accessToken,
-      refreshToken: res.refreshToken,
-      user: res.user,
-    });
-    this.local.saveSession({
-      user: model.toEntity(),
-      accessToken: model.accessToken,
-      refreshToken: model.refreshToken,
-    });
-    if (res.user.branches && res.user.branches.length > 0) {
-      this.local.saveActiveBranchId(res.user.branches[0]);
+    try {
+      const sessionModel = await this.remote.login(credentials);
+      const user = sessionModel.toEntity();
+      this.local.saveSession({
+        user,
+        accessToken: sessionModel.accessToken,
+        refreshToken: sessionModel.refreshToken,
+      });
+      if (user.branches && user.branches.length > 0) {
+        const firstBranch = user.branches[0];
+        const branchId = typeof firstBranch === 'object' && firstBranch !== null
+          ? ((firstBranch as { id?: string; _id?: string }).id || (firstBranch as { id?: string; _id?: string })._id || '')
+          : String(firstBranch);
+        if (branchId) {
+          this.local.saveActiveBranchId(branchId);
+        }
+      }
+      return {
+        user,
+        accessToken: sessionModel.accessToken,
+        refreshToken: sessionModel.refreshToken,
+      };
+    } catch (error) {
+      console.error('[AuthRepository.login] Error during login:', error);
+      throw error instanceof Error ? error : new Error('Error al iniciar sesión');
     }
-    return {
-      user: model.toEntity(),
-      accessToken: model.accessToken,
-      refreshToken: model.refreshToken,
-    };
   }
 
   saveSession(session: { user: AuthUser; accessToken: string; refreshToken: string }): void {
