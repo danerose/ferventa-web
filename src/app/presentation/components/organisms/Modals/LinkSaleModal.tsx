@@ -17,6 +17,8 @@ import { salesRepository } from '@/core/di/container';
 import { useAuthStore } from '@/app/presentation/stores';
 import { formatCurrency, formatDate } from '@/core/utils';
 
+import { cn } from '@/core/utils/cn';
+
 export interface LinkSaleModalProps {
   isOpen: boolean;
   order: AdminMaintenanceOrder | null;
@@ -24,6 +26,12 @@ export interface LinkSaleModalProps {
   onLink: (payload: { saleId?: string; folio?: string }) => Promise<void>;
   loading?: boolean;
 }
+
+const getSaleId = (s: Sale | null | undefined): string => {
+  if (!s) return '';
+  const anySale = s as unknown as Record<string, unknown>;
+  return String(s.id || anySale._id || s.folio || '');
+};
 
 export const LinkSaleModal: React.FC<LinkSaleModalProps> = ({
   isOpen,
@@ -63,8 +71,9 @@ export const LinkSaleModal: React.FC<LinkSaleModalProps> = ({
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (activeTab === 'recent' && selectedSale) {
-      const saleId = selectedSale.id || (selectedSale as { _id?: string })._id;
-      await onLink({ saleId, folio: selectedSale.folio });
+      const anySale = selectedSale as unknown as Record<string, unknown>;
+      const saleId = String(selectedSale.id || anySale._id || '');
+      await onLink({ saleId: saleId || undefined, folio: selectedSale.folio });
     } else if (folioInput.trim()) {
       const cleanFolio = folioInput.trim().replace(/^#/, '');
       await onLink({ folio: cleanFolio });
@@ -75,6 +84,8 @@ export const LinkSaleModal: React.FC<LinkSaleModalProps> = ({
     loading ||
     (activeTab === 'recent' && !selectedSale) ||
     (activeTab === 'folio' && !folioInput.trim());
+
+  const selectedSaleKey = getSaleId(selectedSale);
 
   return (
     <Modal
@@ -144,10 +155,17 @@ export const LinkSaleModal: React.FC<LinkSaleModalProps> = ({
 
         {/* TAB 1: RECENT SALES LIST */}
         {activeTab === 'recent' && (
-          <Box className="space-y-2">
-            <Text size="xs" weight="semibold" variant="muted">
-              Selecciona una venta reciente de caja:
-            </Text>
+          <Box className="space-y-3">
+            <Flex justify="between" align="center">
+              <Text size="xs" weight="semibold" variant="muted">
+                Selecciona una venta reciente de caja:
+              </Text>
+              {selectedSale && (
+                <Text size="xs" className="text-primary font-semibold">
+                  1 ticket seleccionado
+                </Text>
+              )}
+            </Flex>
 
             {loadingSales ? (
               <Box className="p-8 text-center bg-base-200/50 rounded-DEFAULT border border-dashed border-base-300">
@@ -163,43 +181,104 @@ export const LinkSaleModal: React.FC<LinkSaleModalProps> = ({
                 </Text>
               </Box>
             ) : (
-              <Stack spacing="xs" className="max-h-56 overflow-y-auto pr-1">
+              <Stack spacing="xs" className="max-h-60 overflow-y-auto pr-1">
                 {recentSales.map((sale) => {
-                  const saleId = sale.id || (sale as { _id?: string })._id;
-                  const isSelected = selectedSale?.id === sale.id || (selectedSale as { _id?: string })?._id === saleId;
+                  const currentSaleKey = getSaleId(sale);
+                  const isSelected = Boolean(selectedSaleKey && currentSaleKey && selectedSaleKey === currentSaleKey);
                   const sellerName = typeof sale.seller === 'string' ? sale.seller : sale.seller?.name || 'Cajero';
 
                   return (
                     <Box
-                      key={saleId}
-                      onClick={() => setSelectedSale(sale)}
-                      className={`p-3 rounded-lg border transition-all cursor-pointer ${
+                      key={currentSaleKey || sale.folio}
+                      onClick={() => {
+                        setSelectedSale((prev) => {
+                          const prevKey = getSaleId(prev);
+                          return prevKey === currentSaleKey ? null : sale;
+                        });
+                      }}
+                      className={cn(
+                        'group p-3 rounded-lg border-2 transition-all cursor-pointer relative select-none',
                         isSelected
-                          ? 'bg-primary/10 border-primary shadow-xs ring-1 ring-primary'
-                          : 'bg-base-100 border-base-300 hover:border-base-content/30 hover:bg-base-200/50'
-                      }`}
+                          ? 'bg-primary/15 border-primary shadow-sm ring-2 ring-primary/40 dark:bg-primary/20'
+                          : 'bg-base-100 border-base-300/80 hover:border-primary/50 hover:bg-base-200/60'
+                      )}
                     >
-                      <Flex justify="between" align="start">
-                        <Box>
-                          <Flex align="center" gap="xs">
-                            <span className="font-mono font-bold text-xs text-base-content">
-                              #{sale.folio}
-                            </span>
-                            <Badge variant="soft" color={isSelected ? 'primary' : 'neutral'} size="xs">
-                              {sale.paymentMethod || 'Efectivo'}
-                            </Badge>
-                          </Flex>
-                          <Text size="xs" variant="muted" className="mt-0.5">
-                            Atendió: <span className="font-medium text-base-content/80">{sellerName}</span>
-                          </Text>
-                          {sale.items && sale.items.length > 0 && (
-                            <Text size="xs" variant="muted" className="text-[11px] line-clamp-1 mt-0.5">
-                              {sale.items.map((i: { quantity?: number; name?: string; productName?: string }) => `${i.quantity || 1}x ${i.name || i.productName || 'Item'}`).join(', ')}
+                      <Flex justify="between" align="center" gap="sm">
+                        <Flex align="center" gap="sm" className="min-w-0 flex-1">
+                          {/* Radio / Checkbox Indicator */}
+                          <Box
+                            className={cn(
+                              'w-5 h-5 rounded-full flex items-center justify-center shrink-0 transition-all',
+                              isSelected
+                                ? 'bg-primary text-primary-content shadow-xs scale-110'
+                                : 'border-2 border-base-300 bg-base-100 group-hover:border-primary/50'
+                            )}
+                          >
+                            {isSelected && <Icon name="Check" size="xs" className="stroke-[3]" />}
+                          </Box>
+
+                          {/* Ticket Info */}
+                          <Box className="min-w-0 flex-1">
+                            <Flex align="center" gap="xs" className="flex-wrap">
+                              <span
+                                className={cn(
+                                  'font-mono font-bold text-xs transition-colors',
+                                  isSelected ? 'text-primary font-black' : 'text-base-content'
+                                )}
+                              >
+                                #{sale.folio}
+                              </span>
+                              <Badge
+                                variant={isSelected ? 'solid' : 'soft'}
+                                color={isSelected ? 'primary' : 'neutral'}
+                                size="xs"
+                                className="font-medium"
+                              >
+                                {sale.paymentMethod === 'card'
+                                  ? 'Tarjeta'
+                                  : sale.paymentMethod === 'transfer'
+                                  ? 'Transferencia'
+                                  : 'Efectivo'}
+                              </Badge>
+                              {isSelected && (
+                                <Badge
+                                  variant="solid"
+                                  color="success"
+                                  size="xs"
+                                  className="gap-1 font-bold animate-fadeIn"
+                                >
+                                  <Icon name="Check" size="xs" />
+                                  Seleccionado
+                                </Badge>
+                              )}
+                            </Flex>
+
+                            <Text size="xs" variant="muted" className="mt-0.5">
+                              Atendió: <span className="font-medium text-base-content/80">{sellerName}</span>
                             </Text>
-                          )}
-                        </Box>
+                            {sale.items && sale.items.length > 0 && (
+                              <Text size="xs" variant="muted" className="text-[11px] line-clamp-1 mt-0.5">
+                                {sale.items
+                                  .map(
+                                    (i: { quantity?: number; name?: string; productName?: string }) =>
+                                      `${i.quantity || 1}x ${i.name || i.productName || 'Item'}`
+                                  )
+                                  .join(', ')}
+                              </Text>
+                            )}
+                          </Box>
+                        </Flex>
+
+                        {/* Amount & Date */}
                         <Box className="text-right shrink-0">
-                          <Text size="sm" weight="bold" className="text-primary font-mono text-sm font-black">
+                          <Text
+                            size="sm"
+                            weight="bold"
+                            className={cn(
+                              'font-mono text-sm font-black transition-colors',
+                              isSelected ? 'text-primary' : 'text-base-content'
+                            )}
+                          >
                             {formatCurrency(sale.total)}
                           </Text>
                           <Text size="xs" variant="muted" className="text-[10px] font-mono block mt-0.5">
@@ -211,6 +290,35 @@ export const LinkSaleModal: React.FC<LinkSaleModalProps> = ({
                   );
                 })}
               </Stack>
+            )}
+
+            {/* Selected Confirmation Banner */}
+            {selectedSale && (
+              <Box className="p-3 bg-primary/10 border border-primary/30 rounded-lg flex items-center justify-between animate-fadeIn">
+                <Flex align="center" gap="sm">
+                  <Box className="w-7 h-7 rounded-full bg-primary text-primary-content flex items-center justify-center shrink-0">
+                    <Icon name="Check" size="xs" className="stroke-[3]" />
+                  </Box>
+                  <Box>
+                    <Text size="xs" weight="bold" className="text-base-content">
+                      Ticket seleccionado: <span className="font-mono text-primary font-bold">#{selectedSale.folio}</span>
+                    </Text>
+                    <Text size="xs" variant="muted">
+                      Importe: <strong className="text-base-content font-mono">{formatCurrency(selectedSale.total)}</strong> • {selectedSale.paymentMethod || 'Efectivo'}
+                    </Text>
+                  </Box>
+                </Flex>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedSale(null);
+                  }}
+                  className="text-xs text-error hover:underline cursor-pointer font-semibold px-2 py-1"
+                >
+                  Quitar selección
+                </button>
+              </Box>
             )}
           </Box>
         )}
@@ -247,7 +355,11 @@ export const LinkSaleModal: React.FC<LinkSaleModalProps> = ({
             loading={loading}
             iconStart={<Icon name="Link" size="xs" />}
           >
-            <span>Vincular Ticket</span>
+            <span>
+              {activeTab === 'recent' && selectedSale
+                ? `Vincular Ticket #${selectedSale.folio}`
+                : 'Vincular Ticket'}
+            </span>
             <KbdBadge keys="Enter" className="ml-1 opacity-80" />
           </PrimaryButton>
         </Flex>
@@ -255,3 +367,4 @@ export const LinkSaleModal: React.FC<LinkSaleModalProps> = ({
     </Modal>
   );
 };
+
