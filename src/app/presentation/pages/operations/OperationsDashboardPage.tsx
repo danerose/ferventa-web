@@ -28,7 +28,7 @@ import {
   branchUseCases,
   inventoryRepository as inventoryRepo,
 } from '@/core/di/container';
-import type { Sale, Branch, AdminMaintenanceOrder, Product, AdminAppointment } from '@/app/domain';
+import type { Sale, Branch, AdminMaintenanceOrder, Product, AdminAppointment, SalesStats } from '@/app/domain';
 import { MODULE_THEMES } from '@/core';
 import { cn } from '@/core/utils/cn';
 
@@ -358,6 +358,7 @@ export const OperationsDashboardPage: React.FC = () => {
   const [customEndDate, setCustomEndDate] = useState('');
   const [allBranches, setAllBranches] = useState<Branch[]>([]);
   const [salesData, setSalesData] = useState<Sale[]>([]);
+  const [salesStats, setSalesStats] = useState<SalesStats | null>(null);
   const [salesLoading, setSalesLoading] = useState(false);
   const [salesError, setSalesError] = useState<string | null>(null);
 
@@ -523,11 +524,31 @@ export const OperationsDashboardPage: React.FC = () => {
     try {
       const { start, end } = getDateRange(salesPeriod);
       if (!start || !end) return;
-      const data = await salesRepo.getSales(accessToken, {
-        startDate: start,
-        endDate: end,
-        isCancelled: false,
-      });
+
+      const branchParam = (salesBranchFilter === 'all' && isAdmin)
+        ? undefined
+        : (salesBranchFilter === 'active' ? (activeBranchId || undefined) : salesBranchFilter);
+
+      const [data, stats] = await Promise.all([
+        salesRepo.getSales(accessToken, {
+          startDate: start,
+          endDate: end,
+          isCancelled: false,
+        }).catch((err) => {
+          console.error('Error al obtener lista de ventas:', err);
+          return [] as Sale[];
+        }),
+        salesRepo.getSalesStats(accessToken, {
+          startDate: start,
+          endDate: end,
+          isCancelled: false,
+          branchId: branchParam,
+          paymentMethod: salesPaymentMethodFilter !== 'all' ? salesPaymentMethodFilter : undefined,
+        }).catch((err) => {
+          console.error('Error al obtener estadísticas de ventas:', err);
+          return null;
+        }),
+      ]);
 
       const filtered = data.filter((s: Sale) => {
         if (salesBranchFilter === 'all' && isAdmin) return true;
@@ -538,6 +559,7 @@ export const OperationsDashboardPage: React.FC = () => {
       });
 
       setSalesData(filtered);
+      setSalesStats(stats);
     } catch (err) {
       const msg = err instanceof Error ? err.message : '';
       if (msg === 'UNAUTHORIZED') handleUnauthorized();
@@ -545,14 +567,14 @@ export const OperationsDashboardPage: React.FC = () => {
     } finally {
       setSalesLoading(false);
     }
-  }, [accessToken, salesPeriod, salesBranchFilter, activeBranchId, isAdmin, getDateRange, handleUnauthorized]);
+  }, [accessToken, salesPeriod, salesBranchFilter, salesPaymentMethodFilter, activeBranchId, isAdmin, getDateRange, handleUnauthorized]);
 
   useEffect(() => {
     if (pageTab === 'ventas') {
       loadSalesData();
     }
     // eslint-disable-next-line
-  }, [pageTab, salesPeriod, salesBranchFilter]);
+  }, [pageTab, salesPeriod, salesBranchFilter, salesPaymentMethodFilter]);
 
   // ── KPI calculations (memoized) ─────────────────────────────────────────────
   const { todayTotal, salesGrowth } = useMemo(() => {
@@ -579,7 +601,33 @@ export const OperationsDashboardPage: React.FC = () => {
     cashCount,
     cardCount,
     transferCount,
+    cashPercentage,
+    cardPercentage,
+    transferPercentage,
+    topPayMethod,
+    discountTotal,
   } = useMemo(() => {
+    if (salesStats) {
+      const s = salesStats.summary;
+      const pm = salesStats.paymentMethods;
+      return {
+        salesTotal: s.totalRevenue,
+        salesCount: s.totalSales,
+        avgTicket: s.averageTicket,
+        cashTotal: pm.cash?.revenue ?? 0,
+        cardTotal: pm.card?.revenue ?? 0,
+        transferTotal: pm.transfer?.revenue ?? 0,
+        cashCount: pm.cash?.count ?? 0,
+        cardCount: pm.card?.count ?? 0,
+        transferCount: pm.transfer?.count ?? 0,
+        cashPercentage: pm.cash?.percentage ?? 0,
+        cardPercentage: pm.card?.percentage ?? 0,
+        transferPercentage: pm.transfer?.percentage ?? 0,
+        topPayMethod: s.mainPaymentMethodLabel || (s.mainPaymentMethod === 'card' ? 'Tarjeta' : s.mainPaymentMethod === 'transfer' ? 'Transferencia' : 'Efectivo'),
+        discountTotal: s.discount || 0,
+      };
+    }
+
     const sTotal = salesData.reduce((acc, s) => acc + (s.total || 0), 0);
     const sCount = salesData.length;
     const avg = sCount > 0 ? sTotal / sCount : 0;
@@ -588,21 +636,30 @@ export const OperationsDashboardPage: React.FC = () => {
     const cdSales = salesData.filter(s => s.paymentMethod === 'card');
     const tSales = salesData.filter(s => s.paymentMethod === 'transfer');
 
+    const cTotal = cSales.reduce((acc, s) => acc + (s.total || 0), 0);
+    const cdTotal = cdSales.reduce((acc, s) => acc + (s.total || 0), 0);
+    const tTotal = tSales.reduce((acc, s) => acc + (s.total || 0), 0);
+
+    const top = cSales.length >= cdSales.length && cSales.length >= tSales.length ? 'Efectivo'
+      : cdSales.length >= tSales.length ? 'Tarjeta' : 'Transferencia';
+
     return {
       salesTotal: sTotal,
       salesCount: sCount,
       avgTicket: avg,
-      cashTotal: cSales.reduce((acc, s) => acc + (s.total || 0), 0),
-      cardTotal: cdSales.reduce((acc, s) => acc + (s.total || 0), 0),
-      transferTotal: tSales.reduce((acc, s) => acc + (s.total || 0), 0),
+      cashTotal: cTotal,
+      cardTotal: cdTotal,
+      transferTotal: tTotal,
       cashCount: cSales.length,
       cardCount: cdSales.length,
       transferCount: tSales.length,
+      cashPercentage: sTotal > 0 ? (cTotal / sTotal) * 100 : 0,
+      cardPercentage: sTotal > 0 ? (cdTotal / sTotal) * 100 : 0,
+      transferPercentage: sTotal > 0 ? (tTotal / sTotal) * 100 : 0,
+      topPayMethod: top,
+      discountTotal: 0,
     };
-  }, [salesData]);
-
-  const topPayMethod = cashCount >= cardCount && cashCount >= transferCount ? 'Efectivo'
-    : cardCount >= transferCount ? 'Tarjeta' : 'Transferencia';
+  }, [salesStats, salesData]);
 
   const displayedSalesTable = useMemo(() => {
     return salesPaymentMethodFilter === 'all'
@@ -610,35 +667,49 @@ export const OperationsDashboardPage: React.FC = () => {
       : salesData.filter(s => s.paymentMethod === salesPaymentMethodFilter);
   }, [salesData, salesPaymentMethodFilter]);
 
-  const last7Days = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date();
-    d.setDate(d.getDate() - (6 - i));
-    return d;
-  });
+  const barChartData = useMemo(() => {
+    if (salesStats?.dailyRevenue && salesStats.dailyRevenue.length > 0) {
+      return salesStats.dailyRevenue.map(d => ({
+        label: d.label,
+        value: d.revenue,
+      }));
+    }
+    const last7Days = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date();
+      d.setDate(d.getDate() - (6 - i));
+      return d;
+    });
+    return last7Days.map(d => {
+      const label = d.toLocaleDateString('es-MX', { weekday: 'short' });
+      const ds = toDateString(d);
+      const value = salesData
+        .filter(s => s.createdAt?.startsWith(ds))
+        .reduce((acc, s) => acc + (s.total || 0), 0);
+      return { label, value };
+    });
+  }, [salesStats, salesData]);
 
-  const barChartData = last7Days.map(d => {
-    const label = d.toLocaleDateString('es-MX', { weekday: 'short' });
-    const ds = toDateString(d);
-    const value = salesData
-      .filter(s => s.createdAt?.startsWith(ds))
-      .reduce((acc, s) => acc + (s.total || 0), 0);
-    return { label, value };
-  });
-
-  const last6Months = Array.from({ length: 6 }, (_, i) => {
-    const d = new Date();
-    d.setMonth(d.getMonth() - (5 - i));
-    return d;
-  });
-
-  const lineChartData = last6Months.map(d => {
-    const label = d.toLocaleDateString('es-MX', { month: 'short' });
-    const monthStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-    const value = salesData
-      .filter(s => s.createdAt?.startsWith(monthStr))
-      .reduce((acc, s) => acc + (s.total || 0), 0);
-    return { label, value };
-  });
+  const lineChartData = useMemo(() => {
+    if (salesStats?.monthlyTrend && salesStats.monthlyTrend.length > 0) {
+      return salesStats.monthlyTrend.map(m => ({
+        label: m.label,
+        value: m.revenue,
+      }));
+    }
+    const last6Months = Array.from({ length: 6 }, (_, i) => {
+      const d = new Date();
+      d.setMonth(d.getMonth() - (5 - i));
+      return d;
+    });
+    return last6Months.map(d => {
+      const label = d.toLocaleDateString('es-MX', { month: 'short' });
+      const monthStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const value = salesData
+        .filter(s => s.createdAt?.startsWith(monthStr))
+        .reduce((acc, s) => acc + (s.total || 0), 0);
+      return { label, value };
+    });
+  }, [salesStats, salesData]);
 
   return (
     <PageLayout userName={user?.name || 'Admin'}>
@@ -1013,10 +1084,34 @@ export const OperationsDashboardPage: React.FC = () => {
               {/* General KPI cards */}
               <Grid cols={4} gap="md">
                 {[
-                  { label: 'Ingresos Totales', value: `$${salesTotal.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, icon: 'DollarSign', badgeColor: 'primary' as const },
-                  { label: 'Número de Ventas', value: String(salesCount), icon: 'ShoppingBag', badgeColor: 'success' as const },
-                  { label: 'Ticket Promedio', value: `$${avgTicket.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, icon: 'Receipt', badgeColor: 'warning' as const },
-                  { label: 'Método Principal', value: topPayMethod, icon: 'CreditCard', badgeColor: 'secondary' as const },
+                  {
+                    label: 'Ingresos Totales',
+                    value: `$${salesTotal.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+                    subtext: discountTotal > 0 ? `Descuentos: -$${discountTotal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}` : undefined,
+                    icon: 'DollarSign',
+                    badgeColor: 'primary' as const,
+                  },
+                  {
+                    label: 'Número de Ventas',
+                    value: String(salesCount),
+                    subtext: `${salesCount} transacciones registradas`,
+                    icon: 'ShoppingBag',
+                    badgeColor: 'success' as const,
+                  },
+                  {
+                    label: 'Ticket Promedio',
+                    value: `$${avgTicket.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+                    subtext: 'Promedio por venta',
+                    icon: 'Receipt',
+                    badgeColor: 'warning' as const,
+                  },
+                  {
+                    label: 'Método Principal',
+                    value: topPayMethod,
+                    subtext: 'Mayor volumen de cobro',
+                    icon: 'CreditCard',
+                    badgeColor: 'secondary' as const,
+                  },
                 ].map(kpi => (
                   <Box key={kpi.label} className="bg-base-100 p-5 rounded-DEFAULT border border-base-300">
                     <Flex justify="between" align="center" className="mb-2.5">
@@ -1034,7 +1129,14 @@ export const OperationsDashboardPage: React.FC = () => {
                     {salesLoading ? (
                       <Box className="h-7 bg-base-300 rounded-DEFAULT animate-pulse" />
                     ) : (
-                      <Text weight="bold" className="text-2xl font-mono block">{kpi.value}</Text>
+                      <>
+                        <Text weight="bold" className="text-2xl font-mono block">{kpi.value}</Text>
+                        {kpi.subtext && (
+                          <Text size="xs" color="muted" className="mt-1 block truncate">
+                            {kpi.subtext}
+                          </Text>
+                        )}
+                      </>
                     )}
                   </Box>
                 ))}
@@ -1047,6 +1149,7 @@ export const OperationsDashboardPage: React.FC = () => {
                     title: 'Total Efectivo',
                     amount: cashTotal,
                     count: cashCount,
+                    percentage: cashPercentage,
                     icon: 'Banknote',
                     variant: 'success' as const,
                   },
@@ -1054,6 +1157,7 @@ export const OperationsDashboardPage: React.FC = () => {
                     title: 'Total Tarjeta',
                     amount: cardTotal,
                     count: cardCount,
+                    percentage: cardPercentage,
                     icon: 'CreditCard',
                     variant: 'info' as const,
                   },
@@ -1061,6 +1165,7 @@ export const OperationsDashboardPage: React.FC = () => {
                     title: 'Total Transferencia',
                     amount: transferTotal,
                     count: transferCount,
+                    percentage: transferPercentage,
                     icon: 'ArrowRightLeft',
                     variant: 'warning' as const,
                   },
@@ -1090,7 +1195,7 @@ export const OperationsDashboardPage: React.FC = () => {
                           ${pm.amount.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </Text>
                         <Text size="xs" color="muted" className="mt-1 block">
-                          {pm.count} {pm.count === 1 ? 'venta' : 'ventas'} ({salesTotal > 0 ? ((pm.amount / salesTotal) * 100).toFixed(1) : '0'}% del total)
+                          {pm.count} {pm.count === 1 ? 'venta' : 'ventas'} ({pm.percentage.toFixed(1)}% del total)
                         </Text>
                       </>
                     )}
@@ -1098,7 +1203,85 @@ export const OperationsDashboardPage: React.FC = () => {
                 ))}
               </Grid>
 
-              {/* Payment method breakdown */}
+              {/* Item Types Breakdown: Servicios vs Productos */}
+              <Box className="bg-base-100 rounded-DEFAULT border border-base-300 p-5">
+                <Flex justify="between" align="center" className="mb-4">
+                  <Box>
+                    <Heading level={5} className="font-bold">Desglose: Servicios vs. Productos</Heading>
+                    <Text size="xs" color="muted">Distribución de ingresos y volumen generados por mano de obra/servicios frente a venta de productos y refacciones</Text>
+                  </Box>
+                  <Badge variant="neutral" size="sm">Catálogo & Taller</Badge>
+                </Flex>
+                {salesLoading ? (
+                  <Box className="h-28 bg-base-300 rounded-DEFAULT animate-pulse" />
+                ) : (
+                  <Grid cols={2} gap="md">
+                    {/* Servicios */}
+                    <Box className="bg-base-200/50 p-4 rounded-DEFAULT border border-base-300/80">
+                      <Flex justify="between" align="center" className="mb-2">
+                        <Flex align="center" gap="xs">
+                          <Box className="w-8 h-8 rounded-DEFAULT bg-warning/10 text-warning flex items-center justify-center">
+                            <Icon name="Wrench" size="sm" />
+                          </Box>
+                          <div>
+                            <Text size="sm" weight="bold">Servicios de Taller</Text>
+                            <Text size="xs" color="muted">Mano de obra y servicios</Text>
+                          </div>
+                        </Flex>
+                        <Badge variant="warning" size="sm">
+                          {salesStats?.itemTypesBreakdown?.services?.revenuePercentage ?? 0}% del ingreso
+                        </Badge>
+                      </Flex>
+                      <Text weight="bold" className="text-2xl font-mono block text-warning mb-2">
+                        ${(salesStats?.itemTypesBreakdown?.services?.revenue ?? 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </Text>
+                      <Flex justify="between" align="center" className="text-xs text-base-content/70 pt-2 border-t border-base-300/60">
+                        <span>Ítems realizados: <strong className="text-base-content font-mono">{salesStats?.itemTypesBreakdown?.services?.itemsCount ?? 0}</strong></span>
+                        <span>Tickets con servicio: <strong className="text-base-content font-mono">{salesStats?.itemTypesBreakdown?.services?.salesCount ?? 0}</strong></span>
+                      </Flex>
+                      <Box className="w-full bg-base-300 rounded-full h-2 mt-2.5 overflow-hidden">
+                        <Box
+                          className="bg-warning h-full rounded-full transition-all duration-300"
+                          style={{ width: `${Math.min(100, Math.max(0, salesStats?.itemTypesBreakdown?.services?.revenuePercentage ?? 0))}%` }}
+                        />
+                      </Box>
+                    </Box>
+
+                    {/* Productos */}
+                    <Box className="bg-base-200/50 p-4 rounded-DEFAULT border border-base-300/80">
+                      <Flex justify="between" align="center" className="mb-2">
+                        <Flex align="center" gap="xs">
+                          <Box className="w-8 h-8 rounded-DEFAULT bg-primary/10 text-primary flex items-center justify-center">
+                            <Icon name="Package" size="sm" />
+                          </Box>
+                          <div>
+                            <Text size="sm" weight="bold">Productos y Refacciones</Text>
+                            <Text size="xs" color="muted">Piezas, lubricantes e insumos</Text>
+                          </div>
+                        </Flex>
+                        <Badge variant="info" size="sm">
+                          {salesStats?.itemTypesBreakdown?.products?.revenuePercentage ?? 0}% del ingreso
+                        </Badge>
+                      </Flex>
+                      <Text weight="bold" className="text-2xl font-mono block text-primary mb-2">
+                        ${(salesStats?.itemTypesBreakdown?.products?.revenue ?? 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </Text>
+                      <Flex justify="between" align="center" className="text-xs text-base-content/70 pt-2 border-t border-base-300/60">
+                        <span>Piezas vendidas: <strong className="text-base-content font-mono">{salesStats?.itemTypesBreakdown?.products?.itemsCount ?? 0}</strong></span>
+                        <span>Tickets con producto: <strong className="text-base-content font-mono">{salesStats?.itemTypesBreakdown?.products?.salesCount ?? 0}</strong></span>
+                      </Flex>
+                      <Box className="w-full bg-base-300 rounded-full h-2 mt-2.5 overflow-hidden">
+                        <Box
+                          className="bg-primary h-full rounded-full transition-all duration-300"
+                          style={{ width: `${Math.min(100, Math.max(0, salesStats?.itemTypesBreakdown?.products?.revenuePercentage ?? 0))}%` }}
+                        />
+                      </Box>
+                    </Box>
+                  </Grid>
+                )}
+              </Box>
+
+              {/* Payment method breakdown & Bar Chart */}
               <Grid cols={2} gap="md">
                 <Box className="bg-base-100 rounded-DEFAULT border border-base-300 p-5">
                   <Heading level={5} className="font-bold mb-4">Métodos de Pago</Heading>
@@ -1107,9 +1290,9 @@ export const OperationsDashboardPage: React.FC = () => {
                   ) : (
                     <Stack spacing="sm">
                       {[
-                        { label: 'Efectivo', count: cashCount, color: '#16a34a' },
-                        { label: 'Tarjeta', count: cardCount, color: '#2563eb' },
-                        { label: 'Transferencia', count: transferCount, color: '#854d0e' },
+                        { label: 'Efectivo', count: cashCount, percentage: cashPercentage, color: '#16a34a' },
+                        { label: 'Tarjeta', count: cardCount, percentage: cardPercentage, color: '#2563eb' },
+                        { label: 'Transferencia', count: transferCount, percentage: transferPercentage, color: '#854d0e' },
                       ].map(pm => (
                         <Flex key={pm.label} align="center" gap="sm">
                           <Text size="sm" className="w-28 text-base-content/80">{pm.label}</Text>
@@ -1117,7 +1300,7 @@ export const OperationsDashboardPage: React.FC = () => {
                             <Box
                               className="h-full rounded-DEFAULT transition-all duration-300"
                               style={{
-                                width: salesCount > 0 ? `${(pm.count / salesCount) * 100}%` : '0%',
+                                width: `${Math.min(100, Math.max(0, pm.percentage))}%`,
                                 background: pm.color,
                               }}
                             />
@@ -1132,7 +1315,7 @@ export const OperationsDashboardPage: React.FC = () => {
                 <Box className="bg-base-100 rounded-DEFAULT border border-base-300 p-5">
                   <BarChart
                     data={barChartData}
-                    label="Ingresos por Día (últimos 7 días)"
+                    label="Ingresos por Día"
                   />
                 </Box>
               </Grid>
@@ -1141,7 +1324,7 @@ export const OperationsDashboardPage: React.FC = () => {
               <Box className="bg-base-100 rounded-DEFAULT border border-base-300 p-5">
                 <LineChart
                   data={lineChartData}
-                  label="Tendencia de Ingresos Mensuales (últimos 6 meses)"
+                  label="Tendencia de Ingresos Mensuales"
                 />
               </Box>
 

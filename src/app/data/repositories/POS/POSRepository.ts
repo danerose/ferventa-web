@@ -1,4 +1,4 @@
-import type { Sale, CreateSalePayload } from '@/app/domain';
+import type { Sale, CreateSalePayload, SalesStats } from '@/app/domain';
 
 export class APISalesRepository {
   private baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
@@ -55,6 +55,37 @@ export class APISalesRepository {
     if (res.status === 401) throw new Error('UNAUTHORIZED');
     if (!res.ok || !json.success) throw new Error(json.message || 'Error al obtener ventas');
     return json.data ?? [];
+  }
+
+  /** GET /sales/stats — get aggregated sales statistics */
+  async getSalesStats(
+    token: string,
+    filter: {
+      startDate?: string;
+      endDate?: string;
+      isCancelled?: boolean | string;
+      paymentMethod?: string;
+      customerId?: string;
+      branchId?: string;
+    } = {}
+  ): Promise<SalesStats> {
+    const params = new URLSearchParams();
+    if (filter.startDate) params.set('startDate', filter.startDate);
+    if (filter.endDate) params.set('endDate', filter.endDate);
+    if (filter.isCancelled !== undefined) params.set('isCancelled', String(filter.isCancelled));
+    if (filter.paymentMethod && filter.paymentMethod !== 'all') params.set('paymentMethod', filter.paymentMethod);
+    if (filter.customerId) params.set('customerId', filter.customerId);
+    if (filter.branchId && filter.branchId !== 'all') params.set('branchId', filter.branchId);
+    params.set('utcOffsetMinutes', String(new Date().getTimezoneOffset()));
+
+    const res = await this.fetchWithAuth(
+      `${this.baseUrl}/sales/stats?${params.toString()}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    const json = await res.json();
+    if (res.status === 401) throw new Error('UNAUTHORIZED');
+    if (!res.ok || !json.success) throw new Error(json.message || 'Error al obtener estadísticas de ventas');
+    return json.data;
   }
 
   /** POST /sales — register a sale (products, services or mixed) */

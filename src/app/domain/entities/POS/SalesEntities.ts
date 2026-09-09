@@ -123,3 +123,59 @@ export interface CreateSaleDto {
   customerEmail?: string;
   discountAmount?: number;
 }
+
+// ─── Sales Statistics (/sales/stats) ──────────────────────────────────────────
+
+export interface SalesStatsSummary {
+  totalRevenue: number;
+  totalSales: number;
+  averageTicket: number;
+  subtotal: number;
+  discount: number;
+  mainPaymentMethod: string;
+  mainPaymentMethodLabel: string;
+}
+
+export interface PaymentMethodStat {
+  revenue: number;
+  count: number;
+  percentage: number;
+  label: string;
+}
+
+export interface DailyRevenueStat {
+  date: string;
+  label: string;
+  revenue: number;
+  count: number;
+}
+
+export interface MonthlyTrendStat {
+  month: string;
+  label: string;
+  revenue: number;
+  count: number;
+}
+
+export interface ItemTypeStat {
+  revenue: number;
+  itemsCount: number;
+  salesCount: number;
+  revenuePercentage: number;
+}
+
+export interface SalesStats {
+  summary: SalesStatsSummary;
+  paymentMethods: {
+    cash: PaymentMethodStat;
+    card: PaymentMethodStat;
+    transfer: PaymentMethodStat;
+    [key: string]: PaymentMethodStat;
+  };
+  dailyRevenue: DailyRevenueStat[];
+  monthlyTrend: MonthlyTrendStat[];
+  itemTypesBreakdown: {
+    services: ItemTypeStat;
+    products: ItemTypeStat;
+  };
+}
