@@ -130,7 +130,7 @@ export interface UpdateMaintenancePayload {
   status?: string;
   notes?: string;
   receptionNotes?: string;
-  assignedMechanic?: string;
+  assignedMechanic?: string | null;
   laborCost?: number;
   laborPrice?: number;
   bay?: string;

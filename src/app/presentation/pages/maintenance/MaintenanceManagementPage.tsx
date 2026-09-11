@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useAuthStore } from '@/app/presentation/stores';
 import { useMaintenanceStore, type MaintenanceScope } from '@/app/presentation/stores/maintenance/maintenance.store';
-import { maintenanceUseCases, userUseCases } from '@/core/di/container';
+import { userUseCases } from '@/core/di/container';
 import type { AdminMaintenanceOrder, User } from '@/app/domain';
 import {
   PageLayout,
@@ -73,6 +73,7 @@ export const MaintenanceManagementPage: React.FC = () => {
     resetFilters,
     fetchMaintenances,
     updateMaintenanceStatus,
+    assignMechanic,
     updateMaintenanceLaborCost,
     addDiagnosticNote,
     notifyCustomer,
@@ -95,6 +96,7 @@ export const MaintenanceManagementPage: React.FC = () => {
       resetFilters: s.resetFilters,
       fetchMaintenances: s.fetchMaintenances,
       updateMaintenanceStatus: s.updateMaintenanceStatus,
+      assignMechanic: s.assignMechanic,
       updateMaintenanceLaborCost: s.updateMaintenanceLaborCost,
       addDiagnosticNote: s.addDiagnosticNote,
       notifyCustomer: s.notifyCustomer,
@@ -199,14 +201,12 @@ export const MaintenanceManagementPage: React.FC = () => {
 
   const handleAssignMechanic = async (orderId: string, mechanicId: string) => {
     if (!accessToken) return;
-    try {
-      await maintenanceUseCases.updateMaintenanceOrder(orderId, {
-        assignedMechanic: mechanicId || undefined,
-      });
+    const ok = await assignMechanic(accessToken, orderId, mechanicId);
+    if (ok) {
       addToast('success', 'Mecánico asignado correctamente.');
       fetchMaintenances(accessToken);
-    } catch (err) {
-      addToast('error', err instanceof Error ? err.message : 'Error al asignar mecánico.');
+    } else {
+      addToast('error', 'Error al asignar mecánico.');
     }
   };
 
@@ -302,7 +302,7 @@ export const MaintenanceManagementPage: React.FC = () => {
       const rTime = new Date(m.receptionDate || m.createdAt || 0).getTime();
       if (rTime < monday.getTime()) {
         stalled.push(m);
-      } else if (rTime <= saturday.getTime()) {
+      } else {
         thisWeek.push(m);
       }
     });
@@ -341,14 +341,7 @@ export const MaintenanceManagementPage: React.FC = () => {
     };
   }, [maintenances, activeScope, monday, saturday, stalledFilterMode, thisWeekActiveOrders, stalledActiveOrders]);
 
-  // Order workflow sorting: NotStarted -> InProgress -> Completed -> Delivered
-  const STATUS_WORKFLOW_ORDER: Record<string, number> = {
-    [ServiceStatus.NotStarted]: 1,
-    [ServiceStatus.InProgress]: 2,
-    [ServiceStatus.Completed]: 3,
-    [ServiceStatus.Delivered]: 4,
-  };
-
+  // Sort orders chronologically from most recent to oldest
   const sortedMaintenances = useMemo(() => {
     let list = maintenances;
 
@@ -369,25 +362,32 @@ export const MaintenanceManagementPage: React.FC = () => {
     }
 
     return [...list].sort((a, b) => {
-      if (activeScope === 'delivered_recent') {
-        const timeA = new Date(a.deliveredAt || a.completedAt || a.receptionDate || a.createdAt || 0).getTime();
-        const timeB = new Date(b.deliveredAt || b.completedAt || b.receptionDate || b.createdAt || 0).getTime();
+      let timeA: number;
+      let timeB: number;
+
+      if (activeScope === 'delivered_recent' || a.status === ServiceStatus.Delivered || b.status === ServiceStatus.Delivered) {
+        timeA = new Date(a.deliveredAt || a.completedAt || a.receptionDate || a.createdAt || 0).getTime();
+        timeB = new Date(b.deliveredAt || b.completedAt || b.receptionDate || b.createdAt || 0).getTime();
+      } else if (activeScope === 'history' && filters.dateField) {
+        const valA = (a as unknown as Record<string, unknown>)[filters.dateField];
+        const valB = (b as unknown as Record<string, unknown>)[filters.dateField];
+        timeA = valA ? new Date(String(valA)).getTime() : new Date(a.receptionDate || a.createdAt || 0).getTime();
+        timeB = valB ? new Date(String(valB)).getTime() : new Date(b.receptionDate || b.createdAt || 0).getTime();
+      } else {
+        timeA = new Date(a.receptionDate || a.createdAt || 0).getTime();
+        timeB = new Date(b.receptionDate || b.createdAt || 0).getTime();
+      }
+
+      if (timeB !== timeA) {
         return timeB - timeA;
       }
 
-      const weightA = STATUS_WORKFLOW_ORDER[a.status] || 99;
-      const weightB = STATUS_WORKFLOW_ORDER[b.status] || 99;
-      if (weightA !== weightB) {
-        return weightA - weightB;
-      }
-      const timeA = new Date(a.receptionDate || a.createdAt || 0).getTime();
-      const timeB = new Date(b.receptionDate || b.createdAt || 0).getTime();
-      if (stalledFilterMode === 'only') {
-        return timeA - timeB;
-      }
-      return timeB - timeA;
+      // Tie-breaker: createdAt descending
+      const createdA = new Date(a.createdAt || 0).getTime();
+      const createdB = new Date(b.createdAt || 0).getTime();
+      return createdB - createdA;
     });
-  }, [maintenances, activeScope, monday, saturday, filters.status, stalledFilterMode, thisWeekActiveOrders, stalledActiveOrders]);
+  }, [maintenances, activeScope, filters.status, filters.dateField, stalledFilterMode, thisWeekActiveOrders, stalledActiveOrders]);
 
   // Formatter for intake dates
   const formatIntakeDate = (dateStr?: string) => {
@@ -1140,6 +1140,7 @@ export const MaintenanceManagementPage: React.FC = () => {
                               ? order.assignedMechanic
                               : (order.assignedMechanic?.id || order.assignedMechanic?._id || (typeof order.mechanic === 'string' ? order.mechanic : (order.mechanic?.id || order.mechanic?._id)) || '')
                           }
+                          disabled={updatingId === order.id}
                           onChange={(e) => handleAssignMechanic(order.id, e.target.value)}
                           options={assignableUsers}
                           title="Asignar mecánico o administrador"

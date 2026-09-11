@@ -61,6 +61,13 @@ export class MaintenanceRemoteDataSource {
     const cost = payload.laborCost ?? payload.laborPrice;
     if (cost !== undefined) body.laborCost = cost;
     if (payload.notes) body.notes = payload.notes;
+    if (payload.receptionNotes) body.receptionNotes = payload.receptionNotes;
+    const assignedMech = payload.assignedMechanic || raw.assignedMechanic;
+    if (assignedMech) {
+      body.assignedMechanic = typeof assignedMech === 'string'
+        ? assignedMech
+        : ((assignedMech as { id?: string; _id?: string }).id || (assignedMech as { id?: string; _id?: string })._id);
+    }
 
     const res = await this.network.post<ApiResponse<RawMaintenanceOrderResponse>>(
       API_ENDPOINTS.MAINTENANCE.BASE,
@@ -76,6 +83,13 @@ export class MaintenanceRemoteDataSource {
     if (cost !== undefined) body.laborCost = cost;
     if (payload.notes !== undefined) body.notes = payload.notes;
     if (payload.receptionNotes !== undefined) body.receptionNotes = payload.receptionNotes;
+    if (payload.assignedMechanic !== undefined) {
+      body.assignedMechanic = payload.assignedMechanic || null;
+    }
+    if (payload.bay !== undefined) body.bay = payload.bay;
+    if (payload.initialFuelLevel !== undefined) body.initialFuelLevel = payload.initialFuelLevel;
+    if (payload.initialMileage !== undefined) body.initialMileage = payload.initialMileage;
+    if (payload.inventoryReceived !== undefined) body.inventoryReceived = payload.inventoryReceived;
 
     const res = await this.network.patch<ApiResponse<RawMaintenanceOrderResponse>>(
       API_ENDPOINTS.MAINTENANCE.BY_ID(id),

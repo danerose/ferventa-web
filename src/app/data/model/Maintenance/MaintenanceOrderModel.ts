@@ -93,6 +93,25 @@ export interface RawMaintenanceOrderResponse {
 
 export class MaintenanceOrderModel {
   static toEntity(raw: RawMaintenanceOrderResponse): MaintenanceOrder {
+    if (!raw) {
+      return {
+        id: '',
+        _id: '',
+        status: 'not_started',
+        laborCost: 0,
+        laborPrice: 0,
+        serviceRequested: 'Servicio de mantenimiento',
+        diagnosticNotes: [],
+        receptionDate: new Date().toISOString(),
+        customer: { id: '', _id: '', name: 'Sin nombre' },
+        vehicle: { id: '', _id: '', brand: 'Sin marca', model: 'Sin modelo', year: 0, serialNumberLastFour: '' },
+        evidence: [],
+        sale: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+    }
+
     const id = raw.id || raw._id || '';
 
     let appointmentObj: MaintenanceOrder['appointment'] = null;

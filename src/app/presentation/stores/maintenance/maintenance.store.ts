@@ -35,6 +35,7 @@ interface MaintenanceState {
   resetFilters: () => void;
   fetchMaintenances: (accessToken: string, scope?: MaintenanceScope, customFilters?: Partial<MaintenanceFilterState>, refDateOverride?: Date) => Promise<void>;
   updateMaintenanceStatus: (accessToken: string, id: string, status: MaintenanceOrderStatus) => Promise<boolean>;
+  assignMechanic: (accessToken: string, id: string, mechanicId: string) => Promise<boolean>;
   updateMaintenanceLaborCost: (accessToken: string, id: string, laborCost: number) => Promise<boolean>;
   addDiagnosticNote: (accessToken: string, id: string, note: string) => Promise<boolean>;
   notifyCustomer: (accessToken: string, id: string, notes?: string) => Promise<boolean>;
@@ -159,6 +160,35 @@ export const useMaintenanceStore = create<MaintenanceState>((set, get) => ({
       return true;
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Error al actualizar estado de mantenimiento';
+      set({ error: msg, updatingId: null });
+      return false;
+    }
+  },
+
+  assignMechanic: async (_accessToken: string, id: string, mechanicId: string) => {
+    set({ updatingId: id, error: null });
+    try {
+      const mechanicValue = mechanicId || null;
+      const updatedOrder = await maintenanceUseCases.updateMaintenanceOrder(id, {
+        assignedMechanic: mechanicValue,
+      });
+      set((state) => {
+        const fallbackMechanic = updatedOrder.assignedMechanic !== undefined ? updatedOrder.assignedMechanic : mechanicValue;
+        const updatedList = state.maintenances.map((item) =>
+          item.id === id ? { ...item, ...updatedOrder, assignedMechanic: fallbackMechanic } : item
+        );
+        const updatedSelected = state.selectedOrder?.id === id
+          ? { ...state.selectedOrder, ...updatedOrder, assignedMechanic: fallbackMechanic }
+          : state.selectedOrder;
+        return {
+          maintenances: updatedList,
+          selectedOrder: updatedSelected,
+          updatingId: null,
+        };
+      });
+      return true;
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Error al asignar mecánico';
       set({ error: msg, updatingId: null });
       return false;
     }
