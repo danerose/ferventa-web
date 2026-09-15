@@ -20,3 +20,7 @@ export * from './Appointment/Appointment';
 export * from './Schedule/Schedule';
 export * from './Maintenance/MaintenanceOrder';
 export * from './Customer/Customer';
+export * from './Audit/AuditEntities';
+export * from './Attendance/KioskEntities';
+
+

@@ -6,7 +6,7 @@ export interface IClientPortalRepository {
   bookAppointment(appointment: BookAppointmentPayload): Promise<Appointment>;
   getAppointmentStatus(query: string): Promise<Appointment[]>;
   getMaintenanceTrack(query: string): Promise<MaintenanceTrack | null>;
-  getOccupiedSlots(startDate: string, endDate: string): Promise<OccupiedSlots>;
+  getOccupiedSlots(startDate: string, endDate: string, branchId?: string): Promise<OccupiedSlots>;
   getPublicBranches(): Promise<PublicBranch[]>;
 }
 

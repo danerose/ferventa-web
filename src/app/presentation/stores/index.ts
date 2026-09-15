@@ -11,3 +11,6 @@ export * from './schedule/schedule.store';
 export * from './specialOrders/specialOrders.store';
 export * from './theme/theme.store';
 export * from './user/user.store';
+export * from './audit/audit.store';
+export * from './kiosk/kiosk.store';
+

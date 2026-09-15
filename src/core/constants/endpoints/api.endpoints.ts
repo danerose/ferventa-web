@@ -80,6 +80,12 @@ export const API_ENDPOINTS = {
     PROVIDERS: '/inventory/providers',
     PROVIDER_BY_ID: (id: string) => `/inventory/providers/${id}`,
     MOVEMENTS: '/inventory/movements',
+    PRODUCT_MOVEMENTS: (id: string) => `/inventory/products/${id}/movements`,
+    RECEPTIONS: '/inventory/receptions',
+    RECEPTION_BY_ID: (id: string) => `/inventory/receptions/${id}`,
+    APPROVE_RECEPTION: (id: string) => `/inventory/receptions/${id}/approve`,
+    REJECT_RECEPTION: (id: string) => `/inventory/receptions/${id}/reject`,
+    OPEN_BOX: '/inventory/boxes/open',
     STATS: '/inventory/stats',
   },
   SALES: {
@@ -109,13 +115,28 @@ export const API_ENDPOINTS = {
   ATTENDANCE: {
     CHECK_IN: '/attendance/check-in',
     CHECK_OUT: '/attendance/check-out',
-    BREAK_START: '/attendance/break-start',
-    BREAK_END: '/attendance/break-end',
+    CLOCK_IN: '/attendance/clock-in',
+    CLOCK_OUT: '/attendance/clock-out',
+    BREAK_START: '/attendance/break/start',
+    BREAK_END: '/attendance/break/end',
+    TODAY: '/attendance/today',
+    BRANCH_TODAY: '/attendance/branch/today',
+    MY_RECORDS: '/attendance/my-records',
     MY_STATUS: '/attendance/my-status',
     RECORDS: '/attendance/records',
     SUMMARY: '/attendance/summary',
+    ADMIN_RECORDS: '/attendance/admin/records',
+    ADMIN_SUMMARY: '/attendance/admin/summary',
+    ADMIN_USER_BREAKDOWN: (userId: string) => `/attendance/admin/user-breakdown/${userId}`,
+    ADMIN_RECORD_BY_ID: (id: string) => `/attendance/admin/${id}`,
     BY_USER: (userId: string) => `/attendance/user/${userId}`,
     BY_ID: (id: string) => `/attendance/${id}`,
+    KIOSK_EMPLOYEES: '/attendance/kiosk/employees',
+    KIOSK_CLOCK: '/attendance/kiosk/clock',
+  },
+  AUDIT_LOGS: {
+    BASE: '/audit-logs',
+    BY_ENTITY: (entityId: string) => `/audit-logs/entity/${entityId}`,
   },
   REPORTS: {
     FINANCIAL: '/reports/financial',
@@ -127,3 +148,4 @@ export const API_ENDPOINTS = {
     MIGRATE_BRANCHES: '/system/migration/branches',
   },
 } as const;
+

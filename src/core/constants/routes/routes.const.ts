@@ -1,6 +1,7 @@
 export const APP_ROUTES = {
   PORTAL: '/',
   LOGIN: '/login',
+  KIOSK: '/kiosco',
   ADMIN: {
     ROOT: '/admin',
     CITAS: '/admin/citas',
@@ -13,7 +14,9 @@ export const APP_ROUTES = {
     MANTENIMIENTO: '/admin/mantenimiento',
     ASISTENCIA: '/admin/asistencia',
     PEDIDOS: '/admin/pedidos',
+    AUDITORIA: '/admin/auditoria',
   },
 } as const;
+
 
 export type AppRoute = typeof APP_ROUTES;

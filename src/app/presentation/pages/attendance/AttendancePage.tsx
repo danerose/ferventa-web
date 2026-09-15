@@ -390,9 +390,21 @@ export const AttendancePage: React.FC = () => {
         <Box as="header" className="bg-base-100 px-7 py-4 border-b border-base-300">
           <Flex justify="between" align="center">
             <Heading level={4} className="font-bold">Control de Asistencia y Horarios</Heading>
-            <Badge variant={isAdmin ? 'primary' : 'info'} size="md">
-              {isAdmin ? 'Administrador' : 'Colaborador'}
-            </Badge>
+            <Flex align="center" gap="sm">
+              <a
+                href="/asistencia/kiosco"
+                target="_blank"
+                rel="noreferrer"
+                className="btn btn-sm btn-outline btn-primary gap-1.5"
+                title="Abrir terminal de autoservicio para tablet de taller"
+              >
+                <Icon name="ExternalLink" size="xs" />
+                Modo Kiosco
+              </a>
+              <Badge variant={isAdmin ? 'primary' : 'info'} size="md">
+                {isAdmin ? 'Administrador' : 'Colaborador'}
+              </Badge>
+            </Flex>
           </Flex>
         </Box>
 

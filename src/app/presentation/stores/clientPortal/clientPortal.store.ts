@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Appointment, MaintenanceTrack, OccupiedSlots, Branch } from '@/app/domain';
+import type { Appointment, MaintenanceTrack, OccupiedSlots, PublicBranch } from '@/app/domain';
 import { clientPortalUseCases } from '@/core/di/container';
 import { cleanPhoneDigits } from '@/core/utils';
 
@@ -17,6 +17,7 @@ interface ClientPortalState {
   formModel: string;
   formYear: string;
   formSerialNumberLastFour: string;
+  formColor: string;
   formServiceRequested: string;
   formSelectedDate: string;
   formSelectedTime: string;
@@ -39,7 +40,7 @@ interface ClientPortalState {
   occupiedSlotsError: string | null;
 
   // Branches
-  branches: Branch[];
+  branches: PublicBranch[];
 
   // Actions
   setFormField: (field: string, value: string) => void;
@@ -65,6 +66,7 @@ export const useClientPortalStore = create<ClientPortalState>((set, get) => ({
   formModel: '',
   formYear: '',
   formSerialNumberLastFour: '',
+  formColor: '',
   formServiceRequested: 'Frenos y Suspensión',
   formSelectedDate: '',
   formSelectedTime: '',
@@ -106,6 +108,7 @@ export const useClientPortalStore = create<ClientPortalState>((set, get) => ({
       formModel,
       formYear,
       formSerialNumberLastFour,
+      formColor,
       formServiceRequested,
       formSelectedDate,
       formSelectedTime,
@@ -125,37 +128,45 @@ export const useClientPortalStore = create<ClientPortalState>((set, get) => ({
       set({ bookingLoading: false, formValidationError: 'El teléfono es requerido (mínimo 10 dígitos).' });
       return;
     }
+    if (!formBrand.trim()) {
+      set({ bookingLoading: false, formValidationError: 'La marca del vehículo es requerida.' });
+      return;
+    }
+    if (!formModel.trim()) {
+      set({ bookingLoading: false, formValidationError: 'El modelo del vehículo es requerido.' });
+      return;
+    }
     if (!formSelectedDate || !formSelectedTime) {
       set({ bookingLoading: false, formValidationError: 'La fecha y el horario de la cita son requeridos.' });
       return;
     }
 
     try {
-      if (formBranchId) {
-        localStorage.setItem('ferventa_public_branch', formBranchId);
-      }
-      
       const scheduledAtStr = `${formSelectedDate}T${formSelectedTime}:00Z`;
       const selectedDateObj = new Date(scheduledAtStr);
 
       const serialToSend = formSerialNumberLastFour?.trim()
         ? formSerialNumberLastFour.trim().slice(0, 4).toUpperCase()
-        : 'N/A';
+        : '';
+
+      const parsedYear = formYear.trim() !== '' ? (parseInt(formYear.trim(), 10) || undefined) : undefined;
 
       await clientPortalUseCases.bookAppointment.execute({
         customerName: formCustomerName.trim(),
         customerPhone: formCustomerPhone.trim(),
         customerEmail: formCustomerEmail.trim(),
         vehicle: {
-          brand: formBrand.trim() || 'Genérica',
-          model: formModel.trim() || 'Generico',
-          year: formYear.trim() === '' ? 1900 : (parseInt(formYear) || 0),
+          brand: formBrand.trim(),
+          model: formModel.trim(),
+          year: parsedYear || '',
           serialNumberLastFour: serialToSend,
+          color: formColor.trim() || undefined,
         },
         serviceRequested: formServiceRequested,
         scheduledAt: selectedDateObj.toISOString(),
         notes: formNotes.trim(),
         branchName: formBranchName,
+        branchId: formBranchId || undefined,
       });
 
       set({ bookingLoading: false, bookingSuccess: true, bookingError: null });
@@ -179,33 +190,27 @@ export const useClientPortalStore = create<ClientPortalState>((set, get) => ({
           return null as MaintenanceTrack | null;
         }),
       ]);
-
+      set({ appointments, maintenanceTrack, searchLoading: false });
+    } catch {
       set({
-        appointments,
-        maintenanceTrack,
+        searchError: 'No se pudo consultar el estatus. Por favor intente más tarde.',
         searchLoading: false,
-        searchError: null,
-      });
-    } catch (error) {
-      const errMsg = error instanceof Error ? error.message : 'Error al realizar la búsqueda';
-      set({
-        appointments: [],
-        maintenanceTrack: null,
-        searchLoading: false,
-        searchError: errMsg,
       });
     }
   },
 
   loadOccupiedSlots: async (startDate, endDate) => {
-    if (get().occupiedSlotsLoading) return;
     set({ occupiedSlotsLoading: true, occupiedSlotsError: null });
     try {
-      const occupiedSlots = await clientPortalUseCases.getOccupiedSlots.execute(startDate, endDate);
-      set({ occupiedSlots, occupiedSlotsLoading: false, occupiedSlotsError: null });
+      const currentBranch = get().formBranchId || undefined;
+      const slots = await clientPortalUseCases.getOccupiedSlots.execute(startDate, endDate, currentBranch);
+      set({ occupiedSlots: slots, occupiedSlotsLoading: false });
     } catch (error) {
-      const errMsg = error instanceof Error ? error.message : 'Error al cargar horarios ocupados';
-      set({ occupiedSlotsLoading: false, occupiedSlotsError: errMsg });
+      console.warn('Failed fetching occupied slots:', error);
+      set({
+        occupiedSlotsError: 'No se pudieron cargar los horarios ocupados',
+        occupiedSlotsLoading: false,
+      });
     }
   },
 
@@ -218,6 +223,7 @@ export const useClientPortalStore = create<ClientPortalState>((set, get) => ({
       formModel: '',
       formYear: '',
       formSerialNumberLastFour: '',
+      formColor: '',
       formServiceRequested: 'Frenos y Suspensión',
       formSelectedDate: '',
       formSelectedTime: '',
@@ -255,7 +261,6 @@ export const useClientPortalStore = create<ClientPortalState>((set, get) => ({
         const firstBranch = branches[0];
         const firstBranchId = firstBranch.id || firstBranch._id || '';
         set({ formBranchId: firstBranchId, formBranchName: firstBranch.name });
-        localStorage.setItem('ferventa_public_branch', firstBranchId);
       }
     } catch (e) {
       console.error('Error fetching public branches:', e);

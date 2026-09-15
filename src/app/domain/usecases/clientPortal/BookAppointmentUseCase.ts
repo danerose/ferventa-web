@@ -15,6 +15,12 @@ export class BookAppointmentUseCase {
     if (!appointment.customerPhone.trim()) {
       throw new Error('El teléfono del cliente es requerido');
     }
+    if (!appointment.vehicle?.brand?.trim()) {
+      throw new Error('La marca del vehículo es requerida');
+    }
+    if (!appointment.vehicle?.model?.trim()) {
+      throw new Error('El modelo del vehículo es requerido');
+    }
     if (!appointment.scheduledAt) {
       throw new Error('La fecha y hora de la cita es requerida');
     }
@@ -25,7 +31,7 @@ export class BookAppointmentUseCase {
         ...appointment.vehicle,
         serialNumberLastFour: appointment.vehicle.serialNumberLastFour?.trim()
           ? appointment.vehicle.serialNumberLastFour.trim().slice(0, 4)
-          : 'N/A',
+          : '',
       },
     };
 

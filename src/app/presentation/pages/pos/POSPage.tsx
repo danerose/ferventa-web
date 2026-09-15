@@ -11,6 +11,7 @@ import {
   KbdBadge,
   TemporaryServiceModal,
   TicketReceipt,
+  ServiceInvoiceReceipt,
   QuotationReceipt,
   ProductDetailModal,
 } from '@/app/presentation/components';
@@ -231,9 +232,10 @@ export const POSPage: React.FC = () => {
     serviceSearchValue,
     serviceResults,
     subtotal, tax, total,
-    applyTax, isFullDiscount,
+    applyTax, isFullDiscount, applyCommission,
     toggleApplyTax,
     toggleFullDiscount,
+    toggleApplyCommission,
     setSearchValue,
     setServiceSearchValue,
     addProductToCart,
@@ -1110,6 +1112,22 @@ export const POSPage: React.FC = () => {
                     </span>
                   </label>
 
+                  {/* Comisión Tarjeta 4% */}
+                  <label className="flex items-center justify-between p-2 px-3 bg-amber-500/10 border border-amber-500/20 rounded-lg cursor-pointer select-none text-xs font-semibold text-amber-800 dark:text-amber-300">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={applyCommission}
+                        onChange={(e) => toggleApplyCommission(e.target.checked)}
+                        className="w-4 h-4 accent-amber-600 rounded cursor-pointer"
+                      />
+                      <span>
+                        Comisión tarjeta <span className="font-normal opacity-80">(+4% en productos y servicios)</span>
+                      </span>
+                    </div>
+                    <span className="text-[10px] bg-amber-500/20 px-1.5 py-0.5 rounded font-mono">+4%</span>
+                  </label>
+
                   {/* Full discount */}
                   <label className="flex items-center gap-2 p-2 px-3 bg-success/10 border border-success/20 rounded-lg cursor-pointer select-none text-xs font-semibold text-success">
                     <input type="checkbox" checked={isFullDiscount} onChange={(e) => toggleFullDiscount(e.target.checked)} className="w-4 h-4 accent-success rounded cursor-pointer" />
@@ -1169,6 +1187,9 @@ export const POSPage: React.FC = () => {
       {/* ── Printable Thermal Receipt Ticket ──────────────────────────────────── */}
       <TicketReceipt sale={lastCompletedSale} branchName={activeBranchName} sellerName={user?.name} />
 
+      {/* ── Printable Service Invoice / Factura Document ──────────────────────── */}
+      <ServiceInvoiceReceipt sale={lastCompletedSale} branchName={activeBranchName} sellerName={user?.name} />
+
       {/* ── Printable Quotation Document ──────────────────────────────────────── */}
       <QuotationReceipt
         items={cart}
@@ -1196,7 +1217,7 @@ export const POSPage: React.FC = () => {
             Total: <strong style={{ color: '#0f172a' }}>${total.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</strong>
           </p>
           <p style={{ fontSize: '13px', fontWeight: '600', color: '#0f172a', marginBottom: '10px' }}>Método de pago</p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '28px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: paymentMethod === 'card' ? '12px' : '24px' }}>
             {(
               [
                 { value: 'cash' as const, icon: 'DollarSign' as const, label: 'Efectivo', key: '1' },
@@ -1223,6 +1244,30 @@ export const POSPage: React.FC = () => {
               </button>
             ))}
           </div>
+
+          {/* Card Commission 4% in Checkout Modal */}
+          {paymentMethod === 'card' && (
+            <div style={{
+              background: '#fffbeb',
+              border: '1px solid #fde68a',
+              borderRadius: '8px',
+              padding: '12px',
+              marginBottom: '20px',
+            }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: 600, fontSize: '12.5px', color: '#92400e' }}>
+                <input
+                  type="checkbox"
+                  checked={applyCommission}
+                  onChange={(e) => toggleApplyCommission(e.target.checked)}
+                  style={{ width: '16px', height: '16px', cursor: 'pointer', accentColor: '#d97706' }}
+                />
+                <span>Aplicar comisión de tarjeta / terminal (+4%)</span>
+              </label>
+              <p style={{ margin: '4px 0 0 24px', fontSize: '11px', color: '#b45309', lineHeight: 1.3 }}>
+                * El 4% se calcula en cada producto y servicio del carrito sin aparecer como cargo extra en el ticket ni factura.
+              </p>
+            </div>
+          )}
         </div>
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
           <SecondaryButton onClick={() => setActiveModal(null)} disabled={processing}>
@@ -1245,21 +1290,34 @@ export const POSPage: React.FC = () => {
       {/* Success modal */}
       {activeModal === 'checkoutSuccess' && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }}>
-          <div style={{ background: 'white', padding: '40px', borderRadius: '16px', width: '420px', maxWidth: '90vw', textAlign: 'center' }}>
-            <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: '#dcfce7', color: '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+          <div style={{ background: 'white', padding: '36px', borderRadius: '16px', width: '440px', maxWidth: '90vw', textAlign: 'center' }}>
+            <div style={{ width: '60px', height: '60px', borderRadius: '50%', background: '#dcfce7', color: '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
               <Icon name="Check" size="lg" />
             </div>
             <h2 style={{ fontSize: '22px', fontWeight: '700', marginBottom: '8px', color: '#0f172a' }}>¡Venta Registrada!</h2>
-            <p style={{ fontSize: '14px', color: '#64748b', marginBottom: '8px' }}>El cobro se ha procesado correctamente.</p>
-            <p style={{ fontSize: '13px', color: '#94a3b8', marginBottom: '24px' }}>
+            <p style={{ fontSize: '14px', color: '#64748b', marginBottom: '6px' }}>El cobro se ha procesado correctamente.</p>
+            <p style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '20px' }}>
               Los insumos han sido descontados del inventario de <strong>{activeBranchName}</strong>.
             </p>
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <SecondaryButton className="flex-1 justify-center" onClick={handlePrintReceipt}>
-                <Icon name="Printer" size="sm" className="mr-2" />
-                Imprimir Ticket <KbdBadge keys="P" style={{ marginLeft: '6px' }} />
-              </SecondaryButton>
-              <PrimaryButton className="flex-1 justify-center" onClick={handleCloseSuccess}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <SecondaryButton className="flex-1 justify-center text-xs py-2" onClick={handlePrintReceipt}>
+                  <Icon name="Printer" size="xs" className="mr-1.5" />
+                  Imprimir Ticket <KbdBadge keys="P" style={{ marginLeft: '4px' }} />
+                </SecondaryButton>
+                <SecondaryButton
+                  className="flex-1 justify-center text-xs py-2"
+                  onClick={() => {
+                    document.body.classList.remove('print-ticket-mode', 'print-doc-mode');
+                    document.body.classList.add('print-invoice-mode');
+                    setTimeout(() => window.print(), 100);
+                  }}
+                >
+                  <Icon name="FileText" size="xs" className="mr-1.5" />
+                  Factura de Servicio
+                </SecondaryButton>
+              </div>
+              <PrimaryButton className="w-full justify-center" onClick={handleCloseSuccess}>
                 Nueva Venta <KbdBadge keys="Enter ↵" style={{ marginLeft: '6px' }} />
               </PrimaryButton>
             </div>

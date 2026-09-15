@@ -20,16 +20,23 @@ import {
   ServiceStatus,
   SERVICE_STATUS_COLORS,
   SERVICE_STATUS_LABELS,
+  UserRole,
 } from '@/core/enums';
-import type { AdminMaintenanceOrder } from '@/app/domain';
-import { formatDate, formatCurrency, buildMaintenanceWhatsAppMessage } from '@/core/utils';
+import { useAuthorization } from '@/core/hooks';
+import { EntityAuditLogsModal } from '@/app/presentation/components/organisms/Modals/EntityAuditLogsModal';
+import type { AdminMaintenanceOrder, Sale } from '@/app/domain';
+import { formatDate, formatCurrency } from '@/core/utils';
 import { cleanPhoneDigits } from '@/core/utils/formatters/formatPhoneNumber';
 import { useActiveBranch } from '@/app/presentation/hooks';
+import { ServiceReceptionReceipt } from '@/app/presentation/components/molecules/Receipt/ServiceReceptionReceipt';
+import { ServiceInvoiceReceipt } from '@/app/presentation/components/molecules/Receipt/ServiceInvoiceReceipt';
+import { TicketReceipt } from '@/app/presentation/components/molecules/Receipt/TicketReceipt';
 
 export interface MaintenanceDetailDrawerProps {
   isOpen: boolean;
   order: AdminMaintenanceOrder | null;
   assignableUsers: { value: string; label: string }[];
+  isMechanic?: boolean;
   onClose: () => void;
   onStatusChange: (id: string, newStatus: AdminMaintenanceOrder['status']) => Promise<void>;
   onAssignMechanic: (id: string, mechanicId: string) => Promise<void>;
@@ -44,6 +51,7 @@ export const MaintenanceDetailDrawer: React.FC<MaintenanceDetailDrawerProps> = (
   isOpen,
   order,
   assignableUsers,
+  isMechanic = false,
   onClose,
   onStatusChange,
   onAssignMechanic,
@@ -54,6 +62,9 @@ export const MaintenanceDetailDrawer: React.FC<MaintenanceDetailDrawerProps> = (
   onUnlinkSale,
 }) => {
   const { activeBranchName } = useActiveBranch();
+  const { hasRole } = useAuthorization();
+  const isAdmin = hasRole([UserRole.Admin]);
+  const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
   const [newNote, setNewNote] = useState('');
   const [isSubmittingNote, setIsSubmittingNote] = useState(false);
   const [statusUpdating, setStatusUpdating] = useState(false);
@@ -89,6 +100,30 @@ export const MaintenanceDetailDrawer: React.FC<MaintenanceDetailDrawerProps> = (
     navigator.clipboard.writeText(order.id);
     setCopiedFolio(true);
     setTimeout(() => setCopiedFolio(false), 2000);
+  };
+
+  const handlePrintReception = () => {
+    document.body.classList.remove('print-ticket-mode', 'print-invoice-mode');
+    document.body.classList.add('print-doc-mode');
+    setTimeout(() => {
+      window.print();
+    }, 100);
+  };
+
+  const handlePrintInvoice = () => {
+    document.body.classList.remove('print-ticket-mode', 'print-doc-mode');
+    document.body.classList.add('print-invoice-mode');
+    setTimeout(() => {
+      window.print();
+    }, 100);
+  };
+
+  const handlePrintTicket = () => {
+    document.body.classList.remove('print-doc-mode', 'print-invoice-mode');
+    document.body.classList.add('print-ticket-mode');
+    setTimeout(() => {
+      window.print();
+    }, 100);
   };
 
   const handleAddNoteSubmit = async (e: React.FormEvent) => {
@@ -142,19 +177,8 @@ export const MaintenanceDetailDrawer: React.FC<MaintenanceDetailDrawerProps> = (
   const sColor = SERVICE_STATUS_COLORS[order.status] || SERVICE_STATUS_COLORS[ServiceStatus.NotStarted];
   const phoneDigits = cleanPhoneDigits(order.customer.phone || '');
 
-  // WhatsApp quick link
-  const waMessage = buildMaintenanceWhatsAppMessage({
-    customerName: order.customer.name,
-    vehicle: {
-      brand: order.vehicle.brand,
-      model: order.vehicle.model,
-      serialNumberLastFour: order.vehicle.serialNumberLastFour,
-    },
-    status: order.status,
-    branchName: activeBranchName,
-    serviceRequested: order.serviceRequested,
-  });
-  const waUrl = phoneDigits ? `https://wa.me/52${phoneDigits}?text=${encodeURIComponent(waMessage)}` : undefined;
+  // WhatsApp quick link (empty message for direct chat)
+  const waUrl = phoneDigits ? `https://wa.me/52${phoneDigits}` : undefined;
 
   // Milestone timeline calculation
   const timelineMilestones = [
@@ -223,6 +247,26 @@ export const MaintenanceDetailDrawer: React.FC<MaintenanceDetailDrawerProps> = (
                   <Icon name={copiedFolio ? 'Check' : 'Copy'} size="xs" />
                   <span className="font-mono text-[11px]">{copiedFolio ? '¡Copiado!' : `ID: ${order.id.slice(-6).toUpperCase()}`}</span>
                 </SecondaryButton>
+                <SecondaryButton
+                  size="xs"
+                  onClick={handlePrintReception}
+                  className="py-0.5 px-2 text-xs flex items-center gap-1"
+                  title="Imprimir Comprobante de Recepción con Cláusulas Legales"
+                >
+                  <Icon name="Printer" size="xs" />
+                  <span className="text-[11px] font-semibold">Imprimir Recepción</span>
+                </SecondaryButton>
+                {isAdmin && (
+                  <SecondaryButton
+                    size="xs"
+                    onClick={() => setIsAuditModalOpen(true)}
+                    className="py-0.5 px-2 text-xs flex items-center gap-1 text-primary hover:bg-primary/10"
+                    title="Consultar bitácora de auditoría de esta orden"
+                  >
+                    <Icon name="ShieldCheck" size="xs" />
+                    <span className="text-[11px] font-semibold">Auditoría</span>
+                  </SecondaryButton>
+                )}
               </Flex>
               <Heading level={3} className="text-lg font-black text-base-content tracking-tight">
                 {order.vehicle.brand} {order.vehicle.model} {order.vehicle.year ? `(${order.vehicle.year})` : ''}
@@ -288,33 +332,11 @@ export const MaintenanceDetailDrawer: React.FC<MaintenanceDetailDrawerProps> = (
               </div>
             </Box>
 
-            {/* QUICK CONTROLS: Status & Assigned Mechanic & Notification */}
+            {/* QUICK CONTROLS: Status & Assigned Mechanic */}
             <Box bg="base-100" rounded="DEFAULT" className="p-4 border border-base-300 shadow-xs space-y-4">
-              <Flex justify="between" align="center" className="flex-wrap gap-2">
-                <Text size="xs" weight="bold" variant="muted" className="uppercase tracking-wider">
-                  Control de Estado & Asignación
-                </Text>
-
-                {/* Notify Customer Button */}
-                {(order.status === ServiceStatus.Completed || order.status === ServiceStatus.Delivered || order.notifiedAt) && (
-                  <Flex align="center" gap="xs">
-                    {order.notifiedAt && (
-                      <Badge variant="soft" color="info" size="xs" className="gap-1">
-                        <Icon name="Check" size="xs" />
-                        Notificado ({formatDate(order.notifiedAt)})
-                      </Badge>
-                    )}
-                    <PrimaryButton
-                      size="xs"
-                      color="info"
-                      onClick={handleNotifyClick}
-                      iconStart={<Icon name="Bell" size="xs" />}
-                    >
-                      {order.notifiedAt ? 'Re-notificar' : 'Avisar al Cliente'}
-                    </PrimaryButton>
-                  </Flex>
-                )}
-              </Flex>
+              <Text size="xs" weight="bold" variant="muted" className="uppercase tracking-wider">
+                Control de Estado & Asignación
+              </Text>
 
               <Grid cols={{ base: 1, sm: 2 }} gap="md">
                 <Box>
@@ -324,7 +346,7 @@ export const MaintenanceDetailDrawer: React.FC<MaintenanceDetailDrawerProps> = (
                   <Select
                     size="sm"
                     value={order.status}
-                    disabled={statusUpdating}
+                    disabled={statusUpdating || (isMechanic && order.status === ServiceStatus.Delivered)}
                     onChange={(e) => handleStatusSelectChange(e.target.value as AdminMaintenanceOrder['status'])}
                     options={[
                       { value: ServiceStatus.NotStarted, label: SERVICE_STATUS_LABELS[ServiceStatus.NotStarted] },
@@ -333,22 +355,35 @@ export const MaintenanceDetailDrawer: React.FC<MaintenanceDetailDrawerProps> = (
                       { value: ServiceStatus.Delivered, label: SERVICE_STATUS_LABELS[ServiceStatus.Delivered] },
                     ]}
                   />
+                  {isMechanic && order.status === ServiceStatus.Delivered && (
+                    <span className="text-[10px] text-warning mt-1 block font-medium">
+                      Orden entregada. Estado bloqueado para mecánicos.
+                    </span>
+                  )}
                 </Box>
 
                 <Box>
                   <Text as="label" size="xs" weight="semibold" variant="muted" className="block mb-1">
                     Mecánico Asignado
                   </Text>
-                  <Select
-                    size="sm"
-                    value={
-                      typeof order.assignedMechanic === 'string'
+                  {isMechanic ? (
+                    <Box className="p-2 bg-base-100 rounded border border-base-300 text-xs font-semibold text-base-content">
+                      {typeof order.assignedMechanic === 'string'
                         ? order.assignedMechanic
-                        : (order.assignedMechanic?.id || order.assignedMechanic?._id || (typeof order.mechanic === 'string' ? order.mechanic : (order.mechanic?.id || order.mechanic?._id)) || '')
-                    }
-                    onChange={(e) => onAssignMechanic(order.id, e.target.value)}
-                    options={assignableUsers}
-                  />
+                        : (order.assignedMechanic?.name || (typeof order.mechanic === 'string' ? order.mechanic : order.mechanic?.name) || 'Asignado a ti')}
+                    </Box>
+                  ) : (
+                    <Select
+                      size="sm"
+                      value={
+                        typeof order.assignedMechanic === 'string'
+                          ? order.assignedMechanic
+                          : (order.assignedMechanic?.id || order.assignedMechanic?._id || (typeof order.mechanic === 'string' ? order.mechanic : (order.mechanic?.id || order.mechanic?._id)) || '')
+                      }
+                      onChange={(e) => onAssignMechanic(order.id, e.target.value)}
+                      options={assignableUsers}
+                    />
+                  )}
                 </Box>
               </Grid>
             </Box>
@@ -356,39 +391,68 @@ export const MaintenanceDetailDrawer: React.FC<MaintenanceDetailDrawerProps> = (
             {/* CUSTOMER & VEHICLE INFO */}
             <Grid cols={{ base: 1, sm: 2 }} gap="md">
               {/* Customer */}
-              <Box bg="base-200" rounded="DEFAULT" className="p-4 border border-base-300">
-                <Flex align="center" gap="xs" className="mb-2 text-primary">
-                  <Icon name="User" size="sm" />
-                  <Text size="xs" weight="bold" className="uppercase tracking-wider text-base-content">
-                    Cliente
-                  </Text>
-                </Flex>
-                <Text size="sm" weight="bold" className="text-base-content">
-                  {order.customer.name}
-                </Text>
-                {order.customer.phone && (
-                  <Flex align="center" gap="xs" className="mt-1">
-                    <Text size="xs" variant="muted" className="font-mono">
-                      {order.customer.phone}
-                    </Text>
-                    {waUrl && (
-                      <a
-                        href={waUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="btn btn-xs btn-ghost text-success hover:bg-success/10 gap-1 px-1.5 h-6 min-h-6"
-                        title="Enviar mensaje de WhatsApp"
+              <Box bg="base-200" rounded="DEFAULT" className="p-4 border border-base-300 flex flex-col justify-between">
+                <div>
+                  <Flex justify="between" align="center" className="mb-2">
+                    <Flex align="center" gap="xs" className="text-primary">
+                      <Icon name="User" size="sm" />
+                      <Text size="xs" weight="bold" className="uppercase tracking-wider text-base-content">
+                        Cliente
+                      </Text>
+                    </Flex>
+
+                    {/* Notify Customer Button */}
+                    {!isMechanic && (order.status === ServiceStatus.Completed || order.status === ServiceStatus.Delivered || order.notifiedAt) && (
+                      <PrimaryButton
+                        size="xs"
+                        color="info"
+                        onClick={handleNotifyClick}
+                        iconStart={<Icon name="Bell" size="xs" />}
+                        className="py-1 px-2 text-[11px] font-bold"
                       >
-                        <Icon name="MessageSquare" size="xs" />
-                        <span className="text-[10px] font-bold">WhatsApp</span>
-                      </a>
+                        {order.notifiedAt ? 'Re-notificar' : 'Avisar al Cliente'}
+                      </PrimaryButton>
                     )}
                   </Flex>
-                )}
-                {order.customer.email && (
-                  <Text size="xs" variant="muted" className="block mt-0.5">
-                    {order.customer.email}
+
+                  <Text size="sm" weight="bold" className="text-base-content">
+                    {order.customer.name}
                   </Text>
+                  {order.customer.phone && (
+                    <Flex align="center" gap="xs" className="mt-1 flex-wrap">
+                      <Text size="xs" variant="muted" className="font-mono">
+                        {order.customer.phone}
+                      </Text>
+                      {!isMechanic && waUrl && (
+                        <a
+                          href={waUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="btn btn-xs btn-ghost text-success hover:bg-success/10 gap-1 px-1.5 h-6 min-h-6"
+                          title="Abrir chat de WhatsApp"
+                        >
+                          <Icon name="MessageSquare" size="xs" />
+                          <span className="text-[10px] font-bold">WhatsApp</span>
+                        </a>
+                      )}
+                    </Flex>
+                  )}
+                  {order.customer.email && (
+                    <Text size="xs" variant="muted" className="block mt-0.5">
+                      {order.customer.email}
+                    </Text>
+                  )}
+                </div>
+
+                {order.notifiedAt && (
+                  <Box className="mt-2.5 pt-2 border-t border-base-300/60">
+                    <Badge variant="soft" color="info" size="xs" className="gap-1">
+                      <Icon name="Check" size="xs" />
+                      {Array.isArray((order as any).notificationHistory) && (order as any).notificationHistory.length > 1
+                        ? `Notificado ${(order as any).notificationHistory.length} veces (Último: ${formatDate(order.notifiedAt)})`
+                        : `Notificado (${formatDate(order.notifiedAt)})`}
+                    </Badge>
+                  </Box>
                 )}
               </Box>
 
@@ -409,7 +473,7 @@ export const MaintenanceDetailDrawer: React.FC<MaintenanceDetailDrawerProps> = (
                     <Text size="xs" variant="muted" weight="semibold">
                       Mano de Obra
                     </Text>
-                    {!editingLaborCost && onUpdateLaborCost && (
+                    {!isMechanic && !editingLaborCost && onUpdateLaborCost && (
                       <TertiaryButton
                         size="xs"
                         className="h-6 min-h-6 px-1.5 text-primary gap-1"
@@ -545,22 +609,42 @@ export const MaintenanceDetailDrawer: React.FC<MaintenanceDetailDrawerProps> = (
                       )}
                     </Box>
 
-                    <Box className="text-right">
+                    <Box className="text-right flex flex-col items-end gap-1">
                       <Text size="md" weight="bold" className="text-primary font-mono text-base font-black">
                         {formatCurrency(order.sale.total || 0)}
                       </Text>
-                      {onUnlinkSale && (
+                      <Flex align="center" gap="xs" className="mt-0.5">
                         <TertiaryButton
                           size="xs"
-                          className="h-6 min-h-6 px-1.5 text-error hover:bg-error/10 text-[10px] mt-1 gap-1"
-                          disabled={unlinkingSale}
-                          onClick={handleUnlinkSale}
-                          title="Desvincular ticket de este mantenimiento"
+                          className="h-6 min-h-6 px-1.5 text-primary hover:bg-primary/10 text-[10px] gap-1"
+                          onClick={handlePrintTicket}
+                          title="Imprimir ticket térmico de la venta"
                         >
-                          <Icon name="Trash2" size="xs" />
-                          <span>Desvincular</span>
+                          <Icon name="Printer" size="xs" />
+                          <span>Ticket</span>
                         </TertiaryButton>
-                      )}
+                        <TertiaryButton
+                          size="xs"
+                          className="h-6 min-h-6 px-1.5 text-primary hover:bg-primary/10 text-[10px] gap-1"
+                          onClick={handlePrintInvoice}
+                          title="Imprimir factura / hoja de cobro del taller"
+                        >
+                          <Icon name="FileText" size="xs" />
+                          <span>Factura / Hoja</span>
+                        </TertiaryButton>
+                        {!isMechanic && onUnlinkSale && (
+                          <TertiaryButton
+                            size="xs"
+                            className="h-6 min-h-6 px-1.5 text-error hover:bg-error/10 text-[10px] gap-1"
+                            disabled={unlinkingSale}
+                            onClick={handleUnlinkSale}
+                            title="Desvincular ticket de este mantenimiento"
+                          >
+                            <Icon name="Trash2" size="xs" />
+                            <span>Desvincular</span>
+                          </TertiaryButton>
+                        )}
+                      </Flex>
                     </Box>
                   </Flex>
 
@@ -595,7 +679,7 @@ export const MaintenanceDetailDrawer: React.FC<MaintenanceDetailDrawerProps> = (
                       Asocia el ticket de cobro emitido en el Punto de Venta (POS) para refacciones y mano de obra.
                     </Text>
                   </Box>
-                  {onLinkSale && (
+                  {!isMechanic && onLinkSale && (
                     <PrimaryButton
                       size="xs"
                       color="primary"
@@ -607,6 +691,80 @@ export const MaintenanceDetailDrawer: React.FC<MaintenanceDetailDrawerProps> = (
                     </PrimaryButton>
                   )}
                 </Box>
+              )}
+            </Box>
+
+            {/* WHATSAPP NOTIFICATIONS LOG (CUMULATIVE) */}
+            <Box bg="base-100" rounded="DEFAULT" className="p-4 border border-base-300 shadow-xs space-y-3">
+              <Flex justify="between" align="center">
+                <Flex align="center" gap="xs">
+                  <Icon name="Bell" size="sm" className="text-info" />
+                  <Text size="xs" weight="bold" variant="muted" className="uppercase tracking-wider">
+                    Historial de Notificaciones WhatsApp
+                  </Text>
+                </Flex>
+                <Badge variant="soft" color="info" size="xs">
+                  {order.notifications?.length || (order.notifiedAt ? 1 : 0)} enviada(s)
+                </Badge>
+              </Flex>
+
+              {(!order.notifications || order.notifications.length === 0) && !order.notifiedAt ? (
+                <Box className="p-4 text-center bg-base-200/50 rounded-DEFAULT border border-dashed border-base-300">
+                  <Text size="xs" variant="muted">
+                    No se han registrado notificaciones enviadas al cliente aún.
+                  </Text>
+                </Box>
+              ) : (
+                <Stack spacing="xs" className="max-h-48 overflow-y-auto pr-1">
+                  {order.notifications && order.notifications.length > 0 ? (
+                    order.notifications.map((notif, nIdx) => (
+                      <Box
+                        key={nIdx}
+                        bg="base-200"
+                        rounded="DEFAULT"
+                        className="p-2.5 border border-base-300 text-xs space-y-1"
+                      >
+                        <Flex justify="between" align="center">
+                          <Flex align="center" gap="xs">
+                            <span className="w-2 h-2 rounded-full bg-success inline-block" />
+                            <Text size="xs" weight="bold" className="text-base-content">
+                              {notif.sentBy?.name || 'Sistema'}
+                            </Text>
+                            <Badge variant="soft" color="success" size="xs">
+                              WhatsApp
+                            </Badge>
+                          </Flex>
+                          <Text size="xs" variant="muted" className="font-mono text-[10px]">
+                            {formatDate(notif.sentAt)}
+                          </Text>
+                        </Flex>
+                        {notif.notes && (
+                          <Text size="xs" className="text-base-content/80 pl-3 border-l-2 border-success/40">
+                            {notif.notes}
+                          </Text>
+                        )}
+                      </Box>
+                    ))
+                  ) : (
+                    <Box bg="base-200" rounded="DEFAULT" className="p-2.5 border border-base-300 text-xs space-y-1">
+                      <Flex justify="between" align="center">
+                        <Flex align="center" gap="xs">
+                          <span className="w-2 h-2 rounded-full bg-success inline-block" />
+                          <Text size="xs" weight="bold" className="text-base-content">
+                            Aviso de Estado
+                          </Text>
+                          <Badge variant="soft" color="success" size="xs">WhatsApp</Badge>
+                        </Flex>
+                        <Text size="xs" variant="muted" className="font-mono text-[10px]">
+                          {formatDate(order.notifiedAt!)}
+                        </Text>
+                      </Flex>
+                      <Text size="xs" className="text-base-content/80 pl-3 border-l-2 border-success/40">
+                        Cliente notificado sobre avance del vehículo.
+                      </Text>
+                    </Box>
+                  )}
+                </Stack>
               )}
             </Box>
 
@@ -686,14 +844,95 @@ export const MaintenanceDetailDrawer: React.FC<MaintenanceDetailDrawerProps> = (
           </Box>
 
           {/* FOOTER */}
-          <Box className="px-6 py-3 bg-base-200 border-t border-base-300 flex justify-end gap-2">
-            <SecondaryButton size="sm" onClick={onClose}>
+          <Box className="px-4 sm:px-6 py-3 bg-base-200 border-t border-base-300 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+              <SecondaryButton
+                size="sm"
+                onClick={handlePrintReception}
+                iconStart={<Icon name="Printer" size="xs" />}
+                className="text-xs py-1.5 flex-1 sm:flex-initial justify-center"
+                title="Imprimir comprobante e inventario de recepción"
+              >
+                Comprobante Recepción
+              </SecondaryButton>
+
+              <SecondaryButton
+                size="sm"
+                onClick={handlePrintInvoice}
+                iconStart={<Icon name="FileText" size="xs" />}
+                className="text-xs py-1.5 flex-1 sm:flex-initial justify-center bg-primary/5 border-primary/30 text-primary hover:bg-primary/10"
+                title="Imprimir factura / remisión de cobro y servicio del taller"
+              >
+                Hoja de Servicio (Factura)
+              </SecondaryButton>
+
+              {order.sale && (
+                <SecondaryButton
+                  size="sm"
+                  onClick={handlePrintTicket}
+                  iconStart={<Icon name="Receipt" size="xs" />}
+                  className="text-xs py-1.5 flex-1 sm:flex-initial justify-center"
+                  title="Imprimir ticket térmico"
+                >
+                  Ticket
+                </SecondaryButton>
+              )}
+            </div>
+
+            <SecondaryButton size="sm" onClick={onClose} className="w-full sm:w-auto justify-center">
               Cerrar
             </SecondaryButton>
           </Box>
 
         </Box>
       </Box>
+
+      {/* Printable Vehicle Service Reception Document */}
+      <ServiceReceptionReceipt
+        order={order}
+        branchName={activeBranchName}
+        receiverName={
+          typeof order.assignedMechanic === 'string'
+            ? order.assignedMechanic
+            : (order.assignedMechanic?.name || (typeof order.mechanic === 'string' ? order.mechanic : order.mechanic?.name) || 'Taller')
+        }
+      />
+
+      {/* Printable Service Invoice / Workshop Remisión */}
+      <ServiceInvoiceReceipt
+        sale={order.sale as unknown as Sale}
+        order={order}
+        branchName={activeBranchName}
+        sellerName={
+          typeof order.assignedMechanic === 'string'
+            ? order.assignedMechanic
+            : (order.assignedMechanic?.name || (typeof order.mechanic === 'string' ? order.mechanic : order.mechanic?.name) || 'Taller Nova FV')
+        }
+      />
+
+      {/* Printable Thermal Receipt Ticket */}
+      {order.sale && (
+        <TicketReceipt
+          sale={order.sale as unknown as Sale}
+          branchName={activeBranchName}
+          sellerName={
+            typeof order.assignedMechanic === 'string'
+              ? order.assignedMechanic
+              : (order.assignedMechanic?.name || 'Taller')
+          }
+        />
+      )}
+
+      {/* Entity Audit Logs Modal (Admin Only) */}
+      {isAdmin && (
+        <EntityAuditLogsModal
+          isOpen={isAuditModalOpen}
+          onClose={() => setIsAuditModalOpen(false)}
+          entityId={order.id}
+          entityType="Maintenance"
+          title={`Auditoría - Orden ${order.vehicle.brand} ${order.vehicle.model}`}
+        />
+      )}
     </Box>
   );
 };

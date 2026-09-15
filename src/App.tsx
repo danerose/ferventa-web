@@ -19,6 +19,8 @@ const ScheduleSettingsPage = lazy(() => import('@/app/presentation/pages/schedul
 const SettingsPage = lazy(() => import('@/app/presentation/pages/settings/SettingsPage').then(m => ({ default: m.SettingsPage })));
 const AttendancePage = lazy(() => import('@/app/presentation/pages/attendance/AttendancePage').then(m => ({ default: m.AttendancePage })));
 const SpecialOrdersPage = lazy(() => import('@/app/presentation/pages/specialOrders/SpecialOrdersPage').then(m => ({ default: m.SpecialOrdersPage })));
+const AuditLogsPage = lazy(() => import('@/app/presentation/pages/admin/AuditLogsPage').then(m => ({ default: m.AuditLogsPage })));
+const AttendanceKioskPage = lazy(() => import('@/app/presentation/pages/attendance/AttendanceKioskPage').then(m => ({ default: m.AttendanceKioskPage })));
 
 const PageLoader = () => (
   <div className="min-h-screen bg-base-100 flex items-center justify-center">
@@ -160,12 +162,22 @@ export function App() {
           }
         />
 
-        {/* Ajustes: Solo Admin */}
+        {/* Ajustes: Admin y Vendedor */}
         <Route
           path={APP_ROUTES.ADMIN.SETTINGS}
           element={
-            <ProtectedRoute allowedRoles={[UserRole.Admin]}>
+            <ProtectedRoute allowedRoles={[UserRole.Admin, UserRole.Seller]}>
               <SettingsPage />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Auditoría: Solo Admin */}
+        <Route
+          path="/admin/auditoria"
+          element={
+            <ProtectedRoute allowedRoles={[UserRole.Admin]}>
+              <AuditLogsPage />
             </ProtectedRoute>
           }
         />
@@ -186,6 +198,24 @@ export function App() {
           element={
             <ProtectedRoute allowedRoles={[UserRole.Admin, UserRole.Receptionist, UserRole.Mechanic, UserRole.Warehouse, UserRole.Cashier, UserRole.Seller, UserRole.User]}>
               <AttendancePage />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Kiosco de Asistencia: Terminal para tablets y personal */}
+        <Route
+          path="/asistencia/kiosco"
+          element={
+            <ProtectedRoute allowedRoles={[UserRole.Admin, UserRole.Receptionist, UserRole.Mechanic, UserRole.Warehouse, UserRole.Cashier, UserRole.Seller, UserRole.User]}>
+              <AttendanceKioskPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/kiosco"
+          element={
+            <ProtectedRoute allowedRoles={[UserRole.Admin, UserRole.Receptionist, UserRole.Mechanic, UserRole.Warehouse, UserRole.Cashier, UserRole.Seller, UserRole.User]}>
+              <AttendanceKioskPage />
             </ProtectedRoute>
           }
         />

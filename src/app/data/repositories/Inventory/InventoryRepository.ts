@@ -1,4 +1,17 @@
-import type { Brand, Category, Provider, Product, StockMovement, CreateProviderDto, CreateProductDto, CreateStockMovementDto } from '@/app/domain';
+import type {
+  Brand,
+  Category,
+  Provider,
+  Product,
+  StockMovement,
+  CreateProviderDto,
+  CreateProductDto,
+  CreateStockMovementDto,
+  MerchandiseReception,
+  CreateDraftReceptionDto,
+  OpenBoxResult,
+} from '@/app/domain';
+
 
 export interface PaginatedResult<T> {
   items: T[];
@@ -412,5 +425,87 @@ export class APIInventoryRepository {
     if (res.status === 401) throw new Error('UNAUTHORIZED');
     if (!res.ok || !json.success) throw new Error(json.message || 'Error al eliminar movimiento');
   }
+
+  // ── Receptions & QR Boxes ──────────────────────────────────────────────────
+
+  async getReceptions(token: string, status?: string): Promise<MerchandiseReception[]> {
+    const params = new URLSearchParams();
+    if (status && status !== 'all') params.set('status', status);
+    const res = await this.fetchWithAuth(`${this.baseUrl}/inventory/receptions?${params.toString()}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const json = await res.json();
+    if (res.status === 401) throw new Error('UNAUTHORIZED');
+    if (!res.ok || !json.success) throw new Error(json.message || 'Error al obtener recepciones');
+    const list = json.data ?? [];
+    return list.map((r: Record<string, unknown>) => ({
+      ...r,
+      id: String(r.id || r._id || ''),
+    })) as MerchandiseReception[];
+  }
+
+  async getReceptionById(token: string, id: string): Promise<MerchandiseReception> {
+    const res = await this.fetchWithAuth(`${this.baseUrl}/inventory/receptions/${id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const json = await res.json();
+    if (res.status === 401) throw new Error('UNAUTHORIZED');
+    if (!res.ok || !json.success) throw new Error(json.message || 'Error al obtener recepción');
+    const r = json.data;
+    return { ...r, id: String(r?.id || r?._id || '') } as MerchandiseReception;
+  }
+
+  async createDraftReception(token: string, data: CreateDraftReceptionDto): Promise<MerchandiseReception> {
+    const res = await this.fetchWithAuth(`${this.baseUrl}/inventory/receptions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify(data),
+    });
+    const json = await res.json();
+    if (res.status === 401) throw new Error('UNAUTHORIZED');
+    if (!res.ok || !json.success) throw new Error(json.message || 'Error al registrar recepción en borrador');
+    const r = json.data;
+    return { ...r, id: String(r?.id || r?._id || '') } as MerchandiseReception;
+  }
+
+  async approveReception(token: string, id: string): Promise<MerchandiseReception> {
+    const res = await this.fetchWithAuth(`${this.baseUrl}/inventory/receptions/${id}/approve`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const json = await res.json();
+    if (res.status === 401) throw new Error('UNAUTHORIZED');
+    if (res.status === 403) throw new Error('Permiso denegado: Solo el Administrador puede aprobar recepciones.');
+    if (!res.ok || !json.success) throw new Error(json.message || 'Error al aprobar recepción');
+    const r = json.data;
+    return { ...r, id: String(r?.id || r?._id || '') } as MerchandiseReception;
+  }
+
+  async rejectReception(token: string, id: string, reason?: string): Promise<MerchandiseReception> {
+    const res = await this.fetchWithAuth(`${this.baseUrl}/inventory/receptions/${id}/reject`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ reason: reason || 'Rechazado por Administrador' }),
+    });
+    const json = await res.json();
+    if (res.status === 401) throw new Error('UNAUTHORIZED');
+    if (res.status === 403) throw new Error('Permiso denegado: Solo el Administrador puede rechazar recepciones.');
+    if (!res.ok || !json.success) throw new Error(json.message || 'Error al rechazar recepción');
+    const r = json.data;
+    return { ...r, id: String(r?.id || r?._id || '') } as MerchandiseReception;
+  }
+
+  async openBox(token: string, boxCode: string): Promise<OpenBoxResult> {
+    const res = await this.fetchWithAuth(`${this.baseUrl}/inventory/boxes/open`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ boxCode: boxCode.trim() }),
+    });
+    const json = await res.json();
+    if (res.status === 401) throw new Error('UNAUTHORIZED');
+    if (!res.ok || !json.success) throw new Error(json.message || 'Error al abrir caja');
+    return json.data as OpenBoxResult;
+  }
 }
+
 

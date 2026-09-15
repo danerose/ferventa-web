@@ -11,3 +11,6 @@ export * from './Appointment/AppointmentRepository';
 export * from './Schedule/ScheduleRepository';
 export * from './Maintenance/MaintenanceRepository';
 export * from './Customer/CustomerRepository';
+export * from './Audit/AuditRepository';
+export * from './Attendance/KioskRepository';
+

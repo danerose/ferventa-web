@@ -17,6 +17,7 @@ import {
   ScheduleRemoteDataSource,
   MaintenanceRemoteDataSource,
   CustomerRemoteDataSource,
+  AuditRemoteDataSource,
 } from '@/app/data/datasources';
 import {
   AuthRepository,
@@ -25,6 +26,7 @@ import {
   ScheduleRepository,
   MaintenanceRepository,
   CustomerRepository,
+  AuditRepository,
   APIClientPortalRepository,
   APIInventoryRepository,
   APISalesRepository,
@@ -32,7 +34,9 @@ import {
   APISpecialOrdersRepository,
   APIUserRepository,
   APIAttendanceRepository,
+  APIKioskRepository,
 } from '@/app/data/repositories';
+
 import {
   AuthUseCases,
   BranchUseCases,
@@ -60,6 +64,7 @@ export const appointmentRemoteDataSource = new AppointmentRemoteDataSource(netwo
 export const scheduleRemoteDataSource = new ScheduleRemoteDataSource(networkService);
 export const maintenanceRemoteDataSource = new MaintenanceRemoteDataSource(networkService);
 export const customerRemoteDataSource = new CustomerRemoteDataSource(networkService);
+export const auditRemoteDataSource = new AuditRemoteDataSource(networkService);
 
 // ─── 3. Repositories ─────────────────────────────────────────────────────────
 export const authRepository = new AuthRepository(authRemoteDataSource, authLocalDataSource);
@@ -68,15 +73,18 @@ export const appointmentRepository = new AppointmentRepository(appointmentRemote
 export const scheduleRepository = new ScheduleRepository(scheduleRemoteDataSource);
 export const maintenanceRepository = new MaintenanceRepository(maintenanceRemoteDataSource);
 export const customerRepository = new CustomerRepository(customerRemoteDataSource);
+export const auditRepository = new AuditRepository(auditRemoteDataSource);
 
 // Legacy Repositories (To be gradually deprecated in favor of domain repositories)
-export const clientPortalRepository = new APIClientPortalRepository();
+export const clientPortalRepository = new APIClientPortalRepository(branchLocalDataSource);
 export const inventoryRepository = new APIInventoryRepository();
 export const salesRepository = new APISalesRepository();
 export const servicesRepository = new APIServicesRepository();
 export const specialOrdersRepository = new APISpecialOrdersRepository();
 export const userRepository = new APIUserRepository();
 export const attendanceRepository = new APIAttendanceRepository();
+export const kioskRepository = new APIKioskRepository();
+
 
 // ─── 4. Use Cases ───────────────────────────────────────────────────────────
 export const authUseCases = new AuthUseCases(authRepository);

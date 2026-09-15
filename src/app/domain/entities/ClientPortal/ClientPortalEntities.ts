@@ -20,6 +20,7 @@ export interface BookAppointmentPayload {
   scheduledAt: string;
   notes?: string;
   branchName?: string;
+  branchId?: string;
 }
 
 

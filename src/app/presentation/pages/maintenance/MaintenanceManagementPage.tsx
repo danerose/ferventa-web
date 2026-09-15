@@ -13,6 +13,7 @@ import {
   MaintenanceDetailDrawer,
   NotifyMaintenanceModal,
   LinkSaleModal,
+  WorkshopLoadModal,
   Box,
   Flex,
   Grid,
@@ -107,6 +108,7 @@ export const MaintenanceManagementPage: React.FC = () => {
 
   const [usersList, setUsersList] = useState<User[]>([]);
   const [isDirectReceptionOpen, setIsDirectReceptionOpen] = useState(false);
+  const [isWorkshopLoadModalOpen, setIsWorkshopLoadModalOpen] = useState(false);
   const [orderToNotify, setOrderToNotify] = useState<AdminMaintenanceOrder | null>(null);
   const [orderToLinkSale, setOrderToLinkSale] = useState<AdminMaintenanceOrder | null>(null);
   const [toasts, setToasts] = useState<{ id: number; type: 'success' | 'error'; message: string }[]>([]);
@@ -134,6 +136,29 @@ export const MaintenanceManagementPage: React.FC = () => {
   }, [monday]);
 
   const isFirstFilterRender = useRef(true);
+
+  // Role detection: Isolated mechanic visibility
+  const userRole = (typeof user?.role === 'string' ? user.role : (user?.role as { name?: string })?.name || '').toLowerCase();
+  const isMechanic = userRole === 'mechanic' || userRole === 'mecanico';
+  const currentUserId = user?.id || (user as { _id?: string })?._id;
+  const currentUserName = user?.name?.toLowerCase().trim();
+
+  // Filter for isolated mechanic visibility
+  const visibleMaintenances = useMemo(() => {
+    if (!isMechanic) return maintenances;
+    return maintenances.filter((m) => {
+      const mech = m.assignedMechanic || m.mechanic;
+      if (!mech) return false;
+      if (typeof mech === 'string') {
+        const mStr = mech.trim().toLowerCase();
+        return (currentUserId && mech === currentUserId) || (currentUserName && mStr === currentUserName);
+      }
+      const mId = mech.id || mech._id;
+      if (mId && currentUserId && mId === currentUserId) return true;
+      if (mech.name && currentUserName && mech.name.trim().toLowerCase() === currentUserName) return true;
+      return false;
+    });
+  }, [maintenances, isMechanic, currentUserId, currentUserName]);
 
   // Load initial data and users
   useEffect(() => {
@@ -297,7 +322,7 @@ export const MaintenanceManagementPage: React.FC = () => {
     const thisWeek: AdminMaintenanceOrder[] = [];
     const stalled: AdminMaintenanceOrder[] = [];
 
-    maintenances.forEach((m) => {
+    visibleMaintenances.forEach((m) => {
       if (m.status === 'awaiting_appointment' || m.status === ServiceStatus.Delivered) return;
       const rTime = new Date(m.receptionDate || m.createdAt || 0).getTime();
       if (rTime < monday.getTime()) {
@@ -308,11 +333,11 @@ export const MaintenanceManagementPage: React.FC = () => {
     });
 
     return { thisWeekActiveOrders: thisWeek, stalledActiveOrders: stalled };
-  }, [maintenances, activeScope, monday, saturday]);
+  }, [visibleMaintenances, activeScope, monday, saturday]);
 
   // Status statistics calculation (scoped by week when in active or delivered_recent)
   const stats = useMemo(() => {
-    let baseList = maintenances;
+    let baseList = visibleMaintenances;
 
     if (activeScope === 'active') {
       if (stalledFilterMode === 'only') {
@@ -323,27 +348,27 @@ export const MaintenanceManagementPage: React.FC = () => {
         baseList = thisWeekActiveOrders;
       }
     } else if (activeScope === 'delivered_recent') {
-      baseList = maintenances.filter((m) => m.status === ServiceStatus.Delivered);
+      baseList = visibleMaintenances.filter((m) => m.status === ServiceStatus.Delivered);
     }
 
     const notStarted = baseList.filter((m) => m.status === ServiceStatus.NotStarted).length;
     const inProgress = baseList.filter((m) => m.status === ServiceStatus.InProgress).length;
     const completed = baseList.filter((m) => m.status === ServiceStatus.Completed).length;
-    const delivered = (activeScope === 'history' ? maintenances : baseList).filter((m) => m.status === ServiceStatus.Delivered).length;
+    const delivered = (activeScope === 'history' ? visibleMaintenances : baseList).filter((m) => m.status === ServiceStatus.Delivered).length;
 
     return {
-      total: activeScope === 'history' ? maintenances.length : (activeScope === 'delivered_recent' ? delivered : notStarted + inProgress + completed),
+      total: activeScope === 'history' ? visibleMaintenances.length : (activeScope === 'delivered_recent' ? delivered : notStarted + inProgress + completed),
       notStarted,
       inProgress,
       completed,
       delivered,
       stalledCount: stalledActiveOrders.length,
     };
-  }, [maintenances, activeScope, monday, saturday, stalledFilterMode, thisWeekActiveOrders, stalledActiveOrders]);
+  }, [visibleMaintenances, activeScope, monday, saturday, stalledFilterMode, thisWeekActiveOrders, stalledActiveOrders]);
 
   // Sort orders chronologically from most recent to oldest
   const sortedMaintenances = useMemo(() => {
-    let list = maintenances;
+    let list = visibleMaintenances;
 
     if (activeScope === 'active') {
       if (stalledFilterMode === 'only') {
@@ -387,7 +412,7 @@ export const MaintenanceManagementPage: React.FC = () => {
       const createdB = new Date(b.createdAt || 0).getTime();
       return createdB - createdA;
     });
-  }, [maintenances, activeScope, filters.status, filters.dateField, stalledFilterMode, thisWeekActiveOrders, stalledActiveOrders]);
+  }, [visibleMaintenances, activeScope, filters.status, filters.dateField, stalledFilterMode, thisWeekActiveOrders, stalledActiveOrders]);
 
   // Formatter for intake dates
   const formatIntakeDate = (dateStr?: string) => {
@@ -508,6 +533,16 @@ export const MaintenanceManagementPage: React.FC = () => {
         </Box>
 
         <Flex align="center" gap="sm">
+          <SecondaryButton
+            size="sm"
+            onClick={() => setIsWorkshopLoadModalOpen(true)}
+            iconStart={<Icon name="CalendarRange" size="xs" />}
+            title="Ver disponibilidad y saturación de la agenda del taller"
+            className="flex items-center gap-1.5"
+          >
+            <span>Carga del Taller</span>
+          </SecondaryButton>
+
           <PrimaryButton
             size="sm"
             color="primary"
@@ -1130,22 +1165,28 @@ export const MaintenanceManagementPage: React.FC = () => {
                       Ver Detalle
                     </SecondaryButton>
 
-                    {/* Selects: Mechanic & Status */}
+                    {/* Selects / Actions: Mechanic & Status */}
                     <Flex gap="sm" align="center">
-                      <Box className="flex-1">
-                        <Select
-                          size="sm"
-                          value={
-                            typeof order.assignedMechanic === 'string'
-                              ? order.assignedMechanic
-                              : (order.assignedMechanic?.id || order.assignedMechanic?._id || (typeof order.mechanic === 'string' ? order.mechanic : (order.mechanic?.id || order.mechanic?._id)) || '')
-                          }
-                          disabled={updatingId === order.id}
-                          onChange={(e) => handleAssignMechanic(order.id, e.target.value)}
-                          options={assignableUsers}
-                          title="Asignar mecánico o administrador"
-                        />
-                      </Box>
+                      {isMechanic ? (
+                        <Box className="flex-1 px-2.5 py-1.5 bg-base-200 rounded border border-base-300 text-xs font-semibold text-base-content truncate">
+                          👨‍🔧 {typeof order.assignedMechanic === 'string' ? order.assignedMechanic : order.assignedMechanic?.name || 'Asignada a ti'}
+                        </Box>
+                      ) : (
+                        <Box className="flex-1">
+                          <Select
+                            size="sm"
+                            value={
+                              typeof order.assignedMechanic === 'string'
+                                ? order.assignedMechanic
+                                : (order.assignedMechanic?.id || order.assignedMechanic?._id || (typeof order.mechanic === 'string' ? order.mechanic : (order.mechanic?.id || order.mechanic?._id)) || '')
+                            }
+                            disabled={updatingId === order.id}
+                            onChange={(e) => handleAssignMechanic(order.id, e.target.value)}
+                            options={assignableUsers}
+                            title="Asignar mecánico o administrador"
+                          />
+                        </Box>
+                      )}
 
                       <Box className="flex-1">
                         <Select
@@ -1170,6 +1211,7 @@ export const MaintenanceManagementPage: React.FC = () => {
         isOpen={selectedOrder !== null}
         order={selectedOrder}
         assignableUsers={assignableUsers}
+        isMechanic={isMechanic}
         onClose={() => setSelectedOrder(null)}
         onStatusChange={handleStatusChange}
         onAssignMechanic={handleAssignMechanic}
@@ -1202,6 +1244,11 @@ export const MaintenanceManagementPage: React.FC = () => {
         isOpen={isDirectReceptionOpen}
         onClose={() => setIsDirectReceptionOpen(false)}
         onSuccess={handleDirectReceptionSuccess}
+      />
+
+      <WorkshopLoadModal
+        isOpen={isWorkshopLoadModalOpen}
+        onClose={() => setIsWorkshopLoadModalOpen(false)}
       />
 
       {/* Floating Notifications */}

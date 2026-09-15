@@ -200,13 +200,13 @@
     visibility: hidden !important;
   }
 
-  /* Thermal Receipt Ticket Mode */
-  body:not(.print-doc-mode) #ticket-receipt,
-  body:not(.print-doc-mode) #ticket-receipt * {
+  /* Thermal Receipt Ticket Mode (Default when not in doc or invoice mode) */
+  body:not(.print-doc-mode):not(.print-invoice-mode) #ticket-receipt,
+  body:not(.print-doc-mode):not(.print-invoice-mode) #ticket-receipt * {
     visibility: visible !important;
   }
 
-  body:not(.print-doc-mode) #ticket-receipt {
+  body:not(.print-doc-mode):not(.print-invoice-mode) #ticket-receipt {
     page: ticketPage;
     position: fixed !important;
     left: 0 !important;
@@ -225,30 +225,67 @@
     widows: 0 !important;
   }
 
-  body:not(.print-doc-mode) .printable-document {
+  body:not(.print-doc-mode):not(.print-invoice-mode) .printable-document {
     display: none !important;
     visibility: hidden !important;
   }
 
-  /* Full Page Printable Documents */
-  body.print-doc-mode .printable-document,
-  body.print-doc-mode .printable-document * {
-    visibility: visible !important;
-  }
-
-  body.print-doc-mode #ticket-receipt {
-    display: none !important;
-    visibility: hidden !important;
-  }
-
+  /* Full Page Printable Documents (print-doc-mode & print-invoice-mode) */
   body.print-doc-mode html,
-  body.print-doc-mode body {
+  body.print-doc-mode body,
+  body.print-invoice-mode html,
+  body.print-invoice-mode body {
     width: 100% !important;
     height: auto !important;
     overflow: visible !important;
   }
 
+  /* Reception Document Mode */
+  body.print-doc-mode #ticket-receipt,
+  body.print-doc-mode #service-invoice-receipt {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  body.print-doc-mode #service-reception-receipt,
+  body.print-doc-mode #service-reception-receipt *,
+  body.print-doc-mode #quotation-receipt,
+  body.print-doc-mode #quotation-receipt * {
+    visibility: visible !important;
+  }
+
   body.print-doc-mode .printable-document {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 20px !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    box-sizing: border-box !important;
+    display: block !important;
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  /* Service Invoice / Workshop Remisión Mode */
+  body.print-invoice-mode #ticket-receipt,
+  body.print-invoice-mode #service-reception-receipt,
+  body.print-invoice-mode #quotation-receipt {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  body.print-invoice-mode #service-invoice-receipt,
+  body.print-invoice-mode #service-invoice-receipt * {
+    visibility: visible !important;
+  }
+
+  body.print-invoice-mode #service-invoice-receipt {
     position: absolute !important;
     left: 0 !important;
     top: 0 !important;

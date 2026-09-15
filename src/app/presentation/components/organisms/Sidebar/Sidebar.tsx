@@ -1,9 +1,9 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Icon } from '@/app/presentation/components';
-import { useAuthStore } from '@/app/presentation/stores';
+import { useAuthStore, useThemeStore } from '@/app/presentation/stores';
 import { branchUseCases } from '@/core/di/container';
-import { UserRole, USER_ROLE_LABELS } from '@/core/enums';
+import { UserRole, USER_ROLE_LABELS, ThemeMode } from '@/core/enums';
 import { useAuthorization } from '@/core/hooks';
 import type { Branch } from '@/app/domain';
 
@@ -62,15 +62,7 @@ const ALL_NAV_ITEMS: NavItemConfig[] = [
     icon: 'Clock',
     label: 'Asistencia',
     path: '/admin/asistencia',
-    allowedRoles: [
-      UserRole.Admin,
-      UserRole.Receptionist,
-      UserRole.Mechanic,
-      UserRole.Warehouse,
-      UserRole.Cashier,
-      UserRole.Seller,
-      UserRole.User,
-    ],
+    allowedRoles: [UserRole.Admin],
   },
   {
     icon: 'Users',
@@ -82,6 +74,12 @@ const ALL_NAV_ITEMS: NavItemConfig[] = [
 
 const ALL_BOTTOM_ITEMS: NavItemConfig[] = [
   {
+    icon: 'ShieldCheck',
+    label: 'Auditoría',
+    path: '/admin/auditoria',
+    allowedRoles: [UserRole.Admin],
+  },
+  {
     icon: 'Calendar',
     label: 'Horarios',
     path: '/admin/horarios',
@@ -91,7 +89,7 @@ const ALL_BOTTOM_ITEMS: NavItemConfig[] = [
     icon: 'Settings',
     label: 'Ajustes',
     path: '/admin/settings',
-    allowedRoles: [UserRole.Admin],
+    allowedRoles: [UserRole.Admin, UserRole.Seller],
   },
 ];
 
@@ -106,6 +104,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ onLogout, userName, onChangePa
 
   const { role, hasRole } = useAuthorization();
   const roleLabel = role ? (USER_ROLE_LABELS[role] || role) : 'Usuario';
+  const mode = useThemeStore((s) => s.mode);
+  const toggleTheme = useThemeStore((s) => s.toggleTheme);
 
   React.useEffect(() => {
     const fetchBranches = async () => {
@@ -279,6 +279,43 @@ export const Sidebar: React.FC<SidebarProps> = ({ onLogout, userName, onChangePa
             ))}
           </div>
         )}
+
+        {/* Quick Theme Toggle */}
+        <button
+          type="button"
+          onClick={toggleTheme}
+          title="Cambiar tema claro / oscuro"
+          style={{
+            width: '100%',
+            background: 'rgba(255,255,255,0.06)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            borderRadius: '8px',
+            padding: '8px 12px',
+            marginBottom: '10px',
+            color: mode === ThemeMode.Dark ? '#fbbf24' : 'rgba(255,255,255,0.85)',
+            fontSize: '12px',
+            fontWeight: '600',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            transition: 'background 0.15s, border-color 0.15s',
+          }}
+          onMouseEnter={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.12)';
+          }}
+          onMouseLeave={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.06)';
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Icon name={mode === ThemeMode.Dark ? 'Sun' : 'Moon'} size="xs" />
+            <span>{mode === ThemeMode.Dark ? 'Modo Claro' : 'Modo Oscuro'}</span>
+          </div>
+          <span style={{ fontSize: '10px', opacity: 0.6, textTransform: 'uppercase' }}>
+            {mode === ThemeMode.Dark ? 'Oscuro' : 'Claro'}
+          </span>
+        </button>
 
         <div
           style={{

@@ -6,3 +6,4 @@ export * from './remote/Appointment/AppointmentRemoteDataSource';
 export * from './remote/Schedule/ScheduleRemoteDataSource';
 export * from './remote/Maintenance/MaintenanceRemoteDataSource';
 export * from './remote/Customer/CustomerRemoteDataSource';
+export * from './remote/Audit/AuditRemoteDataSource';

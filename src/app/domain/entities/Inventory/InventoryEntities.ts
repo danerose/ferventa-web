@@ -74,3 +74,69 @@ export interface CreateStockMovementDto {
   reason: string;
   branchId?: string;
 }
+
+export interface MerchandiseReceptionItem {
+  productId: string;
+  product?: Product;
+  quantity: number;
+  costPrice: number;
+  sellingPrice: number;
+}
+
+export interface MerchandiseReceptionBox {
+  boxCode: string;
+  productId: string;
+  product?: {
+    id?: string;
+    _id?: string;
+    name?: string;
+    sku?: string;
+    sellingPrice?: number;
+    unit?: string;
+  };
+  quantity: number;
+  itemsPerBox?: number;
+  costPrice: number;
+  sellingPrice: number;
+  isOpened?: boolean;
+  openedAt?: string;
+  openedBy?: { id?: string; name?: string };
+}
+
+export interface MerchandiseReception {
+  id: string;
+  providerId: string;
+  provider?: Provider;
+  status: 'draft' | 'approved' | 'rejected';
+  items: MerchandiseReceptionItem[];
+  boxes?: MerchandiseReceptionBox[];
+  invoiceOrFolio?: string;
+  notes?: string;
+  rejectionReason?: string;
+  approvedAt?: string;
+  approvedBy?: { id?: string; name?: string };
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface CreateDraftReceptionDto {
+  providerId: string;
+  items: {
+    productId: string;
+    quantity: number;
+    costPrice: number;
+    sellingPrice: number;
+  }[];
+  invoiceOrFolio?: string;
+  notes?: string;
+}
+
+export interface OpenBoxResult {
+  boxCode: string;
+  product?: Product;
+  addedQuantity: number;
+  newSellingPrice: number;
+  previousSellingPrice?: number;
+  message?: string;
+}
+

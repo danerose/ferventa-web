@@ -57,19 +57,30 @@ export interface AdminMaintenanceSaleInfo {
   createdAt?: string;
 }
 
+export interface NotificationLogItem {
+  sentAt: string;
+  sentBy?: {
+    _id?: string;
+    id?: string;
+    name?: string;
+  };
+  channel: string;
+  notes?: string;
+}
+
 export type MaintenanceOrderStatus =
-  | 'awaiting_appointment'
   | 'not_started'
   | 'in_progress'
   | 'completed'
-  | 'delivered';
+  | 'delivered'
+  | 'cancelled';
 
 export interface MaintenanceOrder {
   id: string;
   _id?: string;
-  appointmentId?: string;
+  folio?: string;
   status: MaintenanceOrderStatus;
-  laborCost?: number;
+  laborCost: number;
   laborPrice?: number;
   notes?: string;
   receptionNotes?: string;
@@ -81,6 +92,7 @@ export interface MaintenanceOrder {
   deliveredAt?: string;
   diagnosticNotes?: DiagnosticNote[];
   statusHistory?: MaintenanceStatusHistoryItem[];
+  notifications?: NotificationLogItem[];
   tasks?: MaintenanceTask[];
   evidence?: MaintenanceEvidenceItem[];
   sale?: AdminMaintenanceSaleInfo | null;

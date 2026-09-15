@@ -223,6 +223,8 @@ export const DirectReceptionModal: React.FC<DirectReceptionModalProps> = ({
     customerName.trim().length > 0 &&
     vehicleBrand.trim().length > 0 &&
     vehicleModel.trim().length > 0 &&
+    vehicleYear !== '' &&
+    Number(vehicleYear) >= 1900 &&
     trimmedSerial.length > 0 &&
     finalService.trim().length > 0 &&
     !submitting;
@@ -238,6 +240,10 @@ export const DirectReceptionModal: React.FC<DirectReceptionModalProps> = ({
     }
     if (!vehicleBrand.trim() || !vehicleModel.trim()) {
       setErrorMessage('Marca y modelo del vehículo son obligatorios.');
+      return;
+    }
+    if (!vehicleYear || Number(vehicleYear) < 1900) {
+      setErrorMessage('El año del vehículo es obligatorio (mínimo 1900).');
       return;
     }
     if (!trimmedSerial) {
@@ -258,13 +264,30 @@ export const DirectReceptionModal: React.FC<DirectReceptionModalProps> = ({
     setSubmitting(true);
     setErrorMessage(null);
 
+    // Strict 5-attribute exact match check for vehicle deduplication
+    let effectiveVehicleId: string | undefined = undefined;
+    if (foundCustomer?.vehicles && foundCustomer.vehicles.length > 0) {
+      const exactMatch = foundCustomer.vehicles.find((v) => {
+        const bMatch = (v.brand || '').trim().toLowerCase() === vehicleBrand.trim().toLowerCase();
+        const mMatch = (v.model || '').trim().toLowerCase() === vehicleModel.trim().toLowerCase();
+        const yMatch = Number(v.year) === Number(vehicleYear);
+        const sMatch = (v.serialNumberLastFour || '').trim().toUpperCase() === trimmedSerial;
+        const cMatch = (v.color || '').trim().toLowerCase() === vehicleColor.trim().toLowerCase();
+        return bMatch && mMatch && yMatch && sMatch && cMatch;
+      });
+
+      if (exactMatch) {
+        effectiveVehicleId = exactMatch.id || exactMatch._id;
+      }
+    }
+
     try {
       const order = await maintenanceUseCases.directReception({
         customerName: customerName.trim(),
         customerPhone: rawPhoneDigits,
         customerEmail: customerEmail.trim() || undefined,
         customerId: existingCustomerId,
-        vehicleId: selectedExistingVehicleId || undefined,
+        vehicleId: effectiveVehicleId,
         vehicle: {
           brand: vehicleBrand.trim(),
           model: vehicleModel.trim(),
@@ -275,7 +298,6 @@ export const DirectReceptionModal: React.FC<DirectReceptionModalProps> = ({
         serviceRequested: finalService,
         notes: notes.trim() || undefined,
         laborCost: typeof laborCost === 'number' ? laborCost : 0,
-        assignedMechanic: assignedMechanic || undefined,
       });
 
       onSuccess(order);
@@ -589,7 +611,7 @@ export const DirectReceptionModal: React.FC<DirectReceptionModalProps> = ({
             {/* Year */}
             <Box>
               <Text size="xs" weight="medium" className="text-base-content/70 mb-1.5 block">
-                Año
+                Año *
               </Text>
               <TextInput
                 value={vehicleYear}
@@ -625,25 +647,6 @@ export const DirectReceptionModal: React.FC<DirectReceptionModalProps> = ({
                 placeholder="Ej. Rojo, Negro mate"
                 className="w-full"
               />
-            </Box>
-
-            {/* Mechanic Assigned */}
-            <Box>
-              <Text size="xs" weight="medium" className="text-base-content/70 mb-1.5 block">
-                Mecánico Asignado (Opcional)
-              </Text>
-              <Select
-                value={assignedMechanic}
-                onChange={(e) => setAssignedMechanic(e.target.value)}
-                className="w-full"
-              >
-                <option value="">Sin asignar (Asignar después)</option>
-                {mechanics.map((m) => (
-                  <option key={m.id} value={m.name}>
-                    {m.name}
-                  </option>
-                ))}
-              </Select>
             </Box>
           </Grid>
         </Box>

@@ -53,6 +53,7 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
     formModel,
     formYear,
     formSerialNumberLastFour,
+    formColor,
     formServiceRequested,
     formSelectedDate,
     formSelectedTime,
@@ -81,6 +82,7 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
       formModel: s.formModel,
       formYear: s.formYear,
       formSerialNumberLastFour: s.formSerialNumberLastFour,
+      formColor: s.formColor,
       formServiceRequested: s.formServiceRequested,
       formSelectedDate: s.formSelectedDate,
       formSelectedTime: s.formSelectedTime,
@@ -219,6 +221,7 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
     setFormField('formModel', veh.model || '');
     setFormField('formYear', veh.year ? String(veh.year) : '');
     setFormField('formSerialNumberLastFour', (veh.serialNumberLastFour || '').slice(0, 4).toUpperCase());
+    setFormField('formColor', veh.color || '');
   };
 
   const handleSelectNewVehicle = () => {
@@ -227,6 +230,7 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
     setFormField('formModel', '');
     setFormField('formYear', '');
     setFormField('formSerialNumberLastFour', '');
+    setFormField('formColor', '');
   };
 
   const handleReset = () => {
@@ -309,7 +313,7 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
           <div className="flex justify-between items-center py-1 border-b border-base-300/50">
             <span className="text-base-content/60 font-medium">Vehículo</span>
             <span className="font-semibold text-base-content">
-              {formBrand || 'Genérico'} {formModel} ({formSerialNumberLastFour})
+              {formBrand || 'Genérico'} {formModel} {formSerialNumberLastFour ? `(${formSerialNumberLastFour})` : ''} {formColor ? `• ${formColor}` : ''}
             </span>
           </div>
           <div className="flex justify-between items-center py-1">
@@ -620,39 +624,28 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
               />
             )}
 
-            <div>
-              <label className="text-xs font-medium text-base-content/70 mb-1.5 block">Placas o Serie (Últimos 4 - Opcional)</label>
-              <TextInput
-                value={formSerialNumberLastFour}
-                onChange={(e) => setFormField('formSerialNumberLastFour', e.target.value.toUpperCase().slice(0, 4))}
-                placeholder="Ej. 1234 (Opcional)"
-                maxLength={4}
-                disabled={bookingLoading}
-                className="w-full font-mono"
-              />
-            </div>
-
-            <Grid cols={{ base: 1, sm: 3 }} gap="sm">
+            <Grid cols={{ base: 1, sm: 2 }} gap="md">
               <div>
-                <label className="text-xs font-medium text-base-content/70 mb-1.5 block">Marca</label>
+                <label className="text-xs font-medium text-base-content/70 mb-1.5 block">Marca *</label>
                 <TextInput
                   value={formBrand}
                   onChange={(e) => setFormField('formBrand', e.target.value)}
-                  placeholder="Ej. Italika, Honda"
+                  placeholder="Ej. Italika, Honda, Yamaha"
                   disabled={bookingLoading}
                   className="w-full"
                 />
               </div>
               <div>
-                <label className="text-xs font-medium text-base-content/70 mb-1.5 block">Modelo (Opcional)</label>
+                <label className="text-xs font-medium text-base-content/70 mb-1.5 block">Modelo *</label>
                 <TextInput
                   value={formModel}
                   onChange={(e) => setFormField('formModel', e.target.value)}
-                  placeholder="Ej. DM250"
+                  placeholder="Ej. DM250, CBR, FZ"
                   disabled={bookingLoading}
                   className="w-full"
                 />
               </div>
+
               <div>
                 <label className="text-xs font-medium text-base-content/70 mb-1.5 block">Año (Opcional)</label>
                 <TextInput
@@ -661,6 +654,28 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
                   placeholder="Ej. 2024"
                   disabled={bookingLoading}
                   className="w-full"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-base-content/70 mb-1.5 block">Color (Opcional)</label>
+                <TextInput
+                  value={formColor}
+                  onChange={(e) => setFormField('formColor', e.target.value)}
+                  placeholder="Ej. Rojo, Negro"
+                  disabled={bookingLoading}
+                  className="w-full"
+                />
+              </div>
+
+              <div className="sm:col-span-2">
+                <label className="text-xs font-medium text-base-content/70 mb-1.5 block">Placas o Serie (Últimos 4 - Opcional)</label>
+                <TextInput
+                  value={formSerialNumberLastFour}
+                  onChange={(e) => setFormField('formSerialNumberLastFour', e.target.value.toUpperCase().slice(0, 4))}
+                  placeholder="Ej. 1234 (Opcional)"
+                  maxLength={4}
+                  disabled={bookingLoading}
+                  className="w-full font-mono"
                 />
               </div>
             </Grid>
@@ -742,6 +757,8 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
             bookingLoading ||
             occupiedSlotsLoading ||
             !formSelectedTime ||
+            !formBrand.trim() ||
+            !formModel.trim() ||
             (isStaffMode && (!isPhoneComplete || isSearchingPhone || !formCustomerName.trim()))
           }
           className={onCancel ? "flex-1 font-bold" : "w-full font-bold"}
@@ -750,6 +767,8 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
             'Esperando Teléfono (10 dígitos)...'
           ) : isStaffMode && isSearchingPhone ? (
             'Buscando Cliente...'
+          ) : !formBrand.trim() || !formModel.trim() ? (
+            'Ingresa Marca y Modelo...'
           ) : !formSelectedTime ? (
             'Selecciona Fecha y Horario...'
           ) : (

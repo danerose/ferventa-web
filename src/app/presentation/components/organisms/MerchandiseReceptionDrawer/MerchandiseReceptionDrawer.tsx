@@ -56,7 +56,7 @@ export interface MerchandiseReceptionDrawerProps {
   onStockUpdated: () => void;
 }
 
-export const MerchandiseReceptionDrawer: React.FC<MerchandiseReceptionDrawerProps> = ({
+export const MerchandiseReceptionDrawer = ({
   isOpen,
   onClose,
   products,
@@ -67,8 +67,14 @@ export const MerchandiseReceptionDrawer: React.FC<MerchandiseReceptionDrawerProp
   activeBranchId,
   initialProductId,
   onStockUpdated,
-}) => {
+}: MerchandiseReceptionDrawerProps) => {
+  const user = useAuthStore((s) => s.user);
   const accessToken = useAuthStore((s) => s.accessToken);
+  const userRole = user?.role ?? '';
+  const isAdmin = userRole === 'admin' || userRole === 'administrator';
+
+  const [savingDraft, setSavingDraft] = useState(false);
+  const [draftSuccessNotice, setDraftSuccessNotice] = useState<string | null>(null);
 
   // Local products list (to immediately reflect newly created products in this session)
   const [localProducts, setLocalProducts] = useState<Product[]>(products);
@@ -545,7 +551,38 @@ export const MerchandiseReceptionDrawer: React.FC<MerchandiseReceptionDrawerProp
       setSubmitting(false);
     }
   };
-  handleRegisterMovementRef.current = handleRegisterMovement;
+  useEffect(() => {
+    handleRegisterMovementRef.current = handleRegisterMovement;
+  });
+
+  const handleSaveAsDraft = async () => {
+    if (!accessToken || sessionItems.length === 0) return;
+    setSavingDraft(true);
+    try {
+      const draftFolio = `REM-${Date.now().toString().slice(-6)}`;
+      await inventoryRepo.createDraftReception(accessToken, {
+        providerId: selectedProviderId || '',
+        invoiceOrFolio: draftFolio,
+        notes: reason || 'Remisión capturada en almacén',
+        items: sessionItems.map((it) => ({
+          productId: it.productId,
+          quantity: it.quantity,
+          costPrice: it.costPrice ?? 0,
+          sellingPrice: it.sellingPrice ?? 0,
+        })),
+      });
+      setDraftSuccessNotice(`Remisión ${draftFolio} guardada en Borrador exitosamente. Pendiente de aprobación administrativa.`);
+      setTimeout(() => {
+        setDraftSuccessNotice(null);
+        onStockUpdated();
+        onClose();
+      }, 2500);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Error al guardar remisión en borrador');
+    } finally {
+      setSavingDraft(false);
+    }
+  };
 
   // Handle confirm delete movement
   const handleConfirmDelete = async () => {
@@ -897,9 +934,9 @@ export const MerchandiseReceptionDrawer: React.FC<MerchandiseReceptionDrawerProp
                             // Shortcut: Select highlighted or first matching product
                             const target =
                               filteredProducts[
-                                highlightedIndex >= 0 && highlightedIndex < filteredProducts.length
-                                  ? highlightedIndex
-                                  : 0
+                              highlightedIndex >= 0 && highlightedIndex < filteredProducts.length
+                                ? highlightedIndex
+                                : 0
                               ];
                             if (target) {
                               handleSelectProduct(target);
@@ -1306,11 +1343,10 @@ export const MerchandiseReceptionDrawer: React.FC<MerchandiseReceptionDrawerProp
                         key={step}
                         type="button"
                         onClick={() => setQuantity(step)}
-                        className={`btn btn-xs rounded-md border font-mono transition-colors ${
-                          quantity === step
-                            ? 'btn-primary text-primary-content font-bold'
-                            : 'btn-ghost bg-base-100 hover:bg-base-300 border-base-300 text-base-content/80'
-                        }`}
+                        className={`btn btn-xs rounded-md border font-mono transition-colors ${quantity === step
+                          ? 'btn-primary text-primary-content font-bold'
+                          : 'btn-ghost bg-base-100 hover:bg-base-300 border-base-300 text-base-content/80'
+                          }`}
                       >
                         +{step}
                       </button>
@@ -1511,17 +1547,19 @@ export const MerchandiseReceptionDrawer: React.FC<MerchandiseReceptionDrawerProp
                             </div>
                           </div>
 
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setDeleteError(null);
-                              setItemToDelete(item);
-                            }}
-                            className="btn btn-sm btn-ghost btn-square text-error/70 hover:text-error hover:bg-error/10 transition-colors"
-                            title="Eliminar este ingreso y descontar del stock"
-                          >
-                            <Icon name="Trash2" size="sm" />
-                          </button>
+                          {isAdmin && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setDeleteError(null);
+                                setItemToDelete(item);
+                              }}
+                              className="btn btn-sm btn-ghost btn-square text-error/70 hover:text-error hover:bg-error/10 transition-colors"
+                              title="Eliminar este ingreso y descontar del stock (Solo Admin)"
+                            >
+                              <Icon name="Trash2" size="sm" />
+                            </button>
+                          )}
                         </div>
                       </div>
                     );
@@ -1547,15 +1585,38 @@ export const MerchandiseReceptionDrawer: React.FC<MerchandiseReceptionDrawerProp
                     </span>
                   </div>
 
+                  {draftSuccessNotice && (
+                    <div className="p-2.5 bg-success/15 border border-success/30 rounded-lg text-xs font-semibold text-success">
+                      {draftSuccessNotice}
+                    </div>
+                  )}
+
                   {sessionTotalItems > 0 && (
-                    <PrimaryButton
-                      size="sm"
-                      onClick={handleRequestClose}
-                      className="font-bold shadow-sm"
-                    >
-                      <Icon name="CheckCheck" size="xs" className="mr-1.5" />
-                      Terminar de registrar productos
-                    </PrimaryButton>
+                    <Flex gap="xs">
+                      <SecondaryButton
+                        size="sm"
+                        onClick={handleSaveAsDraft}
+                        loading={savingDraft}
+                        iconStart={<Icon name="FileText" size="xs" />}
+                        title="Guardar como remisión en borrador para aprobación y generación de QR"
+                      >
+                        Guardar en Borrador
+                      </SecondaryButton>
+                      {isAdmin ? (
+                        <PrimaryButton
+                          size="sm"
+                          onClick={handleRequestClose}
+                          className="font-bold shadow-sm"
+                        >
+                          <Icon name="CheckCheck" size="xs" className="mr-1.5" />
+                          Finalizar Ingreso
+                        </PrimaryButton>
+                      ) : (
+                        <span className="text-[11px] text-warning font-medium italic">
+                          (Pendiente de aprobación por Admin)
+                        </span>
+                      )}
+                    </Flex>
                   )}
                 </Flex>
               </div>

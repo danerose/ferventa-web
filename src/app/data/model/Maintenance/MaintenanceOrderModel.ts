@@ -163,6 +163,22 @@ export class MaintenanceOrderModel {
       notifiedAt: raw.notifiedAt,
       deliveredAt,
       statusHistory: raw.statusHistory || [],
+      notifications: Array.isArray((raw as unknown as { notifications?: unknown[] }).notifications)
+        ? (raw as unknown as { notifications: { sentAt?: string; createdAt?: string; sentBy?: { _id?: string; id?: string; name?: string }; channel?: string; notes?: string; message?: string }[] }).notifications.map((n) => ({
+            sentAt: n.sentAt || n.createdAt || new Date().toISOString(),
+            sentBy: n.sentBy ? { _id: n.sentBy._id, id: n.sentBy.id || n.sentBy._id, name: n.sentBy.name } : undefined,
+            channel: n.channel || 'WhatsApp',
+            notes: n.notes || n.message || '',
+          }))
+        : raw.notifiedAt
+        ? [
+            {
+              sentAt: raw.notifiedAt,
+              channel: 'WhatsApp',
+              notes: 'Vehículo listo para entrega',
+            },
+          ]
+        : [],
       appointment: appointmentObj,
       customer: {
         id: raw.customer?.id || raw.customer?._id || '',

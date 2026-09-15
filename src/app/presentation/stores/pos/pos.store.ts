@@ -18,6 +18,7 @@ export interface Cart {
   items: CartItem[];
   applyTax: boolean;
   isFullDiscount: boolean;
+  applyCommission?: boolean;
   createdAt: number;
 }
 
@@ -33,6 +34,7 @@ function makeNewCart(label?: string): Cart {
     items: [],
     applyTax: false,
     isFullDiscount: false,
+    applyCommission: false,
     createdAt: Date.now(),
   };
 }
@@ -73,6 +75,7 @@ interface POSState {
   total: number;
   applyTax: boolean;
   isFullDiscount: boolean;
+  applyCommission: boolean;
 
   // Multi-cart actions
   createCart: (label?: string) => void;
@@ -97,6 +100,7 @@ interface POSState {
   // Totals toggles
   toggleApplyTax: (val?: boolean) => void;
   toggleFullDiscount: (val?: boolean) => void;
+  toggleApplyCommission: (val?: boolean) => void;
   calculateTotals: () => void;
   setActiveTab: (tab: 'products' | 'services') => void;
 
@@ -151,6 +155,7 @@ function syncFromActiveCart(carts: Cart[], activeCartId: string) {
     cart: active.items,
     applyTax: active.applyTax,
     isFullDiscount: active.isFullDiscount,
+    applyCommission: Boolean(active.applyCommission),
     ...totals,
   };
 }
@@ -178,6 +183,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
   total: 0,
   applyTax: false,
   isFullDiscount: false,
+  applyCommission: false,
 
   // ── Multi-cart actions ──────────────────────────────────────────────────────
 
@@ -248,11 +254,40 @@ export const usePOSStore = create<POSState>((set, get) => ({
     set(syncFromActiveCart(newCarts, activeCartId));
   },
 
+  toggleApplyCommission: (val) => {
+    const { activeCartId } = get();
+    const next = val !== undefined ? val : !get().applyCommission;
+    const activeCart = getActiveCart(get());
+    const newItems = activeCart.items.map(item => {
+      if (item.isNoAplica) return item;
+      const basePrice = item.originalPrice ?? item.unitPrice;
+      const newUnitPrice = next
+        ? Math.round(basePrice * 1.04 * 100) / 100
+        : basePrice;
+      return {
+        ...item,
+        unitPrice: newUnitPrice,
+        subtotal: item.quantity * newUnitPrice,
+      };
+    });
+    const newCarts = updateActiveCart(get(), cart => ({
+      ...cart,
+      items: newItems,
+      applyCommission: next,
+    }));
+    set(syncFromActiveCart(newCarts, activeCartId));
+  },
+
   // ── Cart Item Actions ───────────────────────────────────────────────────────
 
   addProductToCart: (product, quantity = 1) => {
     const { activeCartId } = get();
     const activeCart = getActiveCart(get());
+    const isCommission = Boolean(activeCart.applyCommission);
+    const calculatedPrice = isCommission
+      ? Math.round(product.sellingPrice * 1.04 * 100) / 100
+      : product.sellingPrice;
+
     const existing = activeCart.items.find(
       (item) => item.type === 'product' && item.product?.id === product.id
     );
@@ -279,9 +314,9 @@ export const usePOSStore = create<POSState>((set, get) => ({
         name: product.name,
         sku: product.sku,
         quantity,
-        unitPrice: product.sellingPrice,
+        unitPrice: calculatedPrice,
         originalPrice: product.sellingPrice,
-        subtotal: quantity * product.sellingPrice,
+        subtotal: quantity * calculatedPrice,
         isNoAplica: false,
       };
       newItems = [...activeCart.items, newItem];
@@ -294,6 +329,10 @@ export const usePOSStore = create<POSState>((set, get) => ({
   addServiceToCart: (service) => {
     const { activeCartId, allProductsForSupplies } = get();
     const activeCart = getActiveCart(get());
+    const isCommission = Boolean(activeCart.applyCommission);
+    const servicePrice = isCommission
+      ? Math.round(service.basePrice * 1.04 * 100) / 100
+      : service.basePrice;
 
     const serviceItem: CartItem = {
       cartId: makeCartId(),
@@ -301,9 +340,9 @@ export const usePOSStore = create<POSState>((set, get) => ({
       service,
       name: service.name,
       quantity: 1,
-      unitPrice: service.basePrice,
+      unitPrice: servicePrice,
       originalPrice: service.basePrice,
-      subtotal: service.basePrice,
+      subtotal: servicePrice,
       isNoAplica: false,
     };
 
@@ -314,9 +353,12 @@ export const usePOSStore = create<POSState>((set, get) => ({
       );
       const prodName = supply.product.name || catalogProd?.name || 'Insumo de servicio';
       const prodSku = supply.product.sku || catalogProd?.sku || '';
-      const prodPrice = (supply.product.sellingPrice && supply.product.sellingPrice > 0)
+      const baseProdPrice = (supply.product.sellingPrice && supply.product.sellingPrice > 0)
         ? supply.product.sellingPrice
         : (catalogProd?.sellingPrice ?? (catalogProd as any)?.price ?? (supply.product as any)?.price ?? 0);
+      const prodPrice = isCommission
+        ? Math.round(baseProdPrice * 1.04 * 100) / 100
+        : baseProdPrice;
 
       return {
         cartId: makeCartId(),
@@ -328,13 +370,13 @@ export const usePOSStore = create<POSState>((set, get) => ({
           id: prodId,
           name: prodName,
           sku: prodSku,
-          sellingPrice: prodPrice,
+          sellingPrice: baseProdPrice,
         } as unknown as Product,
         name: prodName,
         sku: prodSku,
         quantity: supply.quantity,
         unitPrice: prodPrice,
-        originalPrice: prodPrice,
+        originalPrice: baseProdPrice,
         subtotal: prodPrice * supply.quantity,
         isNoAplica: false,
       };
@@ -348,22 +390,29 @@ export const usePOSStore = create<POSState>((set, get) => ({
   addTemporaryServiceToCart: (name, unitPrice, supplies) => {
     const { activeCartId } = get();
     const activeCart = getActiveCart(get());
+    const isCommission = Boolean(activeCart.applyCommission);
+    const servicePrice = isCommission
+      ? Math.round(unitPrice * 1.04 * 100) / 100
+      : unitPrice;
 
     const serviceItem: CartItem = {
       cartId: makeCartId(),
       type: 'service',
       name: name.trim(),
       quantity: 1,
-      unitPrice,
+      unitPrice: servicePrice,
       originalPrice: unitPrice,
-      subtotal: unitPrice,
+      subtotal: servicePrice,
       isNoAplica: false,
     };
 
     const supplyItems: CartItem[] = supplies.map(s => {
-      const price = typeof s.unitPrice === 'number' && s.unitPrice >= 0
+      const basePrice = typeof s.unitPrice === 'number' && s.unitPrice >= 0
         ? s.unitPrice
         : (s.product?.sellingPrice ?? (s.product as any)?.price ?? 0);
+      const price = isCommission
+        ? Math.round(basePrice * 1.04 * 100) / 100
+        : basePrice;
       return {
         cartId: makeCartId(),
         parentCartId: serviceItem.cartId,
@@ -373,7 +422,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
         sku: s.product.sku,
         quantity: s.quantity,
         unitPrice: price,
-        originalPrice: s.product?.sellingPrice || price,
+        originalPrice: basePrice,
         subtotal: price * s.quantity,
         isNoAplica: false,
       };
@@ -418,13 +467,15 @@ export const usePOSStore = create<POSState>((set, get) => ({
   updateUnitPrice: (cartId, newPrice) => {
     const { activeCartId } = get();
     const activeCart = getActiveCart(get());
+    const isCommission = Boolean(activeCart.applyCommission);
     const newItems = activeCart.items.map((item) => {
       if (item.cartId !== cartId) return item;
       const price = Math.max(0, newPrice);
+      const originalPrice = isCommission ? Math.round((price / 1.04) * 100) / 100 : price;
       return {
         ...item,
         unitPrice: price,
-        originalPrice: price > 0 ? price : item.originalPrice,
+        originalPrice: originalPrice > 0 ? originalPrice : item.originalPrice,
         subtotal: item.isNoAplica ? 0 : item.quantity * price,
       };
     });
@@ -435,11 +486,13 @@ export const usePOSStore = create<POSState>((set, get) => ({
   toggleItemNoAplica: (cartId, val) => {
     const { activeCartId } = get();
     const activeCart = getActiveCart(get());
+    const isCommission = Boolean(activeCart.applyCommission);
     const newItems = activeCart.items.map((item) => {
       if (item.cartId !== cartId) return item;
       const isNoAplica = val !== undefined ? val : !item.isNoAplica;
       const basePrice = item.originalPrice > 0 ? item.originalPrice : (item.unitPrice > 0 ? item.unitPrice : 0);
-      const finalPrice = isNoAplica ? 0 : basePrice;
+      const adjustedPrice = isCommission ? Math.round(basePrice * 1.04 * 100) / 100 : basePrice;
+      const finalPrice = isNoAplica ? 0 : adjustedPrice;
       return {
         ...item,
         isNoAplica,
@@ -455,7 +508,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
     const { activeCartId, carts } = get();
     const newCarts = carts.map(c =>
       c.id === activeCartId
-        ? { ...c, items: [], applyTax: false, isFullDiscount: false }
+        ? { ...c, items: [], applyTax: false, isFullDiscount: false, applyCommission: false }
         : c
     );
     set(syncFromActiveCart(newCarts, activeCartId));

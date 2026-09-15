@@ -15,6 +15,9 @@ import { STATUS_LABELS, STATUS_STYLES } from '@/core/constants';
 import type { AdminAppointment } from '@/app/domain';
 import { formatBranchWorkshopName } from '@/core/utils';
 import { useActiveBranch } from '@/app/presentation/hooks';
+import { EntityAuditLogsModal } from '@/app/presentation/components/organisms/Modals/EntityAuditLogsModal';
+import { useAuthorization } from '@/core/hooks';
+import { UserRole } from '@/core/enums';
 
 export interface AppointmentDetailDrawerProps {
   appt: AdminAppointment | null;
@@ -63,6 +66,9 @@ export const AppointmentDetailDrawer: React.FC<AppointmentDetailDrawerProps> = (
   onCancelClick,
 }) => {
   const { activeBranchName } = useActiveBranch();
+  const { hasRole } = useAuthorization();
+  const isAdmin = hasRole([UserRole.Admin]);
+  const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
   const [laborCost, setLaborCost] = useState<number | ''>(0);
   const [receptionNotes, setReceptionNotes] = useState('');
   const [isReceiving, setIsReceiving] = useState(false);
@@ -110,6 +116,17 @@ export const AppointmentDetailDrawer: React.FC<AppointmentDetailDrawerProps> = (
             </span>
           </div>
           <div className="flex items-center gap-2">
+            {isAdmin && (
+              <button
+                type="button"
+                onClick={() => setIsAuditModalOpen(true)}
+                className="btn btn-ghost btn-xs text-primary gap-1 px-2 border border-primary/20 hover:bg-primary/10"
+                title="Consultar historial de auditoría de esta cita"
+              >
+                <Icon name="ShieldCheck" size="xs" />
+                <span className="text-[11px] font-bold">Auditoría</span>
+              </button>
+            )}
             <KbdBadge keys="Esc" className="opacity-70 text-[10px]" />
             <button
               type="button"
@@ -504,6 +521,17 @@ export const AppointmentDetailDrawer: React.FC<AppointmentDetailDrawerProps> = (
           <p>Para dudas o reagendaciones, por favor contáctenos.</p>
         </div>
       </div>
+
+      {/* Entity Audit Logs Modal (Admin Only) */}
+      {isAdmin && appt && (
+        <EntityAuditLogsModal
+          isOpen={isAuditModalOpen}
+          onClose={() => setIsAuditModalOpen(false)}
+          entityId={appt.id}
+          entityType="Appointment"
+          title={`Auditoría - Cita ${appt.customerName}`}
+        />
+      )}
     </div>
   );
 };

@@ -1,5 +1,9 @@
 import React, { useState } from 'react';
 import { Icon, PrimaryButton, SecondaryButton, Modal, KbdBadge, TextInput } from '@/app/presentation/components';
+import { ServiceInvoiceReceipt } from '@/app/presentation/components/molecules/Receipt/ServiceInvoiceReceipt';
+import { EntityAuditLogsModal } from '@/app/presentation/components/organisms/Modals/EntityAuditLogsModal';
+import { useAuthorization } from '@/core/hooks';
+import { UserRole } from '@/core/enums';
 import type { Sale } from '@/app/domain';
 
 interface SaleDetailDrawerProps {
@@ -172,6 +176,9 @@ export const SaleDetailDrawer: React.FC<SaleDetailDrawerProps> = ({
   onPrintTicket,
   branchName: externalBranchName,
 }) => {
+  const { hasRole } = useAuthorization();
+  const isAdmin = hasRole([UserRole.Admin]);
+  const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
   const [cancelling, setCancelling] = useState(false);
@@ -225,6 +232,14 @@ export const SaleDetailDrawer: React.FC<SaleDetailDrawerProps> = ({
     }
   };
 
+  const handlePrintInvoice = () => {
+    document.body.classList.remove('print-ticket-mode', 'print-doc-mode');
+    document.body.classList.add('print-invoice-mode');
+    setTimeout(() => {
+      window.print();
+    }, 100);
+  };
+
   return (
     <>
       {/* Backdrop */}
@@ -263,6 +278,16 @@ export const SaleDetailDrawer: React.FC<SaleDetailDrawerProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
+            {isAdmin && (
+              <button
+                onClick={() => setIsAuditModalOpen(true)}
+                className="btn btn-ghost btn-xs text-primary gap-1 px-2 border border-primary/20 hover:bg-primary/10"
+                title="Consultar historial de auditoría de esta venta"
+              >
+                <Icon name="ShieldCheck" size="xs" />
+                <span className="text-[11px] font-bold">Auditoría</span>
+              </button>
+            )}
             <KbdBadge keys="Esc" className="opacity-70 text-[10px]" />
             <button
               onClick={onClose}
@@ -422,17 +447,22 @@ export const SaleDetailDrawer: React.FC<SaleDetailDrawerProps> = ({
         </div>
 
         {/* Drawer Footer Actions */}
-        <div className="p-4 px-6 border-t border-base-300 bg-base-200/50 flex gap-3">
+        <div className="p-4 px-6 border-t border-base-300 bg-base-200/50 flex flex-wrap gap-2">
           {onPrintTicket && (
-            <SecondaryButton className="flex-1 justify-center" onClick={() => onPrintTicket(sale)}>
-              <Icon name="Printer" size="sm" className="mr-2" />
+            <SecondaryButton className="flex-1 justify-center text-xs py-2" onClick={() => onPrintTicket(sale)}>
+              <Icon name="Printer" size="xs" className="mr-1.5" />
               Imprimir Ticket
             </SecondaryButton>
           )}
 
+          <SecondaryButton className="flex-1 justify-center text-xs py-2" onClick={handlePrintInvoice}>
+            <Icon name="FileText" size="xs" className="mr-1.5" />
+            Factura / Hoja
+          </SecondaryButton>
+
           {!sale.isCancelled && onCancelSale && (
             <PrimaryButton
-              className="flex-1 justify-center"
+              className="flex-1 justify-center text-xs py-2"
               color="error"
               onClick={() => {
                 setCancelReason('');
@@ -440,8 +470,8 @@ export const SaleDetailDrawer: React.FC<SaleDetailDrawerProps> = ({
                 setIsCancelModalOpen(true);
               }}
             >
-              <Icon name="Ban" size="sm" className="mr-2" />
-              Cancelar Venta
+              <Icon name="Ban" size="xs" className="mr-1.5" />
+              Cancelar
             </PrimaryButton>
           )}
         </div>
@@ -450,12 +480,12 @@ export const SaleDetailDrawer: React.FC<SaleDetailDrawerProps> = ({
       {/* Cancel Sale Modal */}
       <Modal isOpen={isCancelModalOpen} onClose={() => setIsCancelModalOpen(false)} onConfirm={handleConfirmCancel} title="Cancelar Venta" zIndex={1100}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <p style={{ fontSize: '14px', color: '#64748b', margin: 0 }}>
+          <p style={{ fontSize: '14px', margin: 0 }} className="text-base-content/60">
             ¿Estás seguro de que deseas cancelar la venta <strong>{sale.folio || sale.id.slice(-8)}</strong>? Esta acción devolverá el stock de los productos e insumos al almacén.
           </p>
 
           <div>
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#0f172a', marginBottom: '6px' }}>
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px' }} className="text-base-content">
               Motivo de la Cancelación <span style={{ color: '#ef4444' }}>*</span>
             </label>
             <TextInput
@@ -489,6 +519,24 @@ export const SaleDetailDrawer: React.FC<SaleDetailDrawerProps> = ({
           </div>
         </div>
       </Modal>
+
+      {/* Printable Service Invoice / Factura Document */}
+      <ServiceInvoiceReceipt
+        sale={sale}
+        branchName={branchName}
+        sellerName={sellerName}
+      />
+
+      {/* Entity Audit Logs Modal (Admin Only) */}
+      {isAdmin && (
+        <EntityAuditLogsModal
+          isOpen={isAuditModalOpen}
+          onClose={() => setIsAuditModalOpen(false)}
+          entityId={sale.id}
+          entityType="Sale"
+          title={`Auditoría - Venta ${sale.folio || sale.id.slice(-8)}`}
+        />
+      )}
     </>
   );
 };

@@ -1,5 +1,6 @@
 import type { Appointment, MaintenanceTrack, OccupiedSlots, PublicBranch, BookAppointmentPayload } from '@/app/domain';
 import type { ClientPortalRepository } from '@/app/domain';
+import { BranchLocalDataSource } from '@/app/data/datasources/local/Branch/BranchLocalDataSource';
 import { API_ENDPOINTS } from '@/core/constants/endpoints/api.endpoints';
 
 interface RawAppointment {
@@ -86,12 +87,21 @@ interface RawWorkingHours {
 
 export class APIClientPortalRepository implements ClientPortalRepository {
   private baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+  private readonly branchLocalDataSource: BranchLocalDataSource;
 
-  private async fetchWithBranch(url: string, options: RequestInit = {}): Promise<Response> {
+  constructor(branchLocalDataSource: BranchLocalDataSource = new BranchLocalDataSource()) {
+    this.branchLocalDataSource = branchLocalDataSource;
+  }
+
+  private async fetchWithBranch(url: string, options: RequestInit = {}, explicitBranchId?: string): Promise<Response> {
     const headers = new Headers(options.headers || {});
     
-    // Attempt to get from local storage, env var, or fallback
-    const branchId = localStorage.getItem('ferventa_public_branch') || import.meta.env.VITE_DEFAULT_BRANCH_ID;
+    const branchId =
+      explicitBranchId ||
+      this.branchLocalDataSource.getPublicBranchId() ||
+      this.branchLocalDataSource.getActiveBranchId() ||
+      import.meta.env.VITE_DEFAULT_BRANCH_ID;
+
     if (branchId) {
       headers.set('x-branch-id', branchId);
     }
@@ -108,10 +118,21 @@ export class APIClientPortalRepository implements ClientPortalRepository {
     if (!res.ok || !json.success) {
       throw new Error(json.message || 'Error al obtener sucursales');
     }
-    return json.data;
+    const branches: PublicBranch[] = json.data || [];
+    if (branches.length > 0 && !this.branchLocalDataSource.getPublicBranchId()) {
+      const firstBranchId = branches[0].id || branches[0]._id;
+      if (firstBranchId) {
+        this.branchLocalDataSource.savePublicBranchId(firstBranchId);
+      }
+    }
+    return branches;
   }
 
   async bookAppointment(appointment: BookAppointmentPayload): Promise<Appointment> {
+    if (appointment.branchId) {
+      this.branchLocalDataSource.savePublicBranchId(appointment.branchId);
+    }
+
     const body: Record<string, unknown> = {
       customerName: appointment.customerName,
       customerPhone: appointment.customerPhone,
@@ -122,23 +143,30 @@ export class APIClientPortalRepository implements ClientPortalRepository {
     };
     if (appointment.notes) body.notes = appointment.notes;
     if (appointment.branchName) body.branchName = appointment.branchName;
+    if (appointment.branchId) body.branchId = appointment.branchId;
     if (appointment.vehicle) {
       body.vehicle = {
         brand: appointment.vehicle.brand,
         model: appointment.vehicle.model,
-        year: Number(appointment.vehicle.year) || new Date().getFullYear(),
-        serialNumberLastFour: appointment.vehicle.serialNumberLastFour,
-        ...(appointment.vehicle.color ? { color: appointment.vehicle.color } : {}),
+        ...(Number(appointment.vehicle.year) ? { year: Number(appointment.vehicle.year) } : {}),
+        ...(appointment.vehicle.serialNumberLastFour?.trim()
+          ? { serialNumberLastFour: appointment.vehicle.serialNumberLastFour.trim().slice(0, 4).toUpperCase() }
+          : {}),
+        ...(appointment.vehicle.color?.trim() ? { color: appointment.vehicle.color.trim() } : {}),
       };
     }
 
-    const response = await this.fetchWithBranch(`${this.baseUrl}${API_ENDPOINTS.APPOINTMENTS.PUBLIC}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
+    const response = await this.fetchWithBranch(
+      `${this.baseUrl}${API_ENDPOINTS.APPOINTMENTS.PUBLIC}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
       },
-      body: JSON.stringify(body),
-    });
+      appointment.branchId
+    );
 
     const json = await response.json();
     if (!response.ok || !json.success) {
@@ -214,9 +242,21 @@ export class APIClientPortalRepository implements ClientPortalRepository {
     }
   }
 
-  async getOccupiedSlots(startDate: string, endDate: string): Promise<OccupiedSlots> {
+  async getOccupiedSlots(startDate: string, endDate: string, branchId?: string): Promise<OccupiedSlots> {
+    if (branchId) {
+      this.branchLocalDataSource.savePublicBranchId(branchId);
+    }
+    const params = new URLSearchParams({
+      startDate,
+      endDate,
+    });
+    if (branchId) {
+      params.append('branchId', branchId);
+    }
     const response = await this.fetchWithBranch(
-      `${this.baseUrl}${API_ENDPOINTS.APPOINTMENTS.OCCUPIED_SLOTS}?startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`
+      `${this.baseUrl}${API_ENDPOINTS.APPOINTMENTS.OCCUPIED_SLOTS}?${params.toString()}`,
+      {},
+      branchId
     );
     const json = await response.json();
     if (!response.ok || !json.success) {

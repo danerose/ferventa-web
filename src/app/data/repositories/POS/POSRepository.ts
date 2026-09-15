@@ -54,7 +54,11 @@ export class APISalesRepository {
     const json = await res.json();
     if (res.status === 401) throw new Error('UNAUTHORIZED');
     if (!res.ok || !json.success) throw new Error(json.message || 'Error al obtener ventas');
-    return json.data ?? [];
+    const rawSales = json.data ?? [];
+    return rawSales.map((s: Record<string, unknown>) => ({
+      ...s,
+      id: String(s.id || s._id || ''),
+    })) as Sale[];
   }
 
   /** GET /sales/stats — get aggregated sales statistics */
@@ -72,10 +76,15 @@ export class APISalesRepository {
     const params = new URLSearchParams();
     if (filter.startDate) params.set('startDate', filter.startDate);
     if (filter.endDate) params.set('endDate', filter.endDate);
-    if (filter.isCancelled !== undefined) params.set('isCancelled', String(filter.isCancelled));
-    if (filter.paymentMethod && filter.paymentMethod !== 'all') params.set('paymentMethod', filter.paymentMethod);
+    if (filter.isCancelled !== undefined && filter.isCancelled !== 'all') {
+      params.set('isCancelled', String(filter.isCancelled));
+    }
+    if (filter.paymentMethod && filter.paymentMethod !== 'all') {
+      params.set('paymentMethod', filter.paymentMethod);
+    }
     if (filter.customerId) params.set('customerId', filter.customerId);
-    if (filter.branchId && filter.branchId !== 'all') params.set('branchId', filter.branchId);
+    if (filter.branchId) params.set('branchId', filter.branchId);
+    // Always send timezone offset so the backend can align day boundaries to local time
     params.set('utcOffsetMinutes', String(new Date().getTimezoneOffset()));
 
     const res = await this.fetchWithAuth(
@@ -88,26 +97,23 @@ export class APISalesRepository {
     return json.data;
   }
 
-  /** POST /sales — register a sale (products, services or mixed) */
+  /** POST /sales — create a new sale */
   async createSale(token: string, data: CreateSalePayload): Promise<Sale> {
     const payload: Record<string, unknown> = {
-      items: data.items.map((it) => {
-        const itemObj: Record<string, unknown> = {
-          type: it.type || (it.serviceId ? 'service' : 'product'),
-          quantity: it.quantity,
-        };
-        if (it.productId) itemObj.productId = it.productId;
-        if (it.serviceId) itemObj.serviceId = it.serviceId;
-        if (it.name) itemObj.name = it.name;
-        if (it.unitPrice !== undefined) itemObj.unitPrice = it.unitPrice;
-        if (it.discount !== undefined) itemObj.discount = it.discount;
-        return itemObj;
-      }),
+      items: data.items.map((item) => ({
+        type: item.type,
+        productId: item.productId,
+        serviceId: item.serviceId,
+        name: item.name,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        discount: item.discount || 0,
+      })),
       paymentMethod: data.paymentMethod,
+      globalDiscount: data.globalDiscount || 0,
     };
     if (data.customerId) payload.customerId = data.customerId;
     if (data.quoteId) payload.quoteId = data.quoteId;
-    if (data.globalDiscount !== undefined) payload.globalDiscount = data.globalDiscount;
     if (data.paymentReference) payload.paymentReference = data.paymentReference;
 
     const res = await this.fetchWithAuth(`${this.baseUrl}/sales`, {
@@ -118,7 +124,8 @@ export class APISalesRepository {
     const json = await res.json();
     if (res.status === 401) throw new Error('UNAUTHORIZED');
     if (!res.ok || !json.success) throw new Error(json.message || 'Error al crear venta');
-    return json.data;
+    const created = json.data;
+    return { ...created, id: String(created?.id || created?._id || '') };
   }
 
   /** GET /sales/:id — get sale detail */
@@ -129,7 +136,8 @@ export class APISalesRepository {
     const json = await res.json();
     if (res.status === 401) throw new Error('UNAUTHORIZED');
     if (!res.ok || !json.success) throw new Error(json.message || 'Error al obtener venta');
-    return json.data;
+    const s = json.data;
+    return { ...s, id: String(s?.id || s?._id || '') };
   }
 
   /** GET /sales/ticket/:query — get ticket blob */
@@ -142,16 +150,28 @@ export class APISalesRepository {
     return res.blob();
   }
 
-  /** POST /sales/:id/cancel — cancel a sale and restore stock */
+  /** POST /sales/:id/cancel — cancel a sale and restore stock (Admin only) */
   async cancelSale(token: string, id: string, reason: string): Promise<void> {
-    const res = await this.fetchWithAuth(`${this.baseUrl}/sales/${id}/cancel`, {
+    const cleanId = String(id || '').trim();
+    if (!cleanId || cleanId === 'undefined' || cleanId === 'null') {
+      throw new Error('ID de venta inválido para cancelar');
+    }
+    const res = await this.fetchWithAuth(`${this.baseUrl}/sales/${cleanId}/cancel`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ reason }),
+      body: JSON.stringify({ reason: reason.trim() }),
     });
-    const json = await res.json();
+    let json: { success?: boolean; message?: string } = {};
+    try {
+      json = await res.json();
+    } catch {
+      json = {};
+    }
     if (res.status === 401) throw new Error('UNAUTHORIZED');
-    if (!res.ok || !json.success) throw new Error(json.message || 'Error al cancelar venta');
+    if (res.status === 403) throw new Error('Permisos insuficientes: Solo el Administrador puede cancelar ventas.');
+    if (!res.ok || json.success === false) {
+      throw new Error(json.message || `Error al cancelar venta (HTTP ${res.status})`);
+    }
   }
 
   /** POST /quotes — create a quotation */

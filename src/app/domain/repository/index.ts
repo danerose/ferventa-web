@@ -7,3 +7,4 @@ export * from './Appointment/IAppointmentRepository';
 export * from './Schedule/IScheduleRepository';
 export * from './Maintenance/IMaintenanceRepository';
 export * from './Customer/ICustomerRepository';
+export * from './Audit/IAuditRepository';

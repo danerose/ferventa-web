@@ -1032,6 +1032,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onLogout
         timeSlotOptions={timeSlotOptions}
         format12h={format12h}
         occupiedSlots={occupiedSlots}
+        occupiedLoading={occupiedLoading}
         occupiedList={occupiedList}
         modalMessage={modalMessage}
         onMessageChange={(val) => {

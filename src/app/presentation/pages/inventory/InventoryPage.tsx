@@ -29,9 +29,11 @@ import {
   clientPortalRepository as clientPortalRepo,
   servicesRepository as servicesRepo,
 } from '@/core/di/container';
-import type { CreateProductDto, CreateProviderDto, Product, Provider, StockMovement } from '@/app/domain';
+import type { CreateProductDto, CreateProviderDto, Product, Provider, StockMovement, OpenBoxResult } from '@/app/domain';
 import type { Branch } from '@/app/domain';
 import type { PredefinedService, CreateServiceDto } from '@/app/domain';
+import { useAuthorization } from '@/core/hooks';
+import { UserRole } from '@/core/enums';
 import { cn } from '@/core/utils/cn';
 
 import { useShallow } from 'zustand/react/shallow';
@@ -153,6 +155,33 @@ export const InventoryPage: React.FC = () => {
   const [formErrors, setFormErrors] = useState<{ [key: string]: string }>({});
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
 
+  const { hasRole } = useAuthorization();
+  const isAdmin = hasRole([UserRole.Admin]);
+  const canManageCatalog = isAdmin;
+
+  // Open box modal states
+  const [openBoxCode, setOpenBoxCode] = useState('');
+  const [openingBox, setOpeningBox] = useState(false);
+  const [openBoxResult, setOpenBoxResult] = useState<OpenBoxResult | null>(null);
+  const [openBoxError, setOpenBoxError] = useState<string | null>(null);
+
+  const handleOpenBoxConfirm = async () => {
+    if (!accessToken || !openBoxCode.trim()) return;
+    setOpeningBox(true);
+    setOpenBoxError(null);
+    setOpenBoxResult(null);
+    try {
+      const res = await inventoryRepo.openBox(accessToken, openBoxCode.trim());
+      setOpenBoxResult(res);
+      setOpenBoxCode('');
+      fetchInventoryData();
+    } catch (err: any) {
+      setOpenBoxError(err?.message || 'Error al abrir la caja');
+    } finally {
+      setOpeningBox(false);
+    }
+  };
+
   const [providerForm, setProviderForm] = useState<CreateProviderDto>({
     name: '',
     providerCode: '',
@@ -226,6 +255,10 @@ export const InventoryPage: React.FC = () => {
       : 0;
 
     const computed = sorted.map(m => {
+      const backendBalance = (m as any).newStock ?? (m as any).balanceAfter ?? (m as any).balance;
+      if (backendBalance !== undefined && backendBalance !== null) {
+        return { ...m, calculatedBalance: Number(backendBalance) };
+      }
       if (m.type === 'in') {
         runningBalance += m.quantity;
       } else {
@@ -427,12 +460,14 @@ export const InventoryPage: React.FC = () => {
 
   const handleOpenEditProduct = (product: Product) => {
     setEditingProductId(product.id);
+    const bId = (product.brand as any)?.id || (product.brand as any)?._id || (typeof product.brand === 'string' ? product.brand : '') || '';
+    const cId = (product.category as any)?.id || (product.category as any)?._id || (typeof product.category === 'string' ? product.category : '') || '';
     setProductForm({
       name: product.name,
       description: product.description || '',
       sku: product.sku,
-      brandId: product.brand?.id || '',
-      categoryId: product.category?.id || '',
+      brandId: bId,
+      categoryId: cId,
       costPrice: product.costPrice,
       sellingPrice: product.sellingPrice,
       stock: product.stock,
@@ -771,6 +806,19 @@ export const InventoryPage: React.FC = () => {
             <Flex gap="sm">
               {activeTab === 'inventory' ? (
                 <>
+                  <SecondaryButton
+                    size="sm"
+                    onClick={() => {
+                      setOpenBoxCode('');
+                      setOpenBoxError(null);
+                      setOpenBoxResult(null);
+                      setActiveModal('openBox');
+                    }}
+                    iconStart={<Icon name="QrCode" size="sm" />}
+                    title="Abrir caja de lote aprobado para ingresar piezas a mostrador"
+                  >
+                    Abrir Caja QR
+                  </SecondaryButton>
                   <PrimaryButton
                     size="sm"
                     color="success"
@@ -780,21 +828,25 @@ export const InventoryPage: React.FC = () => {
                     Ingreso de Mercancía
                     <KbdBadge keys="Alt+M" className="ml-1.5" />
                   </PrimaryButton>
-                  <SecondaryButton
-                    size="sm"
-                    onClick={() => setActiveModal('addProductBatch')}
-                    iconStart={<Icon name="UploadCloud" size="sm" />}
-                  >
-                    Registro por Lotes
-                  </SecondaryButton>
-                  <PrimaryButton
-                    size="sm"
-                    onClick={handleOpenAddProduct}
-                    iconStart={<Icon name="Plus" size="sm" />}
-                  >
-                    Nuevo Producto
-                    <KbdBadge keys="Alt+N" className="ml-1.5" />
-                  </PrimaryButton>
+                  {canManageCatalog && (
+                    <>
+                      <SecondaryButton
+                        size="sm"
+                        onClick={() => setActiveModal('addProductBatch')}
+                        iconStart={<Icon name="UploadCloud" size="sm" />}
+                      >
+                        Registro por Lotes
+                      </SecondaryButton>
+                      <PrimaryButton
+                        size="sm"
+                        onClick={handleOpenAddProduct}
+                        iconStart={<Icon name="Plus" size="sm" />}
+                      >
+                        Nuevo Producto
+                        <KbdBadge keys="Alt+N" className="ml-1.5" />
+                      </PrimaryButton>
+                    </>
+                  )}
                 </>
               ) : activeTab === 'movements' ? (
                 <Flex gap="sm">
@@ -816,28 +868,32 @@ export const InventoryPage: React.FC = () => {
                   </PrimaryButton>
                 </Flex>
               ) : activeTab === 'providers' ? (
-                <PrimaryButton
-                  size="sm"
-                  onClick={handleOpenAddProvider}
-                  iconStart={<Icon name="Plus" size="sm" />}
-                >
-                  Nuevo Proveedor
-                  <KbdBadge keys="Alt+N" className="ml-1.5" />
-                </PrimaryButton>
+                canManageCatalog && (
+                  <PrimaryButton
+                    size="sm"
+                    onClick={handleOpenAddProvider}
+                    iconStart={<Icon name="Plus" size="sm" />}
+                  >
+                    Nuevo Proveedor
+                    <KbdBadge keys="Alt+N" className="ml-1.5" />
+                  </PrimaryButton>
+                )
               ) : activeTab === 'services' ? (
-                <PrimaryButton
-                  size="sm"
-                  color="warning"
-                  onClick={() => {
-                    setEditingServiceId(null);
-                    setServiceForm({ name: '', description: '', basePrice: 0, isActive: true, supplies: [] });
-                    setActiveModal('addService');
-                  }}
-                  iconStart={<Icon name="Plus" size="sm" />}
-                >
-                  Nuevo Servicio
-                  <KbdBadge keys="Alt+N" className="ml-1.5" />
-                </PrimaryButton>
+                canManageCatalog && (
+                  <PrimaryButton
+                    size="sm"
+                    color="warning"
+                    onClick={() => {
+                      setEditingServiceId(null);
+                      setServiceForm({ name: '', description: '', basePrice: 0, isActive: true, supplies: [] });
+                      setActiveModal('addService');
+                    }}
+                    iconStart={<Icon name="Plus" size="sm" />}
+                  >
+                    Nuevo Servicio
+                    <KbdBadge keys="Alt+N" className="ml-1.5" />
+                  </PrimaryButton>
+                )
               ) : null}
             </Flex>
           </Flex>
@@ -1837,6 +1893,90 @@ export const InventoryPage: React.FC = () => {
             </Box>
           </Box>
         </Stack>
+      </Modal>
+
+      {/* Open Box Modal */}
+      <Modal
+        isOpen={activeModal === 'openBox'}
+        onClose={() => {
+          setActiveModal(null);
+          setOpenBoxError(null);
+          setOpenBoxResult(null);
+        }}
+        title="Abrir Caja de Almacén (Ingreso a Mostrador)"
+        maxWidth="500px"
+        footer={
+          <>
+            <SecondaryButton
+              onClick={() => {
+                setActiveModal(null);
+                setOpenBoxError(null);
+                setOpenBoxResult(null);
+              }}
+              disabled={openingBox}
+            >
+              Cerrar <KbdBadge keys="Esc" className="ml-1.5" />
+            </SecondaryButton>
+            <PrimaryButton
+              color="primary"
+              onClick={handleOpenBoxConfirm}
+              disabled={openingBox || !openBoxCode.trim()}
+              loading={openingBox}
+            >
+              Abrir e Ingresar al Stock <KbdBadge keys="Enter ↵" className="ml-1.5" />
+            </PrimaryButton>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <p className="text-xs text-base-content/70">
+            Escanea el código QR de la caja o ingresa su identificador (ej. <span className="font-mono font-bold text-primary">BOX-M8B2X-1-042</span>). Las piezas se sumarán al stock activo y se nivelará el precio de mostrador.
+          </p>
+
+          <Box>
+            <Text as="label" size="xs" weight="bold" className="block mb-1.5 text-base-content/80">
+              Código de Caja (QR / Barras)
+            </Text>
+            <TextInput
+              size="sm"
+              placeholder="Ej. BOX-M8B2X-1-042"
+              value={openBoxCode}
+              onChange={(e) => setOpenBoxCode(e.target.value.toUpperCase())}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleOpenBoxConfirm();
+                }
+              }}
+              className="font-mono font-bold"
+              autoFocus
+            />
+          </Box>
+
+          {openBoxError && (
+            <div className="alert alert-error text-xs">
+              <Icon name="AlertCircle" size="sm" />
+              <span>{openBoxError}</span>
+            </div>
+          )}
+
+          {openBoxResult && (
+            <div className="p-4 bg-success/10 border border-success/30 rounded-xl space-y-2 text-xs">
+              <div className="flex items-center gap-2 font-bold text-success">
+                <Icon name="CheckCircle" size="sm" />
+                <span>¡Caja abierta exitosamente!</span>
+              </div>
+              <div className="text-base-content/80">
+                Se ingresaron <strong className="text-success font-mono">+{openBoxResult.quantity} unidades</strong> al producto <strong className="text-base-content">{openBoxResult.productName || openBoxResult.productId}</strong>.
+              </div>
+              {openBoxResult.newSellingPrice !== undefined && (
+                <div className="text-base-content/70 font-mono text-[11px]">
+                  Precio de venta unificado: ${openBoxResult.newSellingPrice.toFixed(2)}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </Modal>
 
     </PageLayout>

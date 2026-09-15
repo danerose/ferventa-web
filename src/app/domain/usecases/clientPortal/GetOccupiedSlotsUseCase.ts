@@ -8,10 +8,10 @@ export class GetOccupiedSlotsUseCase {
     this.clientPortalRepository = clientPortalRepository;
   }
 
-  async execute(startDate: string, endDate: string): Promise<OccupiedSlots> {
+  async execute(startDate: string, endDate: string, branchId?: string): Promise<OccupiedSlots> {
     if (!startDate || !endDate) {
       throw new Error('Las fechas de inicio y fin son requeridas');
     }
-    return this.clientPortalRepository.getOccupiedSlots(startDate, endDate);
+    return this.clientPortalRepository.getOccupiedSlots(startDate, endDate, branchId);
   }
 }
