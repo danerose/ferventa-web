@@ -56,7 +56,7 @@ export class MaintenanceRemoteDataSource {
     if (customerId) body.customerId = customerId;
     const vehicleId = raw.vehicleId || payload.vehicle?.id || payload.vehicle?._id;
     if (vehicleId) body.vehicleId = vehicleId;
-    const apptId = raw.appointmentId || payload.appointmentId || payload.appointment?.id;
+    const apptId = raw.appointmentId || payload.appointment?.id;
     if (apptId) body.appointmentId = apptId;
     const cost = payload.laborCost ?? payload.laborPrice;
     if (cost !== undefined) body.laborCost = cost;
