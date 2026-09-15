@@ -12,9 +12,11 @@ import {
   TemporaryServiceModal,
   TicketReceipt,
   ServiceInvoiceReceipt,
+  ServiceInvoiceCustomerModal,
   QuotationReceipt,
   ProductDetailModal,
 } from '@/app/presentation/components';
+import type { ServiceInvoiceCustomerData } from '@/app/presentation/components/organisms/Modals/ServiceInvoiceCustomerModal';
 
 import { useAuthStore, usePOSStore, usePrinterSettingsStore } from '@/app/presentation/stores';
 import { thermalPrintService } from '@/core/services';
@@ -220,6 +222,8 @@ export const POSPage: React.FC = () => {
 
   const [activeTab, setActiveTab] = useState<'products' | 'services'>('products');
   const [isTempServiceModalOpen, setIsTempServiceModalOpen] = useState(false);
+  const [isCustomerInvoiceModalOpen, setIsCustomerInvoiceModalOpen] = useState(false);
+  const [selectedCustomerInvoiceData, setSelectedCustomerInvoiceData] = useState<ServiceInvoiceCustomerData | null>(null);
   const [lastCompletedSale, setLastCompletedSale] = useState<Sale | null>(null);
   const [selectedDetailProduct, setSelectedDetailProduct] = useState<Product | null>(null);
 
@@ -274,8 +278,10 @@ export const POSPage: React.FC = () => {
       total: s.total,
       applyTax: s.applyTax,
       isFullDiscount: s.isFullDiscount,
+      applyCommission: s.applyCommission,
       toggleApplyTax: s.toggleApplyTax,
       toggleFullDiscount: s.toggleFullDiscount,
+      toggleApplyCommission: s.toggleApplyCommission,
       setSearchValue: s.setSearchValue,
       setServiceSearchValue: s.setServiceSearchValue,
       addProductToCart: s.addProductToCart,
@@ -1188,7 +1194,12 @@ export const POSPage: React.FC = () => {
       <TicketReceipt sale={lastCompletedSale} branchName={activeBranchName} sellerName={user?.name} />
 
       {/* ── Printable Service Invoice / Factura Document ──────────────────────── */}
-      <ServiceInvoiceReceipt sale={lastCompletedSale} branchName={activeBranchName} sellerName={user?.name} />
+      <ServiceInvoiceReceipt
+        sale={lastCompletedSale}
+        customerData={selectedCustomerInvoiceData}
+        branchName={activeBranchName}
+        sellerName={user?.name}
+      />
 
       {/* ── Printable Quotation Document ──────────────────────────────────────── */}
       <QuotationReceipt
@@ -1217,7 +1228,7 @@ export const POSPage: React.FC = () => {
             Total: <strong style={{ color: '#0f172a' }}>${total.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</strong>
           </p>
           <p style={{ fontSize: '13px', fontWeight: '600', color: '#0f172a', marginBottom: '10px' }}>Método de pago</p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: paymentMethod === 'card' ? '12px' : '24px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
             {(
               [
                 { value: 'cash' as const, icon: 'DollarSign' as const, label: 'Efectivo', key: '1' },
@@ -1244,30 +1255,6 @@ export const POSPage: React.FC = () => {
               </button>
             ))}
           </div>
-
-          {/* Card Commission 4% in Checkout Modal */}
-          {paymentMethod === 'card' && (
-            <div style={{
-              background: '#fffbeb',
-              border: '1px solid #fde68a',
-              borderRadius: '8px',
-              padding: '12px',
-              marginBottom: '20px',
-            }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: 600, fontSize: '12.5px', color: '#92400e' }}>
-                <input
-                  type="checkbox"
-                  checked={applyCommission}
-                  onChange={(e) => toggleApplyCommission(e.target.checked)}
-                  style={{ width: '16px', height: '16px', cursor: 'pointer', accentColor: '#d97706' }}
-                />
-                <span>Aplicar comisión de tarjeta / terminal (+4%)</span>
-              </label>
-              <p style={{ margin: '4px 0 0 24px', fontSize: '11px', color: '#b45309', lineHeight: 1.3 }}>
-                * El 4% se calcula en cada producto y servicio del carrito sin aparecer como cargo extra en el ticket ni factura.
-              </p>
-            </div>
-          )}
         </div>
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
           <SecondaryButton onClick={() => setActiveModal(null)} disabled={processing}>
@@ -1307,11 +1294,7 @@ export const POSPage: React.FC = () => {
                 </SecondaryButton>
                 <SecondaryButton
                   className="flex-1 justify-center text-xs py-2"
-                  onClick={() => {
-                    document.body.classList.remove('print-ticket-mode', 'print-doc-mode');
-                    document.body.classList.add('print-invoice-mode');
-                    setTimeout(() => window.print(), 100);
-                  }}
+                  onClick={() => setIsCustomerInvoiceModalOpen(true)}
                 >
                   <Icon name="FileText" size="xs" className="mr-1.5" />
                   Factura de Servicio
@@ -1324,6 +1307,21 @@ export const POSPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Service Invoice Customer Selection Modal */}
+      <ServiceInvoiceCustomerModal
+        isOpen={isCustomerInvoiceModalOpen}
+        onClose={() => setIsCustomerInvoiceModalOpen(false)}
+        onConfirm={(data) => {
+          setSelectedCustomerInvoiceData(data);
+          setIsCustomerInvoiceModalOpen(false);
+          document.body.classList.remove('print-ticket-mode', 'print-doc-mode');
+          document.body.classList.add('print-invoice-mode');
+          setTimeout(() => {
+            window.print();
+          }, 150);
+        }}
+      />
 
       {/* Product Detail Modal */}
       <ProductDetailModal

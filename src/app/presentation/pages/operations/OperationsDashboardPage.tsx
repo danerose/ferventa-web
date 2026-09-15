@@ -421,7 +421,7 @@ export const OperationsDashboardPage: React.FC = () => {
         setYesterdaySales(filterBranch(ydData));
 
         const activeM = (maintenancesData || []).filter((m: AdminMaintenanceOrder) => {
-          if (m.status === 'awaiting_appointment' || m.status === 'delivered') return false;
+          if ((m.status as string) === 'awaiting_appointment' || m.status === 'delivered') return false;
           if (activeBranchId && activeBranchId !== '000000000000000000000000') {
             const mBranchId = ('branch' in m && typeof (m as { branch?: unknown }).branch === 'string' ? String((m as { branch?: unknown }).branch) : '');
             if (mBranchId && mBranchId !== activeBranchId) return false;
@@ -443,7 +443,7 @@ export const OperationsDashboardPage: React.FC = () => {
         });
 
         const pendingApptsFromMaint = (maintenancesData || []).filter((m: AdminMaintenanceOrder) => {
-          if (m.status !== 'awaiting_appointment') return false;
+          if ((m.status as string) !== 'awaiting_appointment') return false;
           if (activeBranchId && activeBranchId !== '000000000000000000000000') {
             const mBranchId = ('branch' in m && typeof (m as { branch?: unknown }).branch === 'string' ? String((m as { branch?: unknown }).branch) : '');
             if (mBranchId && mBranchId !== activeBranchId) return false;

@@ -4,6 +4,7 @@ import { useAuthStore, useThemeStore } from '@/app/presentation/stores';
 import { APP_ROUTES } from '@/core/constants';
 import { UserRole } from '@/core/enums';
 import { useAuthorization } from '@/core/hooks';
+import { getDefaultRouteForRole } from '@/core/utils';
 import { ForbiddenPage } from '@/app/presentation/pages/forbidden/ForbiddenPage';
 
 // Code-splitting via React.lazy with direct paths to eliminate monolithic bundle
@@ -72,9 +73,11 @@ export function App() {
     return () => clearInterval(interval);
   }, [initializeTheme]);
 
+  const user = useAuthStore((s) => s.user);
+
   const handleOpenAdmin = () => {
     if (isAuth) {
-      navigate(APP_ROUTES.ADMIN.CITAS);
+      navigate(getDefaultRouteForRole(user));
     } else {
       navigate(APP_ROUTES.LOGIN);
     }
@@ -94,13 +97,13 @@ export function App() {
           path={APP_ROUTES.LOGIN}
           element={
             isAuth ? (
-              <Navigate to={APP_ROUTES.ADMIN.CITAS} replace />
+              <Navigate to={getDefaultRouteForRole(user)} replace />
             ) : (
-              <LoginPage onLoginSuccess={() => navigate(APP_ROUTES.ADMIN.CITAS)} />
+              <LoginPage onLoginSuccess={(loggedUser) => navigate(getDefaultRouteForRole(loggedUser || user))} />
             )
           }
         />
-        <Route path={APP_ROUTES.ADMIN.ROOT} element={<Navigate to={APP_ROUTES.ADMIN.CITAS} replace />} />
+        <Route path={APP_ROUTES.ADMIN.ROOT} element={<Navigate to={getDefaultRouteForRole(user)} replace />} />
         
         {/* Citas: Admin, Recepción, Vendedor */}
         <Route

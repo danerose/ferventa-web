@@ -19,8 +19,6 @@ import { useAuthStore } from '@/app/presentation/stores';
  *   </PageLayout>
  */
 
-const SIDEBAR_WIDTH = 240; // px — must match Sidebar.tsx `width: '240px'`
-
 export interface PageLayoutProps {
   /** Page body — header, main content, modals, drawers, etc. */
   children: React.ReactNode;
@@ -41,6 +39,7 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
   const fetchProfile = useAuthStore((s) => s.fetchProfile);
 
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [successToast, setSuccessToast] = useState<string | null>(null);
 
   const resolvedName = userName ?? user?.name ?? 'Admin';
@@ -73,18 +72,42 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
           onLogout={handleLogout}
           userName={resolvedName}
           onChangePassword={() => setIsChangePasswordOpen(true)}
+          isOpen={isMobileSidebarOpen}
+          onClose={() => setIsMobileSidebarOpen(false)}
         />
       </div>
 
-      {/* Content area — pushed right by sidebar width, never overlaps */}
+      {/* Mobile Top Navigation Header */}
+      <div className="md:hidden flex items-center justify-between px-4 py-3 bg-[#091426] text-white border-b border-white/10 shrink-0 print:hidden z-30 sticky top-0 shadow-sm">
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setIsMobileSidebarOpen(true)}
+            className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
+            aria-label="Abrir menú"
+          >
+            <Icon name="Menu" size="sm" />
+          </button>
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded-md bg-[#855300] flex items-center justify-center">
+              <Icon name="Wrench" className="text-white" size="xs" />
+            </div>
+            <span className="font-bold text-sm">Nova FV</span>
+          </div>
+        </div>
+        <span className="text-xs text-amber-400 font-semibold truncate max-w-[140px]">
+          {resolvedName}
+        </span>
+      </div>
+
+      {/* Content area — pushed right by sidebar on desktop (md:ml-[240px]), full-width on mobile (ml-0) */}
       <div
         style={{
-          marginLeft: `${SIDEBAR_WIDTH}px`,
           minHeight: '100vh',
           display: 'flex',
           flexDirection: 'column',
         }}
-        className={`print:ml-0 ${className}`.trim()}
+        className={`md:ml-[240px] ml-0 print:ml-0 ${className}`.trim()}
       >
         {/* Banner de aviso de contraseña temporal */}
         {user?.isDefaultPassword && (

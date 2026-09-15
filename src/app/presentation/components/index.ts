@@ -91,6 +91,7 @@ export * from './organisms/Modals/UserBreakdownModal';
 export * from './organisms/Modals/ChangePasswordModal';
 export * from './organisms/Modals/EntityAuditLogsModal';
 export * from './organisms/Modals/WorkshopLoadModal';
+export * from './organisms/Modals/ServiceInvoiceCustomerModal';
 export * from './organisms/SaleDetailDrawer/SaleDetailDrawer';
 export * from './organisms/PageLayout/PageLayout';
 export * from './organisms/Sidebar/Sidebar';

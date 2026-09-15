@@ -73,7 +73,8 @@ export type MaintenanceOrderStatus =
   | 'in_progress'
   | 'completed'
   | 'delivered'
-  | 'cancelled';
+  | 'cancelled'
+  | 'awaiting_appointment';
 
 export interface MaintenanceOrder {
   id: string;

@@ -11,6 +11,8 @@ export interface SidebarProps {
   onLogout: () => void;
   userName: string;
   onChangePassword?: () => void;
+  isOpen?: boolean;
+  onClose?: () => void;
 }
 
 interface NavItemConfig {
@@ -93,7 +95,7 @@ const ALL_BOTTOM_ITEMS: NavItemConfig[] = [
   },
 ];
 
-export const Sidebar: React.FC<SidebarProps> = ({ onLogout, userName, onChangePassword }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ onLogout, userName, onChangePassword, isOpen, onClose }) => {
   const location = useLocation();
   const user = useAuthStore((s) => s.user);
   const accessToken = useAuthStore((s) => s.accessToken);
@@ -158,7 +160,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ onLogout, userName, onChangePa
   const navItems = ALL_NAV_ITEMS.filter((item) => hasRole(item.allowedRoles));
   const bottomItems = ALL_BOTTOM_ITEMS.filter((item) => hasRole(item.allowedRoles));
 
-
   const navLinkStyle = (path: string) => ({
     display: 'flex' as const,
     alignItems: 'center' as const,
@@ -175,20 +176,19 @@ export const Sidebar: React.FC<SidebarProps> = ({ onLogout, userName, onChangePa
   });
 
   return (
-    <aside
-      style={{
-        width: '240px',
-        height: '100vh',
-        position: 'fixed',
-        left: 0,
-        top: 0,
-        background: '#091426',
-        display: 'flex',
-        flexDirection: 'column',
-        zIndex: 50,
-        borderRight: '1px solid rgba(255,255,255,0.05)',
-      }}
-    >
+    <>
+      {/* Mobile backdrop */}
+      {isOpen && (
+        <div
+          onClick={onClose}
+          className="fixed inset-0 bg-black/60 backdrop-blur-xs z-40 md:hidden animate-fade-in"
+        />
+      )}
+      <aside
+        className={`w-[240px] h-screen fixed left-0 top-0 bg-[#091426] flex flex-col z-50 border-r border-white/5 transition-transform duration-200 md:translate-x-0 ${
+          isOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
       {/* Logo */}
       <div style={{ padding: '24px 20px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
@@ -423,5 +423,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ onLogout, userName, onChangePa
         </button>
       </div>
     </aside>
+    </>
   );
 };

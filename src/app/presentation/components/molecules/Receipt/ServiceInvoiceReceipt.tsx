@@ -1,17 +1,102 @@
 import React from 'react';
 import type { Sale, AdminMaintenanceOrder } from '@/app/domain';
 import { formatCurrency, formatDate } from '@/core/utils';
+import type { ServiceInvoiceCustomerData } from '@/app/presentation/components/organisms/Modals/ServiceInvoiceCustomerModal';
 
 export interface ServiceInvoiceReceiptProps {
   sale: Sale | null;
   order?: AdminMaintenanceOrder | null;
+  customerData?: ServiceInvoiceCustomerData | null;
   branchName?: string;
   sellerName?: string;
+}
+
+interface InvoiceVehicle {
+  brand?: string;
+  model?: string;
+  year?: string | number;
+  serialNumberLastFour?: string;
+  licensePlate?: string;
+  color?: string;
+}
+
+interface RawInvoiceItem {
+  id?: string;
+  _id?: string;
+  cartId?: string;
+  parentCartId?: string;
+  parentId?: string;
+  parentServiceId?: string;
+  type?: string;
+  name?: string;
+  sku?: string;
+  quantity?: number;
+  unitPrice?: number;
+  priceSnapshot?: number;
+  subtotal?: number;
+  isConsumable?: boolean;
+  product?: { name?: string; sku?: string; sellingPrice?: number };
+  service?: { name?: string };
+  serviceId?: { name?: string; sku?: string; basePrice?: number } | string;
+}
+
+interface InvoiceItem {
+  id: string;
+  name: string;
+  sku?: string;
+  quantity: number;
+  unitPrice: number;
+  subtotal: number;
+  type: 'service' | 'product';
+}
+
+function parseInvoiceItems(items: unknown[]): InvoiceItem[] {
+  if (!Array.isArray(items)) return [];
+  const rawList = items as RawInvoiceItem[];
+  return rawList.map((item, index) => {
+    const isService =
+      item.type === 'service' ||
+      Boolean(item.serviceId) ||
+      Boolean(item.service) ||
+      (!item.isConsumable &&
+        !item.parentCartId &&
+        (item.name || item.product?.name || '').toLowerCase().includes('servicio'));
+
+    const serviceObj = typeof item.serviceId === 'object' && item.serviceId !== null ? item.serviceId : undefined;
+    const name =
+      item.name ||
+      item.service?.name ||
+      serviceObj?.name ||
+      item.product?.name ||
+      (isService ? 'Servicio' : 'Artículo');
+
+    const sku = item.sku || item.product?.sku || serviceObj?.sku || '';
+    const quantity = Number(item.quantity) || 1;
+    const unitPrice = Number(
+      item.unitPrice ??
+      item.priceSnapshot ??
+      item.product?.sellingPrice ??
+      serviceObj?.basePrice ??
+      0
+    );
+    const subtotal = Number(item.subtotal ?? (unitPrice * quantity));
+
+    return {
+      id: String(item.cartId || item.id || item._id || `item-${index}`),
+      name,
+      sku,
+      quantity,
+      unitPrice,
+      subtotal,
+      type: isService ? 'service' : 'product',
+    };
+  });
 }
 
 export const ServiceInvoiceReceipt: React.FC<ServiceInvoiceReceiptProps> = ({
   sale,
   order,
+  customerData,
   branchName = 'Nova FV Sucursal Uman',
   sellerName = 'Taller Ferventa',
 }) => {
@@ -21,26 +106,56 @@ export const ServiceInvoiceReceipt: React.FC<ServiceInvoiceReceiptProps> = ({
   const invoiceFolio = sale?.folio || (sale?.id ? sale.id.slice(-6).toUpperCase() : (order?.id ? order.id.slice(-6).toUpperCase() : 'SRV-001'));
 
   // Separate services from parts/supplies
-  const allItems = sale?.items || [];
-  const serviceItems = allItems.filter(
-    (it) => it.type === 'service' || (it as { serviceId?: string }).serviceId || (!it.isConsumable && !it.parentCartId && it.name.toLowerCase().includes('servicio'))
-  );
-  const partItems = allItems.filter(
-    (it) => !serviceItems.includes(it)
-  );
+  const parsedItems = parseInvoiceItems(sale?.items || []);
+  const serviceItems = parsedItems.filter((it) => it.type === 'service');
+  const partItems = parsedItems.filter((it) => it.type !== 'service');
 
   const laborTotal = serviceItems.reduce((acc, it) => acc + (it.subtotal || (it.unitPrice * it.quantity)), 0);
   const partsTotal = partItems.reduce((acc, it) => acc + (it.subtotal || (it.unitPrice * it.quantity)), 0);
   const totalAmount = sale?.total ?? ((order?.laborCost || 0) + laborTotal + partsTotal);
-  const _subtotalAmount = sale?.subtotal ?? (laborTotal + partsTotal);
 
-  const customerName = order?.customer?.name || (typeof sale?.customer === 'string' ? sale.customer : sale?.customer?.name) || 'Público en General';
-  const customerPhone = order?.customer?.phone || (typeof sale?.customer === 'object' ? sale?.customer?.phone : '') || '';
+  const customerName =
+    customerData?.customerName ||
+    order?.customer?.name ||
+    (typeof sale?.customer === 'string' ? sale.customer : sale?.customer?.name) ||
+    'Público en General';
+
+  const customerPhone =
+    customerData?.customerPhone ||
+    order?.customer?.phone ||
+    ((sale?.customer as unknown as { phone?: string })?.phone) ||
+    '';
   
-  const vehicle = order?.vehicle || (sale as unknown as { vehicle?: AdminMaintenanceOrder['vehicle'] })?.vehicle;
-  const mechanicName = typeof order?.assignedMechanic === 'string'
-    ? order.assignedMechanic
-    : (order?.assignedMechanic?.name || (typeof order?.mechanic === 'string' ? order.mechanic : order?.mechanic?.name) || sellerName);
+  const customVehicle: InvoiceVehicle | null = customerData && (customerData.vehicleBrand || customerData.vehicleModel || customerData.vehicleSerial || customerData.vehiclePlate)
+    ? {
+        brand: customerData.vehicleBrand || '',
+        model: customerData.vehicleModel || '',
+        year: customerData.vehicleYear || '',
+        serialNumberLastFour: customerData.vehicleSerial || '',
+        licensePlate: customerData.vehiclePlate || '',
+        color: '',
+      }
+    : null;
+
+  const vehicle: InvoiceVehicle | null | undefined =
+    customVehicle ||
+    order?.vehicle ||
+    (sale as unknown as { vehicle?: InvoiceVehicle })?.vehicle;
+
+  const formatPaymentMethod = (pm?: string) => {
+    switch ((pm || '').toLowerCase()) {
+      case 'card':
+      case 'tarjeta':
+        return 'Tarjeta';
+      case 'transfer':
+      case 'transferencia':
+        return 'Transferencia';
+      case 'cash':
+      case 'efectivo':
+      default:
+        return 'Efectivo';
+    }
+  };
 
   return (
     <div
@@ -103,7 +218,7 @@ export const ServiceInvoiceReceipt: React.FC<ServiceInvoiceReceiptProps> = ({
             </div>
           )}
           <div style={{ fontSize: '11px', color: '#64748b', marginTop: '4px' }}>
-            Técnico Asignado: <strong style={{ color: '#0f172a' }}>{mechanicName}</strong>
+            Atendido por: <strong style={{ color: '#0f172a' }}>{sellerName}</strong>
           </div>
         </div>
 
@@ -112,13 +227,15 @@ export const ServiceInvoiceReceipt: React.FC<ServiceInvoiceReceiptProps> = ({
           <div style={{ fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', color: '#64748b', marginBottom: '6px', letterSpacing: '0.5px' }}>
             Datos de la Unidad / Vehículo
           </div>
-          {vehicle ? (
+          {vehicle && (vehicle.brand || vehicle.model || vehicle.serialNumberLastFour) ? (
             <>
               <div style={{ fontSize: '14px', fontWeight: '700', color: '#0f172a' }}>
                 {vehicle.brand} {vehicle.model} {vehicle.year ? `(${vehicle.year})` : ''}
               </div>
               <div style={{ fontSize: '12px', color: '#334155', marginTop: '2px' }}>
-                Serie: <span style={{ fontFamily: 'monospace', fontWeight: '700' }}>{vehicle.serialNumberLastFour}</span>
+                {vehicle.serialNumberLastFour ? (
+                  <>Serie: <span style={{ fontFamily: 'monospace', fontWeight: '700' }}>{vehicle.serialNumberLastFour}</span></>
+                ) : null}
                 {vehicle.licensePlate ? ` • Placas: ${vehicle.licensePlate}` : ''}
                 {vehicle.color ? ` • Color: ${vehicle.color}` : ''}
               </div>
@@ -254,7 +371,7 @@ export const ServiceInvoiceReceipt: React.FC<ServiceInvoiceReceiptProps> = ({
             <span style={{ fontFamily: 'monospace' }}>{formatCurrency(totalAmount)}</span>
           </div>
           <div style={{ fontSize: '11px', color: '#64748b', textAlign: 'right', marginTop: '4px' }}>
-            Método de Pago: <strong style={{ textTransform: 'capitalize', color: '#0f172a' }}>{sale?.paymentMethod || 'Efectivo'}</strong> • <em>PAGADO</em>
+            Método de Pago: <strong style={{ color: '#0f172a' }}>{formatPaymentMethod(sale?.paymentMethod)}</strong> • <em>PAGADO</em>
           </div>
         </div>
       </div>
@@ -288,9 +405,9 @@ export const ServiceInvoiceReceipt: React.FC<ServiceInvoiceReceiptProps> = ({
         <div style={{ textAlign: 'center' }}>
           <div style={{ borderBottom: '1px solid #0f172a', height: '40px', marginBottom: '8px' }} />
           <div style={{ fontSize: '11px', fontWeight: '800', color: '#0f172a', textTransform: 'uppercase' }}>
-            {mechanicName}
+            Taller Nova FV
           </div>
-          <div style={{ fontSize: '10px', color: '#64748b' }}>Responsable de Taller / Entrega</div>
+          <div style={{ fontSize: '10px', color: '#64748b' }}>Sucursal: {branchName}</div>
         </div>
       </div>
     </div>

@@ -476,26 +476,30 @@ export const MerchandiseReceptionDrawer = ({
 
       const targetProd = localProducts.find((p) => p.id === targetProdId);
 
-      const created = await inventoryRepo.createMovement(accessToken, {
-        productId: targetProdId,
-        quantity,
-        type: 'in',
-        reason: reason.trim() || 'Ingreso Manual de Mercancía',
-        providerId: selectedProviderId.trim() ? selectedProviderId : undefined,
-        branchId: activeBranchId || undefined,
-      });
-
+      let movementId = `draft-item-${Date.now()}`;
       const currentStock = targetProd?.stock || 0;
       const newStock = currentStock + quantity;
 
-      // Update local product stock
-      setLocalProducts((prev) =>
-        prev.map((p) => (p.id === targetProdId ? { ...p, stock: newStock } : p))
-      );
+      if (isAdmin) {
+        const created = await inventoryRepo.createMovement(accessToken, {
+          productId: targetProdId,
+          quantity,
+          type: 'in',
+          reason: reason.trim() || 'Ingreso Manual de Mercancía',
+          providerId: selectedProviderId.trim() ? selectedProviderId : undefined,
+          branchId: activeBranchId || undefined,
+        });
+        movementId = created.id;
+
+        // Update local product stock
+        setLocalProducts((prev) =>
+          prev.map((p) => (p.id === targetProdId ? { ...p, stock: newStock } : p))
+        );
+      }
 
       // Add to Session Registered Items (placed at top of right column)
       const newArticle: ReceptionArticleItem = {
-        id: created.id,
+        id: movementId,
         productId: targetProdId,
         productName: targetProd?.name || 'Producto',
         sku: targetProd?.sku,
@@ -507,7 +511,7 @@ export const MerchandiseReceptionDrawer = ({
         sellingPrice: targetProd?.sellingPrice,
         quantity,
         previousStock: currentStock,
-        newStock,
+        newStock: newStock,
         providerName: selectedProvider?.name,
         reason: reason.trim() || 'Ingreso Manual de Mercancía',
         timestamp: new Date(),
@@ -521,7 +525,7 @@ export const MerchandiseReceptionDrawer = ({
         sku: targetProd?.sku,
         quantity,
         unit: targetProd?.unit || 'pza',
-        newStock,
+        newStock: newStock,
         photo: targetProd?.photos?.[0],
       });
 
@@ -531,8 +535,10 @@ export const MerchandiseReceptionDrawer = ({
       setIsProductDropdownOpen(false);
       setQuantity(1);
 
-      // Refresh parent page inventory data
-      onStockUpdated();
+      // Refresh parent page inventory data if admin
+      if (isAdmin) {
+        onStockUpdated();
+      }
 
       // Auto dismiss success notice after 8 seconds
       if (successTimerRef.current) clearTimeout(successTimerRef.current);
@@ -592,31 +598,34 @@ export const MerchandiseReceptionDrawer = ({
     setDeleteError(null);
 
     try {
-      await inventoryRepo.deleteMovement(accessToken, itemToDelete.id);
+      if (isAdmin && !itemToDelete.id.startsWith('draft-item-')) {
+        await inventoryRepo.deleteMovement(accessToken, itemToDelete.id);
+        // Revert stock on local product
+        setLocalProducts((prev) =>
+          prev.map((p) =>
+            p.id === itemToDelete.productId
+              ? { ...p, stock: Math.max(0, (p.stock || 0) - itemToDelete.quantity) }
+              : p
+          )
+        );
+      }
 
       setDeletionSuccessNotice(
-        `Se eliminó el ingreso y se descontaron -${itemToDelete.quantity} ${itemToDelete.unit || 'un.'} de "${itemToDelete.productName}".`
+        `Se eliminó "${itemToDelete.productName}" de la lista.`
       );
 
       // Remove from session items list
       setSessionItems((prev) => prev.filter((i) => i.id !== itemToDelete.id));
 
-      // Revert stock on local product
-      setLocalProducts((prev) =>
-        prev.map((p) =>
-          p.id === itemToDelete.productId
-            ? { ...p, stock: Math.max(0, (p.stock || 0) - itemToDelete.quantity) }
-            : p
-        )
-      );
-
       setItemToDelete(null);
-      onStockUpdated();
+      if (isAdmin) {
+        onStockUpdated();
+      }
     } catch (err) {
       const msg =
         err instanceof Error
           ? err.message
-          : 'Error al eliminar el ingreso. Verifique el stock restante del producto.';
+          : 'Error al eliminar el ingreso.';
       setDeleteError(msg);
     } finally {
       setDeleting(false);

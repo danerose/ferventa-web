@@ -29,7 +29,7 @@ import {
   clientPortalRepository as clientPortalRepo,
   servicesRepository as servicesRepo,
 } from '@/core/di/container';
-import type { CreateProductDto, CreateProviderDto, Product, Provider, StockMovement, OpenBoxResult } from '@/app/domain';
+import type { CreateProductDto, CreateProviderDto, Product, Provider, StockMovement, OpenBoxResult, MerchandiseReception } from '@/app/domain';
 import type { Branch } from '@/app/domain';
 import type { PredefinedService, CreateServiceDto } from '@/app/domain';
 import { useAuthorization } from '@/core/hooks';
@@ -215,6 +215,54 @@ export const InventoryPage: React.FC = () => {
   const [itemToDelete, setItemToDelete] = useState<{ type: 'category' | 'brand'; id: string; name: string } | null>(null);
   const [deletingItem, setDeletingItem] = useState(false);
 
+  // ── Receptions Tab State ────────────────────────────────────────────────
+  const [receptions, setReceptions] = useState<MerchandiseReception[]>([]);
+  const [receptionsLoading, setReceptionsLoading] = useState(false);
+  const [actionReceptionId, setActionReceptionId] = useState<string | null>(null);
+
+  const fetchReceptions = async () => {
+    if (!accessToken) return;
+    setReceptionsLoading(true);
+    try {
+      const res = await inventoryRepo.getReceptions(accessToken);
+      setReceptions(res || []);
+    } catch (err) {
+      console.error('Error al cargar recepciones:', err);
+    } finally {
+      setReceptionsLoading(false);
+    }
+  };
+
+  const handleApproveReception = async (receptionId: string) => {
+    if (!accessToken || actionReceptionId) return;
+    setActionReceptionId(receptionId);
+    try {
+      await inventoryRepo.approveReception(accessToken, receptionId);
+      await fetchReceptions();
+      const prodsRes = await inventoryRepo.getProductsPaginated(accessToken, { page, limit });
+      setProducts(prodsRes.items);
+    } catch (err: any) {
+      alert(err?.message || 'Error al aprobar la remisión');
+    } finally {
+      setActionReceptionId(null);
+    }
+  };
+
+  const handleRejectReception = async (receptionId: string) => {
+    if (!accessToken || actionReceptionId) return;
+    const reason = window.prompt('Motivo del rechazo de la remisión:');
+    if (reason === null) return;
+    setActionReceptionId(receptionId);
+    try {
+      await inventoryRepo.rejectReception(accessToken, receptionId, reason || undefined);
+      await fetchReceptions();
+    } catch (err: any) {
+      alert(err?.message || 'Error al rechazar la remisión');
+    } finally {
+      setActionReceptionId(null);
+    }
+  };
+
   const handleUnauthorized = () => {
     clearAuth();
     navigate('/login');
@@ -316,6 +364,8 @@ export const InventoryPage: React.FC = () => {
         setProviders(res);
       } else if (activeTab === 'services') {
         fetchServices();
+      } else if (activeTab === 'receptions') {
+        fetchReceptions();
       } else if (activeTab === 'movements') {
         const res = await inventoryRepo.getMovementsPaginated(accessToken, {
           page,
@@ -911,6 +961,7 @@ export const InventoryPage: React.FC = () => {
                 { id: 'providers' as const, label: 'Proveedores', key: 'Alt+4' },
                 { id: 'services' as const, label: 'Servicios', key: 'Alt+5' },
                 { id: 'movements' as const, label: 'Movimientos', key: 'Alt+6' },
+                { id: 'receptions' as const, label: 'Recepciones / Borradores', key: 'Alt+7' },
               ]).map(t => (
                 activeTab === t.id ? (
                   <PrimaryButton
@@ -1268,6 +1319,119 @@ export const InventoryPage: React.FC = () => {
                   </Box>
                 </Box>
               </Box>
+            ) : activeTab === 'receptions' ? (
+              /* ── Receptions / Drafts tab ────────────────────────────────── */
+              receptionsLoading ? (
+                <Box className="py-10 text-center">
+                  <Text color="muted">Cargando recepciones y borradores...</Text>
+                </Box>
+              ) : (
+                <Box className="overflow-x-auto">
+                  <Box as="table" className="table w-full border-collapse">
+                    <Box as="thead" className="bg-base-200/50 border-b border-base-300">
+                      <Box as="tr">
+                        <Box as="th" className="py-3 px-4 text-left text-xs font-semibold text-base-content/60 uppercase">Folio / Remisión</Box>
+                        <Box as="th" className="py-3 px-4 text-left text-xs font-semibold text-base-content/60 uppercase">Proveedor</Box>
+                        <Box as="th" className="py-3 px-4 text-left text-xs font-semibold text-base-content/60 uppercase">Fecha</Box>
+                        <Box as="th" className="py-3 px-4 text-left text-xs font-semibold text-base-content/60 uppercase">Artículos / Insumos</Box>
+                        <Box as="th" className="py-3 px-4 text-center text-xs font-semibold text-base-content/60 uppercase">Estado</Box>
+                        <Box as="th" className="py-3 px-4 text-center text-xs font-semibold text-base-content/60 uppercase">Acciones</Box>
+                      </Box>
+                    </Box>
+                    <Box as="tbody">
+                      {receptions.length > 0 ? (
+                        receptions.map((r) => {
+                          const isDraft = r.status === 'draft';
+                          const isApproved = r.status === 'approved';
+                          const isRejected = r.status === 'rejected';
+
+                          return (
+                            <Box as="tr" key={r.id} className="border-b border-base-200 hover:bg-base-200/40">
+                              <Box as="td" className="py-4 px-4 font-mono font-bold text-sm text-primary">
+                                {r.invoiceOrFolio || `REM-${r.id.slice(-6).toUpperCase()}`}
+                                {r.notes && (
+                                  <Text size="xs" color="muted" className="block font-normal mt-0.5 font-sans">
+                                    {r.notes}
+                                  </Text>
+                                )}
+                              </Box>
+                              <Box as="td" className="py-4 px-4 text-sm font-semibold">
+                                {r.provider?.name || 'Proveedor General'}
+                              </Box>
+                              <Box as="td" className="py-4 px-4 text-xs font-mono text-base-content/70">
+                                {r.createdAt
+                                  ? new Date(r.createdAt).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' })
+                                  : '-'}
+                              </Box>
+                              <Box as="td" className="py-4 px-4">
+                                <Badge variant="neutral" size="sm" className="font-semibold mb-1">
+                                  {r.items?.length || 0} productos ({r.items?.reduce((acc, it) => acc + (it.quantity || 0), 0) || 0} un.)
+                                </Badge>
+                                {r.items && r.items.length > 0 && (
+                                  <div className="text-[11px] text-base-content/60 max-w-xs truncate">
+                                    {r.items.map((it) => `${it.product?.name || 'Item'} (×${it.quantity})`).join(', ')}
+                                  </div>
+                                )}
+                              </Box>
+                              <Box as="td" className="py-4 px-4 text-center">
+                                <Badge
+                                  variant={isApproved ? 'success' : isRejected ? 'error' : 'warning'}
+                                  size="sm"
+                                  className="font-bold"
+                                >
+                                  {isApproved ? 'Aprobada' : isRejected ? 'Rechazada' : 'Borrador Pendiente'}
+                                </Badge>
+                                {r.rejectionReason && (
+                                  <Text size="xs" color="error" className="block mt-1">
+                                    {r.rejectionReason}
+                                  </Text>
+                                )}
+                              </Box>
+                              <Box as="td" className="py-4 px-4 text-center">
+                                {isDraft && canManageCatalog ? (
+                                  <Flex gap="xs" justify="center">
+                                    <PrimaryButton
+                                      size="xs"
+                                      color="success"
+                                      loading={actionReceptionId === r.id}
+                                      disabled={!!actionReceptionId}
+                                      onClick={() => handleApproveReception(r.id)}
+                                      title="Aprobar remisión e ingresar piezas al almacén"
+                                    >
+                                      <Icon name="Check" size="xs" className="mr-1" />
+                                      Aprobar
+                                    </PrimaryButton>
+                                    <PrimaryButton
+                                      size="xs"
+                                      color="error"
+                                      disabled={!!actionReceptionId}
+                                      onClick={() => handleRejectReception(r.id)}
+                                      title="Rechazar remisión"
+                                    >
+                                      <Icon name="X" size="xs" className="mr-1" />
+                                      Rechazar
+                                    </PrimaryButton>
+                                  </Flex>
+                                ) : (
+                                  <Text size="xs" color="muted">
+                                    {isApproved ? 'Ingresado al stock' : isRejected ? 'Descartado' : 'Solo lectura'}
+                                  </Text>
+                                )}
+                              </Box>
+                            </Box>
+                          );
+                        })
+                      ) : (
+                        <Box as="tr">
+                          <Box as="td" colSpan={6} className="py-10 text-center">
+                            <Text color="muted">No hay remisiones o borradores de recepción registrados.</Text>
+                          </Box>
+                        </Box>
+                      )}
+                    </Box>
+                  </Box>
+                </Box>
+              )
             ) : (
               /* ── Services tab ────────────────────────────────────────────── */
               serviceLoading ? (
@@ -1967,7 +2131,7 @@ export const InventoryPage: React.FC = () => {
                 <span>¡Caja abierta exitosamente!</span>
               </div>
               <div className="text-base-content/80">
-                Se ingresaron <strong className="text-success font-mono">+{openBoxResult.quantity} unidades</strong> al producto <strong className="text-base-content">{openBoxResult.productName || openBoxResult.productId}</strong>.
+                Se ingresaron <strong className="text-success font-mono">+{openBoxResult.addedQuantity} unidades</strong> al producto <strong className="text-base-content">{openBoxResult.product?.name || openBoxResult.product?.id || openBoxResult.boxCode}</strong>.
               </div>
               {openBoxResult.newSellingPrice !== undefined && (
                 <div className="text-base-content/70 font-mono text-[11px]">

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Modal, Icon, Badge, SecondaryButton } from '@/app/presentation/components';
-import { scheduleUseCases } from '@/core/di/container';
-import type { OccupiedSlotsResponse, Holiday, WorkingHours, BusySlot } from '@/app/domain';
+import { clientPortalUseCases } from '@/core/di/container';
+import type { OccupiedSlots, Holiday, WorkingHours, BusySlot } from '@/app/domain';
 
 interface WorkshopLoadModalProps {
   isOpen: boolean;
@@ -15,7 +15,7 @@ export const WorkshopLoadModal: React.FC<WorkshopLoadModalProps> = ({
   branchId,
 }) => {
   const [loading, setLoading] = useState(false);
-  const [occupiedSlots, setOccupiedSlots] = useState<OccupiedSlotsResponse | null>(null);
+  const [occupiedSlots, setOccupiedSlots] = useState<OccupiedSlots | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -26,8 +26,20 @@ export const WorkshopLoadModal: React.FC<WorkshopLoadModalProps> = ({
       setLoading(true);
       setError(null);
       try {
-        const activeBranch = branchId || localStorage.getItem('ferventa_active_branch') || undefined;
-        const data = await scheduleUseCases.getOccupiedSlots(activeBranch);
+        const today = new Date();
+        const yyyy = today.getFullYear();
+        const mm = String(today.getMonth() + 1).padStart(2, '0');
+        const dd = String(today.getDate()).padStart(2, '0');
+        const startDate = `${yyyy}-${mm}-${dd}`;
+
+        const nextWeek = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
+        const nyyyy = nextWeek.getFullYear();
+        const nmm = String(nextWeek.getMonth() + 1).padStart(2, '0');
+        const ndd = String(nextWeek.getDate()).padStart(2, '0');
+        const endDate = `${nyyyy}-${nmm}-${ndd}`;
+
+        const activeBranch = branchId || undefined;
+        const data = await clientPortalUseCases.getOccupiedSlots.execute(startDate, endDate, activeBranch);
         if (isMounted) {
           setOccupiedSlots(data);
         }
@@ -162,7 +174,7 @@ export const WorkshopLoadModal: React.FC<WorkshopLoadModalProps> = ({
                       </Badge>
                     )}
                     {day.loadLevel === 'high' && (
-                      <Badge variant="soft" color="danger" size="xs">
+                      <Badge variant="soft" color="error" size="xs">
                         Alta Carga ({day.busyTimes.length} citas)
                       </Badge>
                     )}

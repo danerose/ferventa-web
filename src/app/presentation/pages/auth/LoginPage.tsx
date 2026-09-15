@@ -5,7 +5,7 @@ import { authUseCases } from '@/core/di/container';
 
 
 export interface LoginPageProps {
-  onLoginSuccess: () => void;
+  onLoginSuccess?: (user?: any) => void;
 }
 
 export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
@@ -62,7 +62,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
     try {
       const result = await authUseCases.login({ username: usernameOrEmail, password });
       setAuth(result.user, result.accessToken, result.refreshToken);
-      onLoginSuccess();
+      if (onLoginSuccess) {
+        onLoginSuccess(result.user);
+      }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Error al iniciar sesión';
       setError(message);

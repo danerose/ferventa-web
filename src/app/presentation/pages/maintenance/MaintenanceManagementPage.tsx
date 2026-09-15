@@ -113,10 +113,12 @@ export const MaintenanceManagementPage: React.FC = () => {
   const [orderToLinkSale, setOrderToLinkSale] = useState<AdminMaintenanceOrder | null>(null);
   const [toasts, setToasts] = useState<{ id: number; type: 'success' | 'error'; message: string }[]>([]);
   const [stalledFilterMode, setStalledFilterMode] = useState<'exclude' | 'include' | 'only'>('exclude');
+  const [deliveredDayFilter, setDeliveredDayFilter] = useState<number | 'all'>('all');
 
-  // Reset stalled filter mode when switching tabs
+  // Reset filter modes when switching tabs
   useEffect(() => {
     setStalledFilterMode('exclude');
+    setDeliveredDayFilter('all');
   }, [activeScope]);
 
   const toastIdCounter = useRef(0);
@@ -138,9 +140,10 @@ export const MaintenanceManagementPage: React.FC = () => {
   const isFirstFilterRender = useRef(true);
 
   // Role detection: Isolated mechanic visibility
-  const userRole = (typeof user?.role === 'string' ? user.role : (user?.role as { name?: string })?.name || '').toLowerCase();
+  const rawRole = user?.role as unknown;
+  const userRole = (typeof rawRole === 'string' ? rawRole : (rawRole as { name?: string })?.name || '').toLowerCase();
   const isMechanic = userRole === 'mechanic' || userRole === 'mecanico';
-  const currentUserId = user?.id || (user as { _id?: string })?._id;
+  const currentUserId = user?.id || (user as unknown as { _id?: string })?._id;
   const currentUserName = user?.name?.toLowerCase().trim();
 
   // Filter for isolated mechanic visibility
@@ -223,6 +226,18 @@ export const MaintenanceManagementPage: React.FC = () => {
       ...admins,
     ];
   }, [usersList]);
+
+  const getMechanicDisplayName = useCallback((order: AdminMaintenanceOrder) => {
+    const mech = order.assignedMechanic || order.mechanic;
+    if (!mech) return isMechanic ? 'Asignada a ti' : 'Sin asignar';
+    if (typeof mech === 'object' && mech.name) return mech.name;
+    const mechId = typeof mech === 'string' ? mech : (mech as { id?: string; _id?: string }).id || (mech as { id?: string; _id?: string })._id;
+    if (user && (user.id === mechId || (user as { _id?: string })._id === mechId)) {
+      return 'Asignada a ti';
+    }
+    const found = assignableUsers.find((u) => u.value === mechId);
+    return found ? found.label.replace(/ \((Mecánico|Admin)\)$/, '') : (isMechanic ? 'Asignada a ti' : 'Mecánico asignado');
+  }, [isMechanic, user, assignableUsers]);
 
   const handleAssignMechanic = async (orderId: string, mechanicId: string) => {
     if (!accessToken) return;
@@ -380,6 +395,13 @@ export const MaintenanceManagementPage: React.FC = () => {
       }
     } else if (activeScope === 'delivered_recent') {
       list = list.filter((m) => m.status === ServiceStatus.Delivered);
+      if (deliveredDayFilter !== 'all') {
+        list = list.filter((m) => {
+          const dStr = m.deliveredAt || m.completedAt || m.receptionDate || m.createdAt;
+          if (!dStr) return false;
+          return new Date(dStr).getDay() === deliveredDayFilter;
+        });
+      }
     }
 
     if (filters.status && filters.status !== 'all') {
@@ -412,7 +434,7 @@ export const MaintenanceManagementPage: React.FC = () => {
       const createdB = new Date(b.createdAt || 0).getTime();
       return createdB - createdA;
     });
-  }, [visibleMaintenances, activeScope, filters.status, filters.dateField, stalledFilterMode, thisWeekActiveOrders, stalledActiveOrders]);
+  }, [visibleMaintenances, activeScope, filters.status, filters.dateField, stalledFilterMode, thisWeekActiveOrders, stalledActiveOrders, deliveredDayFilter]);
 
   // Formatter for intake dates
   const formatIntakeDate = (dateStr?: string) => {
@@ -662,24 +684,59 @@ export const MaintenanceManagementPage: React.FC = () => {
 
         {/* Delivered Recent Scope Info Bar (Opción A: Últimos 7 días móviles) */}
         {activeScope === 'delivered_recent' && (
-          <Flex align="center" justify="between" className="bg-base-100 p-3 rounded-DEFAULT border border-base-300 shadow-xs flex-wrap gap-2">
-            <Flex align="center" gap="sm">
-              <Box className="w-8 h-8 rounded-DEFAULT bg-info/10 text-info flex items-center justify-center shrink-0">
-                <Icon name="Clock" size="xs" />
-              </Box>
-              <Box>
-                <Text size="xs" variant="muted" weight="bold" className="uppercase tracking-wider">
-                  Vehículos Entregados
-                </Text>
-                <Text size="sm" weight="bold">
-                  Últimos 7 días móviles
-                </Text>
-              </Box>
+          <div className="space-y-3">
+            <Flex align="center" justify="between" className="bg-base-100 p-3 rounded-DEFAULT border border-base-300 shadow-xs flex-wrap gap-2">
+              <Flex align="center" gap="sm">
+                <Box className="w-8 h-8 rounded-DEFAULT bg-info/10 text-info flex items-center justify-center shrink-0">
+                  <Icon name="Clock" size="xs" />
+                </Box>
+                <Box>
+                  <Text size="xs" variant="muted" weight="bold" className="uppercase tracking-wider">
+                    Vehículos Entregados
+                  </Text>
+                  <Text size="sm" weight="bold">
+                    Últimos 7 días móviles
+                  </Text>
+                </Box>
+              </Flex>
+              <Badge variant="soft" color="info" size="sm" className="font-semibold">
+                Ventana continua de 7 días
+              </Badge>
             </Flex>
-            <Badge variant="soft" color="info" size="sm" className="font-semibold">
-              Ventana continua de 7 días
-            </Badge>
-          </Flex>
+
+            {/* Day-of-Week filter bar for Entregados Esta Semana */}
+            <Flex align="center" gap="xs" className="bg-base-100 p-2.5 rounded-DEFAULT border border-base-300 shadow-xs overflow-x-auto">
+              <Text size="xs" variant="muted" weight="bold" className="uppercase px-2 shrink-0">
+                Filtrar por Día:
+              </Text>
+              {[
+                { id: 'all' as const, label: 'Toda la semana' },
+                { id: 1, label: 'Lunes' },
+                { id: 2, label: 'Martes' },
+                { id: 3, label: 'Miércoles' },
+                { id: 4, label: 'Jueves' },
+                { id: 5, label: 'Viernes' },
+                { id: 6, label: 'Sábado' },
+                { id: 0, label: 'Domingo' },
+              ].map((day) => {
+                const isSelected = deliveredDayFilter === day.id;
+                return (
+                  <button
+                    key={String(day.id)}
+                    type="button"
+                    onClick={() => setDeliveredDayFilter(day.id)}
+                    className={`px-3 py-1.5 rounded-md text-xs font-semibold whitespace-nowrap transition-colors ${
+                      isSelected
+                        ? 'bg-primary text-primary-content shadow-xs'
+                        : 'bg-base-200 text-base-content/70 hover:bg-base-300 hover:text-base-content'
+                    }`}
+                  >
+                    {day.label}
+                  </button>
+                );
+              })}
+            </Flex>
+          </div>
         )}
 
         {/* KPI Stats Grid - Interactive Filter Cards */}
@@ -1169,7 +1226,7 @@ export const MaintenanceManagementPage: React.FC = () => {
                     <Flex gap="sm" align="center">
                       {isMechanic ? (
                         <Box className="flex-1 px-2.5 py-1.5 bg-base-200 rounded border border-base-300 text-xs font-semibold text-base-content truncate">
-                          👨‍🔧 {typeof order.assignedMechanic === 'string' ? order.assignedMechanic : order.assignedMechanic?.name || 'Asignada a ti'}
+                          👨‍🔧 {getMechanicDisplayName(order)}
                         </Box>
                       ) : (
                         <Box className="flex-1">

@@ -10,7 +10,7 @@ interface AuditState {
   filter: AuditLogFilter;
   setFilter: (f: Partial<AuditLogFilter>) => void;
   resetFilter: () => void;
-  fetchLogs: (token: string) => Promise<void>;
+  fetchLogs: (token?: string) => Promise<void>;
 }
 
 const initialFilter: AuditLogFilter = {
@@ -39,12 +39,11 @@ export const useAuditStore = create<AuditState>((set, get) => ({
     set({ filter: { ...initialFilter } });
   },
 
-  fetchLogs: async (token: string) => {
-    if (!token) return;
+  fetchLogs: async (_token?: string) => {
     set({ loading: true, error: null });
     try {
-      const res = await auditRepository.getAuditLogs(token, get().filter);
-      set({ logs: res.items, total: res.total, loading: false });
+      const res = await auditRepository.getAuditLogs(get().filter);
+      set({ logs: res.logs, total: res.total ?? res.logs.length, loading: false });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Error al cargar auditoría';
       set({ error: msg, loading: false });

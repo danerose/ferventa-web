@@ -478,7 +478,7 @@ export const AppointmentDetailDrawer: React.FC<AppointmentDetailDrawerProps> = (
       </aside>
 
       {/* Print Layout for Appointment Voucher */}
-      <div className="printable-document hidden print:block fixed inset-0 bg-white z-[9999] p-8 text-black font-sans min-h-screen">
+      <div id="appointment-receipt" className="printable-document hidden print:block fixed inset-0 bg-white z-[9999] p-8 text-black font-sans min-h-screen">
         <div className="text-center mb-8 border-b pb-4">
           <h1 className="text-2xl font-bold">{formatBranchWorkshopName(appt.branchName || activeBranchName).toUpperCase()}</h1>
           <p className="text-gray-600">Comprobante de Cita</p>

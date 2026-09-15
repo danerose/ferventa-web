@@ -17,7 +17,7 @@ import {
   CustomerVehicleSelector,
 } from '@/app/presentation/components';
 import { useAuthStore } from '@/app/presentation/stores';
-import { maintenanceUseCases, userUseCases, customerUseCases } from '@/core/di/container';
+import { maintenanceUseCases, customerUseCases } from '@/core/di/container';
 import { cleanPhoneDigits, formatPhoneInput } from '@/core/utils';
 import { PREDEFINED_SERVICE_OPTIONS } from '@/core/constants';
 
@@ -26,7 +26,6 @@ import type {
   AdminMaintenanceOrder,
   CustomerLookupResult,
   CustomerLookupVehicle,
-  User,
 } from '@/app/domain';
 
 export interface DirectReceptionModalProps {
@@ -65,10 +64,6 @@ export const DirectReceptionModal: React.FC<DirectReceptionModalProps> = ({
   const [customService, setCustomService] = useState('');
   const [notes, setNotes] = useState('');
   const [laborCost, setLaborCost] = useState<number | ''>(0);
-  const [assignedMechanic, setAssignedMechanic] = useState('');
-
-  // Mechanics list
-  const [mechanics, setMechanics] = useState<User[]>([]);
 
   // Submission & Error states
   const [submitting, setSubmitting] = useState(false);
@@ -107,25 +102,10 @@ export const DirectReceptionModal: React.FC<DirectReceptionModalProps> = ({
       setCustomService('');
       setNotes('');
       setLaborCost(0);
-      setAssignedMechanic('');
       setErrorMessage(null);
       lastFoundCustomerIdRef.current = undefined;
-
-      // Fetch mechanics
-      if (accessToken) {
-        userUseCases
-          .getUsers(accessToken)
-          .then((users: User[]) => {
-            const mechList = users.filter((u: User) => {
-              const roleStr = typeof u.role === 'string' ? u.role : u.role?.name || '';
-              return roleStr.toLowerCase() === 'mechanic' || roleStr.toLowerCase() === 'mecanico';
-            });
-            setMechanics(mechList);
-          })
-          .catch(() => {});
-      }
     }
-  }, [isOpen, accessToken]);
+  }, [isOpen]);
 
   // Handle phone change: only trigger search when 10 digits are complete
   const handlePhoneChange = (val: string) => {

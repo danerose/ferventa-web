@@ -250,7 +250,9 @@
   body.print-doc-mode #service-reception-receipt,
   body.print-doc-mode #service-reception-receipt *,
   body.print-doc-mode #quotation-receipt,
-  body.print-doc-mode #quotation-receipt * {
+  body.print-doc-mode #quotation-receipt *,
+  body.print-doc-mode #appointment-receipt,
+  body.print-doc-mode #appointment-receipt * {
     visibility: visible !important;
   }
 

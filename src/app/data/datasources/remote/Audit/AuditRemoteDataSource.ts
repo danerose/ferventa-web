@@ -70,40 +70,66 @@ export class AuditRemoteDataSource {
   }
 
   async getEntityAuditLogs(entityId: string): Promise<AuditLog[]> {
-    const res = await this.network.get<ApiResponse<any[]>>(
-      API_ENDPOINTS.AUDIT_LOGS.BY_ENTITY(entityId)
-    );
+    if (!entityId) return [];
 
-    const rawList = Array.isArray(res.data) ? res.data : [];
-    return rawList.map((item) => ({
-      id: item.id || item._id,
-      module: item.module,
-      action: item.action,
-      description: item.description,
-      performedBy: item.performedBy
-        ? {
-            id: item.performedBy.id || item.performedBy._id,
-            name: item.performedBy.name,
-            email: item.performedBy.email,
-            role: item.performedBy.role,
-          }
-        : null,
-      branch: item.branch
-        ? typeof item.branch === 'object'
-          ? {
-              id: item.branch.id || item.branch._id,
-              name: item.branch.name,
-            }
-          : item.branch
-        : null,
-      entityId: item.entityId || item.targetId,
-      entityType: item.entityType,
-      targetId: item.entityId || item.targetId,
-      targetFolio: item.entityFolio || item.targetFolio,
-      metadata: item.metadata,
-      ipAddress: item.ipAddress,
-      userAgent: item.userAgent,
-      createdAt: item.createdAt,
-    }));
+    try {
+      const res = await this.network.get<ApiResponse<any[]>>(
+        API_ENDPOINTS.AUDIT_LOGS.BY_ENTITY(entityId)
+      );
+
+      const rawList = Array.isArray(res.data) ? res.data : [];
+      if (rawList.length > 0) {
+        return rawList.map((item) => ({
+          id: item.id || item._id,
+          module: item.module,
+          action: item.action,
+          description: item.description,
+          performedBy: item.performedBy
+            ? {
+                id: item.performedBy.id || item.performedBy._id,
+                name: item.performedBy.name,
+                email: item.performedBy.email,
+                role: item.performedBy.role,
+              }
+            : null,
+          branch: item.branch
+            ? typeof item.branch === 'object'
+              ? {
+                  id: item.branch.id || item.branch._id,
+                  name: item.branch.name,
+                }
+              : item.branch
+            : null,
+          entityId: item.entityId || item.targetId,
+          entityType: item.entityType,
+          targetId: item.entityId || item.targetId,
+          targetFolio: item.entityFolio || item.targetFolio,
+          metadata: item.metadata,
+          ipAddress: item.ipAddress,
+          userAgent: item.userAgent,
+          createdAt: item.createdAt,
+        }));
+      }
+    } catch {
+      // Fallback below to query by filter
+    }
+
+    try {
+      const fallbackResult = await this.getAuditLogs({
+        entityId,
+        limit: 50,
+      });
+      if (fallbackResult.logs.length > 0) {
+        return fallbackResult.logs;
+      }
+
+      const searchFallback = await this.getAuditLogs({
+        search: entityId,
+        limit: 50,
+      });
+      return searchFallback.logs;
+    } catch {
+      return [];
+    }
   }
 }

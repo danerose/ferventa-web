@@ -1,8 +1,28 @@
 import { UserRole } from '@/core/enums';
-import { ROLE_PERMISSIONS, type Permission } from '@/core/constants';
+import { ROLE_PERMISSIONS, APP_ROUTES, type Permission } from '@/core/constants';
 
 export interface HasRoleCandidate {
   role?: UserRole | string | { name?: string };
+}
+
+/**
+ * Returns the default dashboard/landing route for a user based on their role
+ */
+export function getDefaultRouteForRole(user: HasRoleCandidate | null | undefined): string {
+  const userRole = resolveUserRole(user);
+  switch (userRole) {
+    case UserRole.Mechanic:
+      return APP_ROUTES.ADMIN.MANTENIMIENTO;
+    case UserRole.Cashier:
+    case UserRole.Seller:
+      return APP_ROUTES.ADMIN.POS;
+    case UserRole.Warehouse:
+      return APP_ROUTES.ADMIN.INVENTARIO;
+    case UserRole.Admin:
+    case UserRole.Receptionist:
+    default:
+      return APP_ROUTES.ADMIN.CITAS;
+  }
 }
 
 /**

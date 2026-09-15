@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Icon, PrimaryButton, SecondaryButton, Modal, KbdBadge, TextInput } from '@/app/presentation/components';
 import { ServiceInvoiceReceipt } from '@/app/presentation/components/molecules/Receipt/ServiceInvoiceReceipt';
+import { ServiceInvoiceCustomerModal, type ServiceInvoiceCustomerData } from '@/app/presentation/components/organisms/Modals/ServiceInvoiceCustomerModal';
 import { EntityAuditLogsModal } from '@/app/presentation/components/organisms/Modals/EntityAuditLogsModal';
 import { useAuthorization } from '@/core/hooks';
 import { UserRole } from '@/core/enums';
@@ -180,12 +181,14 @@ export const SaleDetailDrawer: React.FC<SaleDetailDrawerProps> = ({
   const isAdmin = hasRole([UserRole.Admin]);
   const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+  const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
+  const [customerInvoiceData, setCustomerInvoiceData] = useState<ServiceInvoiceCustomerData | null>(null);
   const [cancelReason, setCancelReason] = useState('');
   const [cancelling, setCancelling] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
 
   React.useEffect(() => {
-    if (!isOpen || isCancelModalOpen) return;
+    if (!isOpen || isCancelModalOpen || isInvoiceModalOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.preventDefault();
@@ -194,7 +197,7 @@ export const SaleDetailDrawer: React.FC<SaleDetailDrawerProps> = ({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, isCancelModalOpen, onClose]);
+  }, [isOpen, isCancelModalOpen, isInvoiceModalOpen, onClose]);
 
   if (!isOpen || !sale) return null;
 
@@ -233,11 +236,7 @@ export const SaleDetailDrawer: React.FC<SaleDetailDrawerProps> = ({
   };
 
   const handlePrintInvoice = () => {
-    document.body.classList.remove('print-ticket-mode', 'print-doc-mode');
-    document.body.classList.add('print-invoice-mode');
-    setTimeout(() => {
-      window.print();
-    }, 100);
+    setIsInvoiceModalOpen(true);
   };
 
   return (
@@ -523,8 +522,24 @@ export const SaleDetailDrawer: React.FC<SaleDetailDrawerProps> = ({
       {/* Printable Service Invoice / Factura Document */}
       <ServiceInvoiceReceipt
         sale={sale}
+        customerData={customerInvoiceData}
         branchName={branchName}
         sellerName={sellerName}
+      />
+
+      {/* Service Invoice Customer Selection Modal */}
+      <ServiceInvoiceCustomerModal
+        isOpen={isInvoiceModalOpen}
+        onClose={() => setIsInvoiceModalOpen(false)}
+        onConfirm={(data) => {
+          setCustomerInvoiceData(data);
+          setIsInvoiceModalOpen(false);
+          document.body.classList.remove('print-ticket-mode', 'print-doc-mode');
+          document.body.classList.add('print-invoice-mode');
+          setTimeout(() => {
+            window.print();
+          }, 150);
+        }}
       />
 
       {/* Entity Audit Logs Modal (Admin Only) */}
@@ -532,9 +547,9 @@ export const SaleDetailDrawer: React.FC<SaleDetailDrawerProps> = ({
         <EntityAuditLogsModal
           isOpen={isAuditModalOpen}
           onClose={() => setIsAuditModalOpen(false)}
-          entityId={sale.id}
+          entityId={sale.id || (sale as unknown as { _id?: string })._id || ''}
           entityType="Sale"
-          title={`Auditoría - Venta ${sale.folio || sale.id.slice(-8)}`}
+          title={`Auditoría - Venta ${sale.folio || sale.id?.slice(-8) || ''}`}
         />
       )}
     </>
