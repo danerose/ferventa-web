@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Modal, Icon, Badge, SecondaryButton } from '@/app/presentation/components';
 import { clientPortalUseCases } from '@/core/di/container';
+import { formatTimeRangeTo12Hour } from '@/core/utils';
 import type { OccupiedSlots, Holiday, WorkingHours, BusySlot } from '@/app/domain';
 
 interface WorkshopLoadModalProps {
@@ -92,7 +93,7 @@ export const WorkshopLoadModal: React.FC<WorkshopLoadModalProps> = ({
       // Busy slots
       const busyTimes = occupiedSlots.busySlots
         .filter((b: BusySlot) => b.date === dateString)
-        .map((b: BusySlot) => `${b.startTime} - ${b.endTime}`);
+        .map((b: BusySlot) => formatTimeRangeTo12Hour(b.startTime, b.endTime));
 
       // Workload status
       let loadLevel: 'free' | 'moderate' | 'high' | 'closed' = 'free';

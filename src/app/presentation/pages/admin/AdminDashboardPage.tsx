@@ -29,6 +29,7 @@ import { STATUS_LABELS } from '@/core/constants';
 import { useAuthStore } from '@/app/presentation/stores';
 import { useAdminDashboardStore } from '@/app/presentation/stores';
 import { formatScheduledAt } from '@/core/utils/formatters/formatScheduledAt';
+import { formatTimeRangeTo12Hour } from '@/core/utils';
 import { MODULE_THEMES } from '@/core';
 import {
   appointmentUseCases,
@@ -789,7 +790,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onLogout
       // Busy slots for this date
       const busyTimes = occupiedSlots.busySlots
         .filter((b: BusySlot) => b.date === dateString)
-        .map((b: BusySlot) => `${b.startTime} - ${b.endTime}`);
+        .map((b: BusySlot) => formatTimeRangeTo12Hour(b.startTime, b.endTime));
 
       list.push({
         dateStr: dateString,

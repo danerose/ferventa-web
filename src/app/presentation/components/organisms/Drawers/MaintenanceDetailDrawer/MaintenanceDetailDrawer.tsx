@@ -26,7 +26,7 @@ import {
 import { useAuthorization } from '@/core/hooks';
 import { EntityAuditLogsModal } from '@/app/presentation/components/organisms/Modals/EntityAuditLogsModal';
 import type { AdminMaintenanceOrder, Sale } from '@/app/domain';
-import { formatDate, formatCurrency, formatWhatsAppUrl } from '@/core/utils';
+import { formatDate, formatCommentDate, formatDateTimeSplit, formatCurrency, formatWhatsAppUrl } from '@/core/utils';
 import { useActiveBranch } from '@/app/presentation/hooks';
 import { ServiceReceptionReceipt } from '@/app/presentation/components/molecules/Receipt/ServiceReceptionReceipt';
 import { ServiceInvoiceReceipt } from '@/app/presentation/components/molecules/Receipt/ServiceInvoiceReceipt';
@@ -331,6 +331,7 @@ export const MaintenanceDetailDrawer: React.FC<MaintenanceDetailDrawerProps> = (
               <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 relative">
                 {timelineMilestones.map((m) => {
                   const isDone = m.completed;
+                  const dateInfo = m.date ? formatDateTimeSplit(m.date) : null;
                   return (
                     <div
                       key={m.key}
@@ -349,12 +350,22 @@ export const MaintenanceDetailDrawer: React.FC<MaintenanceDetailDrawerProps> = (
                       >
                         <Icon name={m.icon} size="xs" />
                       </div>
+                      {/* Fila 1: Título */}
                       <span className="text-[11px] font-bold leading-tight line-clamp-1">
                         {m.label}
                       </span>
-                      <span className="text-[10px] text-base-content/60 mt-0.5 font-mono">
-                        {m.date ? formatDate(m.date) : 'Pendiente'}
+                      {/* Fila 2: Mes, Día y Año */}
+                      <span className="text-[10px] text-base-content/70 mt-1 font-mono leading-tight">
+                        {dateInfo?.dateStr ? dateInfo.dateStr : 'Pendiente'}
                       </span>
+                      {/* Fila 3: Hora AM/PM */}
+                      {dateInfo?.timeStr ? (
+                        <span className="text-[10px] font-semibold text-primary font-mono leading-tight mt-0.5">
+                          {dateInfo.timeStr}
+                        </span>
+                      ) : (
+                        <span className="text-[10px] text-base-content/30 font-mono leading-tight mt-0.5">-</span>
+                      )}
                     </div>
                   );
                 })}
@@ -478,8 +489,8 @@ export const MaintenanceDetailDrawer: React.FC<MaintenanceDetailDrawerProps> = (
                     <Badge variant="soft" color="info" size="xs" className="gap-1">
                       <Icon name="Check" size="xs" />
                       {Array.isArray((order as any).notificationHistory) && (order as any).notificationHistory.length > 1
-                        ? `Notificado ${(order as any).notificationHistory.length} veces (Último: ${formatDate(order.notifiedAt)})`
-                        : `Notificado (${formatDate(order.notifiedAt)})`}
+                        ? `Notificado ${(order as any).notificationHistory.length} veces (Último: ${formatCommentDate(order.notifiedAt)})`
+                        : `Notificado (${formatCommentDate(order.notifiedAt)})`}
                     </Badge>
                   </Box>
                 )}
@@ -764,7 +775,7 @@ export const MaintenanceDetailDrawer: React.FC<MaintenanceDetailDrawerProps> = (
                             </Badge>
                           </Flex>
                           <Text size="xs" variant="muted" className="font-mono text-[10px]">
-                            {formatDate(notif.sentAt)}
+                            {formatCommentDate(notif.sentAt)}
                           </Text>
                         </Flex>
                         {notif.notes && (
@@ -785,7 +796,7 @@ export const MaintenanceDetailDrawer: React.FC<MaintenanceDetailDrawerProps> = (
                           <Badge variant="soft" color="success" size="xs">WhatsApp</Badge>
                         </Flex>
                         <Text size="xs" variant="muted" className="font-mono text-[10px]">
-                          {formatDate(order.notifiedAt!)}
+                          {formatCommentDate(order.notifiedAt!)}
                         </Text>
                       </Flex>
                       <Text size="xs" className="text-base-content/80 pl-3 border-l-2 border-success/40">
@@ -835,7 +846,7 @@ export const MaintenanceDetailDrawer: React.FC<MaintenanceDetailDrawerProps> = (
                           </Text>
                         </Flex>
                         <Text size="xs" variant="muted" className="font-mono text-[10px]">
-                          {formatDate(dNote.createdAt)}
+                          {formatCommentDate(dNote.createdAt)}
                         </Text>
                       </Flex>
                       <Text size="xs" className="text-base-content/90 whitespace-pre-wrap leading-relaxed">
