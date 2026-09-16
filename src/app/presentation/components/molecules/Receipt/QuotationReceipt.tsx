@@ -203,8 +203,8 @@ export const QuotationReceipt: React.FC<QuotationReceiptProps> = ({
 
       {/* Footer Notice */}
       <div style={{ marginTop: '32px', textAlign: 'center', color: '#6b7280', fontSize: '13px', pageBreakInside: 'avoid', breakInside: 'avoid' }}>
-        <p style={{ margin: '0 0 4px 0' }}>Esta cotización tiene una vigencia de 15 días a partir de su fecha de expedición.</p>
-        <p style={{ margin: 0 }}>Gracias por su preferencia.</p>
+        <p style={{ margin: '0 0 4px 0' }}>Precios y disponibilidad sujetos a cambio sin previo aviso.</p>
+        <p style={{ margin: 0 }}>¡Gracias por su preferencia!</p>
       </div>
     </div>
   );

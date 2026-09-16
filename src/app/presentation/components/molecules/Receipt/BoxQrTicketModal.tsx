@@ -33,6 +33,15 @@ export const BoxQrTicketModal: React.FC<BoxQrTicketModalProps> = ({
 }) => {
   const [printFormat, setPrintFormat] = useState<'label4x2' | 'thermal'>('label4x2');
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
+  const [copied, setCopied] = useState(false);
+
+  const handleCopyBoxCode = (boxCode: string) => {
+    navigator.clipboard.writeText(boxCode);
+    setCopied(true);
+    setTimeout(() => {
+      setCopied(false);
+    }, 2000);
+  };
 
   useEffect(() => {
     if (box?.boxCode) {
@@ -163,9 +172,23 @@ export const BoxQrTicketModal: React.FC<BoxQrTicketModalProps> = ({
                   {receptionFolio}
                 </span>
               </div>
-              <div className="mt-2 font-mono font-extrabold text-xs text-slate-800 tracking-wider bg-slate-100 p-1 rounded border border-slate-200">
-                {box.boxCode}
-              </div>
+              <button
+                type="button"
+                onClick={() => box.boxCode && handleCopyBoxCode(box.boxCode)}
+                className="mt-2 w-full font-mono font-extrabold text-xs text-slate-800 tracking-wider bg-slate-100 hover:bg-slate-200 p-1.5 rounded border border-slate-200 flex items-center justify-between transition-colors cursor-pointer group"
+                title="Clic para copiar código de caja"
+              >
+                <span>{box.boxCode}</span>
+                <span className="flex items-center gap-1 text-[10px] text-slate-500 font-sans font-normal">
+                  {copied ? (
+                    <span className="text-emerald-600 font-bold flex items-center gap-0.5">
+                      <Icon name="Check" size="xs" /> ¡Copiado!
+                    </span>
+                  ) : (
+                    <Icon name="Copy" size="xs" className="opacity-60 group-hover:opacity-100" />
+                  )}
+                </span>
+              </button>
               <div className="text-[9px] text-slate-400 mt-1">
                 {formatDate(new Date().toISOString())}
               </div>

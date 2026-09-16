@@ -43,6 +43,16 @@ export const ReceptionDetailDrawer: React.FC<ReceptionDetailDrawerProps> = ({
   const [approving, setApproving] = useState(false);
   const [approveError, setApproveError] = useState<string | null>(null);
 
+  const [copiedBoxCode, setCopiedBoxCode] = useState<string | null>(null);
+
+  const handleCopyBoxCode = (boxCode: string) => {
+    navigator.clipboard.writeText(boxCode);
+    setCopiedBoxCode(boxCode);
+    setTimeout(() => {
+      setCopiedBoxCode(null);
+    }, 2000);
+  };
+
   useEffect(() => {
     if (!isOpen) {
       setRejectModalOpen(false);
@@ -324,24 +334,31 @@ export const ReceptionDetailDrawer: React.FC<ReceptionDetailDrawerProps> = ({
                                   </span>
                                 )}
                                 {it.boxCode && (
-                                  <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border flex items-center gap-1 ${
-                                    isSealed 
-                                      ? 'bg-warning/10 text-warning border-warning/30' 
-                                      : 'bg-success/10 text-success border-success/30'
-                                  }`}>
-                                    <Icon name={isSealed ? 'Package' : 'PackageCheck'} size="xs" />
-                                    {it.boxCode} ({isSealed ? 'Sellada' : 'Abierta'})
-                                  </span>
-                                )}
-                                {isApproved && it.boxCode && onOpenBox && isSealed && (
                                   <button
                                     type="button"
-                                    onClick={() => onOpenBox(it.boxCode!)}
-                                    className="btn btn-success btn-xs text-[10px] px-2 h-5 min-h-0 font-bold"
-                                    title="Abrir caja para sumar stock a mostrador y nivelar precio"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleCopyBoxCode(it.boxCode!);
+                                    }}
+                                    className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded border inline-flex items-center gap-1.5 transition-all cursor-pointer group select-none active:scale-95 ${
+                                      isSealed 
+                                        ? 'bg-warning/10 text-warning border-warning/30 hover:bg-warning/20 hover:border-warning/50' 
+                                        : 'bg-success/10 text-success border-success/30 hover:bg-success/20 hover:border-success/50'
+                                    }`}
+                                    title="Clic para copiar código de caja"
                                   >
-                                    <Icon name="PackageCheck" size="xs" />
-                                    Abrir Caja
+                                    <Icon name={isSealed ? 'Package' : 'PackageCheck'} size="xs" />
+                                    <span>{it.boxCode} ({isSealed ? 'Sellada' : 'Abierta'})</span>
+                                    <Icon 
+                                      name={copiedBoxCode === it.boxCode ? 'Check' : 'Copy'} 
+                                      size="xs" 
+                                      className={`transition-all ${copiedBoxCode === it.boxCode ? 'text-success font-bold' : 'opacity-60 group-hover:opacity-100'}`} 
+                                    />
+                                    {copiedBoxCode === it.boxCode && (
+                                      <span className="text-[9px] font-sans font-bold bg-base-content text-base-100 px-1 py-0.2 rounded">
+                                        ¡Copiado!
+                                      </span>
+                                    )}
                                   </button>
                                 )}
                               </div>

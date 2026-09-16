@@ -97,7 +97,7 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
     }))
   );
 
-  // Phone lookup states (Staff mode)
+  // Phone lookup states
   const [isSearchingPhone, setIsSearchingPhone] = useState(false);
   const [foundCustomer, setFoundCustomer] = useState<CustomerLookupResult | null>(null);
   const [selectedExistingVehicleId, setSelectedExistingVehicleId] = useState<string | null>(null);
@@ -105,9 +105,8 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
   const nameInputRef = useRef<HTMLInputElement>(null);
   const lastFoundCustomerIdRef = useRef<string | undefined>(undefined);
 
-  // Auto-focus customerName input when search completes for a new customer in staff mode
+  // Auto-focus customerName input when search completes for a new customer
   useEffect(() => {
-    if (!isStaffMode) return;
     const rawDigits = cleanPhoneDigits(formCustomerPhone);
     if (rawDigits.length === 10 && !isSearchingPhone && !foundCustomer) {
       const timer = setTimeout(() => {
@@ -115,7 +114,7 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
       }, 100);
       return () => clearTimeout(timer);
     }
-  }, [formCustomerPhone, isSearchingPhone, foundCustomer, isStaffMode]);
+  }, [formCustomerPhone, isSearchingPhone, foundCustomer]);
 
   // Load branches on mount
   useEffect(() => {
@@ -159,8 +158,6 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
     const numericOnly = cleanPhoneDigits(val);
     setFormField('formCustomerPhone', formatted);
 
-    if (!isStaffMode) return;
-
     if (debounceTimerRef.current) {
       clearTimeout(debounceTimerRef.current);
     }
@@ -179,10 +176,6 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
 
     setIsSearchingPhone(true);
     debounceTimerRef.current = setTimeout(async () => {
-      if (!accessToken) {
-        setIsSearchingPhone(false);
-        return;
-      }
       try {
         const customer = await customerUseCases.getCustomerByPhone(numericOnly);
         if (customer) {
@@ -367,27 +360,23 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
               Datos del Cliente y Sucursal
             </span>
           </Flex>
-          {isStaffMode && (
-            <>
-              {isSearchingPhone && (
-                <Flex align="center" gap="xs">
-                  <Icon name="RefreshCw" size="xs" className="animate-spin text-primary" />
-                  <Text size="xs" className="text-primary font-medium">Buscando...</Text>
-                </Flex>
-              )}
-              {isPhoneComplete && !isSearchingPhone && foundCustomer && (
-                <Badge color="success" size="sm" variant="soft">
-                  <Icon name="CheckCircle" size="xs" className="mr-1" />
-                  Cliente frecuente
-                </Badge>
-              )}
-              {isPhoneComplete && !isSearchingPhone && !foundCustomer && (
-                <Badge color="info" size="sm" variant="soft">
-                  <Icon name="UserPlus" size="xs" className="mr-1" />
-                  Nuevo cliente
-                </Badge>
-              )}
-            </>
+          {isSearchingPhone && (
+            <Flex align="center" gap="xs">
+              <Icon name="RefreshCw" size="xs" className="animate-spin text-primary" />
+              <Text size="xs" className="text-primary font-medium">Buscando...</Text>
+            </Flex>
+          )}
+          {isPhoneComplete && !isSearchingPhone && foundCustomer && (
+            <Badge color="success" size="sm" variant="soft">
+              <Icon name="CheckCircle" size="xs" className="mr-1" />
+              Cliente frecuente
+            </Badge>
+          )}
+          {isPhoneComplete && !isSearchingPhone && !foundCustomer && (
+            <Badge color="info" size="sm" variant="soft">
+              <Icon name="UserPlus" size="xs" className="mr-1" />
+              Nuevo cliente
+            </Badge>
           )}
         </Flex>
 
@@ -411,176 +400,126 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
           />
         </div>
 
-        {/* STAFF MODE: Phone-First Gating */}
-        {isStaffMode ? (
-          <>
-            {/* Phone Input */}
-            <div>
-              <label className="text-xs font-medium text-base-content/70 mb-1.5 block">
-                Teléfono Celular (10 dígitos) *
-              </label>
-              <Box className="relative">
-                <TextInput
-                  value={formCustomerPhone}
-                  onChange={(e) => handlePhoneChange(e.target.value)}
-                  placeholder="99 1234 5678"
-                  type="tel"
-                  maxLength={12}
-                  disabled={bookingLoading}
-                  className="w-full font-mono text-sm"
-                />
-                {isSearchingPhone && (
-                  <Box className="absolute right-3 top-2.5">
-                    <Icon name="RefreshCw" size="sm" className="animate-spin text-primary" />
-                  </Box>
-                )}
-              </Box>
-              {formCustomerPhone && rawPhoneDigits.length > 0 && rawPhoneDigits.length < 10 && (
-                <span className="text-[11px] text-warning mt-1 block font-medium">
-                  Faltan {10 - rawPhoneDigits.length} dígitos para completar el número celular (10 requeridos).
-                </span>
-              )}
-            </div>
-
-            {/* Waiting State */}
-            {!isPhoneComplete && !isSearchingPhone && (
-              <Box className="p-5 bg-base-100/60 border border-dashed border-base-300 rounded-xl text-center">
-                <Flex direction="col" align="center" justify="center" gap="xs">
-                  <Box className="w-9 h-9 rounded-full bg-base-200 flex items-center justify-center text-base-content/40 mb-1">
-                    <Icon name="Phone" size="sm" />
-                  </Box>
-                  <Text size="sm" weight="semibold" className="text-base-content/80">
-                    En espera de número de teléfono
-                  </Text>
-                  <Text size="xs" className="text-base-content/50 max-w-sm">
-                    Ingresa los 10 dígitos del teléfono para consultar si el cliente ya cuenta con historial o agendar una nueva cita.
-                  </Text>
-                </Flex>
-              </Box>
-            )}
-
-            {/* Searching State */}
+        {/* Phone Input */}
+        <div>
+          <label className="text-xs font-medium text-base-content/70 mb-1.5 block">
+            Teléfono Celular (10 dígitos) *
+          </label>
+          <Box className="relative">
+            <TextInput
+              value={formCustomerPhone}
+              onChange={(e) => handlePhoneChange(e.target.value)}
+              placeholder="99 1234 5678"
+              type="tel"
+              maxLength={12}
+              disabled={bookingLoading}
+              className="w-full font-mono text-sm"
+            />
             {isSearchingPhone && (
-              <Box className="p-5 bg-base-100/60 border border-base-300 rounded-xl text-center animate-pulse">
-                <Flex direction="col" align="center" justify="center" gap="xs">
-                  <Box className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary mb-1">
-                    <Icon name="RefreshCw" size="sm" className="animate-spin" />
-                  </Box>
-                  <Text size="sm" weight="semibold" className="text-base-content">
-                    Buscando cliente...
-                  </Text>
-                  <Text size="xs" className="text-base-content/50 max-w-sm">
-                    Consultando registros y vehículos asociados a {formCustomerPhone}...
-                  </Text>
+              <Box className="absolute right-3 top-2.5">
+                <Icon name="RefreshCw" size="sm" className="animate-spin text-primary" />
+              </Box>
+            )}
+          </Box>
+          {formCustomerPhone && rawPhoneDigits.length > 0 && rawPhoneDigits.length < 10 && (
+            <span className="text-[11px] text-warning mt-1 block font-medium">
+              Faltan {10 - rawPhoneDigits.length} dígitos para completar el número celular (10 requeridos).
+            </span>
+          )}
+        </div>
+
+        {/* Waiting State */}
+        {!isPhoneComplete && !isSearchingPhone && (
+          <Box className="p-5 bg-base-100/60 border border-dashed border-base-300 rounded-xl text-center">
+            <Flex direction="col" align="center" justify="center" gap="xs">
+              <Box className="w-9 h-9 rounded-full bg-base-200 flex items-center justify-center text-base-content/40 mb-1">
+                <Icon name="Phone" size="sm" />
+              </Box>
+              <Text size="sm" weight="semibold" className="text-base-content/80">
+                En espera de número de teléfono
+              </Text>
+              <Text size="xs" className="text-base-content/50 max-w-sm">
+                Ingresa los 10 dígitos del teléfono para consultar si ya cuentas con vehículos registrados o agendar una nueva cita.
+              </Text>
+            </Flex>
+          </Box>
+        )}
+
+        {/* Searching State */}
+        {isSearchingPhone && (
+          <Box className="p-5 bg-base-100/60 border border-base-300 rounded-xl text-center animate-pulse">
+            <Flex direction="col" align="center" justify="center" gap="xs">
+              <Box className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary mb-1">
+                <Icon name="RefreshCw" size="sm" className="animate-spin" />
+              </Box>
+              <Text size="sm" weight="semibold" className="text-base-content">
+                Buscando cliente...
+              </Text>
+              <Text size="xs" className="text-base-content/50 max-w-sm">
+                Consultando registros y vehículos asociados a {formCustomerPhone}...
+              </Text>
+            </Flex>
+          </Box>
+        )}
+
+        {/* Phone Complete & Verified -> Show Customer inputs */}
+        {isPhoneComplete && !isSearchingPhone && (
+          <Stack gap="md" className="animate-in fade-in duration-200">
+            {foundCustomer ? (
+              <Box className="p-3 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/60 rounded-xl">
+                <Flex justify="between" align="center">
+                  <Flex align="center" gap="sm">
+                    <Box className="w-7 h-7 rounded-full bg-emerald-100 dark:bg-emerald-900/50 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
+                      <Icon name="CheckCircle" size="xs" />
+                    </Box>
+                    <Box>
+                      <Text size="xs" weight="bold" className="text-emerald-800 dark:text-emerald-200">
+                        Cliente frecuente encontrado: {foundCustomer.name}
+                      </Text>
+                      <Text size="xs" className="text-emerald-700/80 dark:text-emerald-300/80">
+                        Se cargaron automáticamente tus datos {foundCustomer.vehicles?.length ? `y ${foundCustomer.vehicles.length} vehículo(s) registrado(s)` : ''}.
+                      </Text>
+                    </Box>
+                  </Flex>
+                  <Badge color="success" size="sm" variant="soft">
+                    Registrado
+                  </Badge>
+                </Flex>
+              </Box>
+            ) : (
+              <Box className="p-3 bg-sky-50 dark:bg-sky-950/30 border border-sky-200 dark:border-sky-800/60 rounded-xl">
+                <Flex justify="between" align="center">
+                  <Flex align="center" gap="sm">
+                    <Box className="w-7 h-7 rounded-full bg-sky-100 dark:bg-sky-900/50 flex items-center justify-center text-sky-600 dark:text-sky-400 shrink-0">
+                      <Icon name="UserPlus" size="xs" />
+                    </Box>
+                    <Box>
+                      <Text size="xs" weight="bold" className="text-sky-800 dark:text-sky-200">
+                        Nuevo cliente (Sin registro previo)
+                      </Text>
+                      <Text size="xs" className="text-sky-700/80 dark:text-sky-300/80">
+                        Ingresa tus datos para registrar la cita.
+                      </Text>
+                    </Box>
+                  </Flex>
+                  <Badge color="info" size="sm" variant="soft">
+                    Nuevo
+                  </Badge>
                 </Flex>
               </Box>
             )}
-
-            {/* Phone Complete & Verified -> Show Customer inputs */}
-            {isPhoneComplete && !isSearchingPhone && (
-              <Stack gap="md" className="animate-in fade-in duration-200">
-                {foundCustomer ? (
-                  <Box className="p-3 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/60 rounded-xl">
-                    <Flex justify="between" align="center">
-                      <Flex align="center" gap="sm">
-                        <Box className="w-7 h-7 rounded-full bg-emerald-100 dark:bg-emerald-900/50 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
-                          <Icon name="CheckCircle" size="xs" />
-                        </Box>
-                        <Box>
-                          <Text size="xs" weight="bold" className="text-emerald-800 dark:text-emerald-200">
-                            Cliente frecuente encontrado: {foundCustomer.name}
-                          </Text>
-                          <Text size="xs" className="text-emerald-700/80 dark:text-emerald-300/80">
-                            Se cargaron automáticamente sus datos {foundCustomer.vehicles?.length ? `y ${foundCustomer.vehicles.length} vehículo(s) registrado(s)` : ''}.
-                          </Text>
-                        </Box>
-                      </Flex>
-                      <Badge color="success" size="sm" variant="soft">
-                        Registrado
-                      </Badge>
-                    </Flex>
-                  </Box>
-                ) : (
-                  <Box className="p-3 bg-sky-50 dark:bg-sky-950/30 border border-sky-200 dark:border-sky-800/60 rounded-xl">
-                    <Flex justify="between" align="center">
-                      <Flex align="center" gap="sm">
-                        <Box className="w-7 h-7 rounded-full bg-sky-100 dark:bg-sky-900/50 flex items-center justify-center text-sky-600 dark:text-sky-400 shrink-0">
-                          <Icon name="UserPlus" size="xs" />
-                        </Box>
-                        <Box>
-                          <Text size="xs" weight="bold" className="text-sky-800 dark:text-sky-200">
-                            Nuevo cliente (Sin registro previo)
-                          </Text>
-                          <Text size="xs" className="text-sky-700/80 dark:text-sky-300/80">
-                            Ingresa los datos para registrar la cita del cliente.
-                          </Text>
-                        </Box>
-                      </Flex>
-                      <Badge color="info" size="sm" variant="soft">
-                        Nuevo
-                      </Badge>
-                    </Flex>
-                  </Box>
-                )}
-
-                <Grid cols={{ base: 1, sm: 2 }} gap="md">
-                  <div>
-                    <label className="text-xs font-medium text-base-content/70 mb-1.5 block">Nombre Completo *</label>
-                    <TextInput
-                      ref={nameInputRef}
-                      value={formCustomerName}
-                      onChange={(e) => setFormField('formCustomerName', e.target.value)}
-                      placeholder="Ej. Juan Pérez"
-                      disabled={bookingLoading}
-                      className="w-full"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs font-medium text-base-content/70 mb-1.5 block">Correo Electrónico (Opcional)</label>
-                    <TextInput
-                      value={formCustomerEmail}
-                      onChange={(e) => setFormField('formCustomerEmail', e.target.value)}
-                      placeholder="juan@ejemplo.com"
-                      type="email"
-                      disabled={bookingLoading}
-                      className="w-full"
-                    />
-                  </div>
-                </Grid>
-              </Stack>
-            )}
-          </>
-        ) : (
-          /* PUBLIC MODE: Open fields as usual */
-          <>
-            <div>
-              <label className="text-xs font-medium text-base-content/70 mb-1.5 block">Nombre Completo *</label>
-              <TextInput
-                value={formCustomerName}
-                onChange={(e) => setFormField('formCustomerName', e.target.value)}
-                placeholder="Ej. Juan Pérez"
-                disabled={bookingLoading}
-                className="w-full"
-              />
-            </div>
 
             <Grid cols={{ base: 1, sm: 2 }} gap="md">
               <div>
-                <label className="text-xs font-medium text-base-content/70 mb-1.5 block">Teléfono (10 dígitos) *</label>
+                <label className="text-xs font-medium text-base-content/70 mb-1.5 block">Nombre Completo *</label>
                 <TextInput
-                  value={formCustomerPhone}
-                  onChange={(e) => setFormField('formCustomerPhone', formatPhoneInput(e.target.value))}
-                  placeholder="99 1234 5678"
-                  type="tel"
-                  maxLength={12}
+                  ref={nameInputRef}
+                  value={formCustomerName}
+                  onChange={(e) => setFormField('formCustomerName', e.target.value)}
+                  placeholder="Ej. Juan Pérez"
                   disabled={bookingLoading}
-                  className="w-full font-mono"
+                  className="w-full"
                 />
-                {formCustomerPhone && cleanPhoneDigits(formCustomerPhone).length > 0 && cleanPhoneDigits(formCustomerPhone).length < 10 && (
-                  <span className="text-[11px] text-error mt-1 block font-medium">
-                    Faltan {10 - cleanPhoneDigits(formCustomerPhone).length} dígitos para completar los 10 dígitos.
-                  </span>
-                )}
               </div>
               <div>
                 <label className="text-xs font-medium text-base-content/70 mb-1.5 block">Correo Electrónico (Opcional)</label>
@@ -594,12 +533,12 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
                 />
               </div>
             </Grid>
-          </>
+          </Stack>
         )}
       </Box>
 
-      {/* SECTIONS 2 & 3: Revealed in staff mode only when phone is complete, or always in public mode */}
-      {(!isStaffMode || (isPhoneComplete && !isSearchingPhone)) && (
+      {/* SECTIONS 2 & 3: Revealed only when phone is complete and verified */}
+      {isPhoneComplete && !isSearchingPhone && (
         <Stack gap="md" className="animate-in fade-in duration-200">
           {/* SECTION 2: Datos del Vehículo */}
           <Box className="p-4 bg-base-200/50 border border-base-300 rounded-xl space-y-3">
@@ -612,8 +551,8 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
               </span>
             </Flex>
 
-            {/* Quick select existing customer vehicles in staff mode */}
-            {isStaffMode && foundCustomer && foundCustomer.vehicles && foundCustomer.vehicles.length > 0 && (
+            {/* Quick select existing customer vehicles */}
+            {foundCustomer && foundCustomer.vehicles && foundCustomer.vehicles.length > 0 && (
               <CustomerVehicleSelector
                 customerName={foundCustomer.name}
                 vehicles={foundCustomer.vehicles}
@@ -756,20 +695,25 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
           disabled={
             bookingLoading ||
             occupiedSlotsLoading ||
-            !formSelectedTime ||
+            !isPhoneComplete ||
+            isSearchingPhone ||
+            !formCustomerName.trim() ||
             !formBrand.trim() ||
             !formModel.trim() ||
-            (isStaffMode && (!isPhoneComplete || isSearchingPhone || !formCustomerName.trim()))
+            !formSelectedDate ||
+            !formSelectedTime
           }
           className={onCancel ? "flex-1 font-bold" : "w-full font-bold"}
         >
-          {isStaffMode && !isPhoneComplete ? (
-            'Esperando Teléfono (10 dígitos)...'
-          ) : isStaffMode && isSearchingPhone ? (
+          {!isPhoneComplete ? (
+            'Ingresa Teléfono (10 dígitos)...'
+          ) : isSearchingPhone ? (
             'Buscando Cliente...'
+          ) : !formCustomerName.trim() ? (
+            'Ingresa Nombre del Cliente...'
           ) : !formBrand.trim() || !formModel.trim() ? (
             'Ingresa Marca y Modelo...'
-          ) : !formSelectedTime ? (
+          ) : !formSelectedDate || !formSelectedTime ? (
             'Selecciona Fecha y Horario...'
           ) : (
             <>

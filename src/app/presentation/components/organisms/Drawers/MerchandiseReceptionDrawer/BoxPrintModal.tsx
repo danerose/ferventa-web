@@ -36,6 +36,15 @@ export const BoxPrintModal: React.FC<BoxPrintModalProps> = ({
   const [selectedSingleItem, setSelectedSingleItem] = useState<BoxItemData | null>(null);
   const [openingBoxCode, setOpeningBoxCode] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'sealed' | 'opened'>('all');
+  const [copiedBoxCode, setCopiedBoxCode] = useState<string | null>(null);
+
+  const handleCopyBoxCode = (boxCode: string) => {
+    navigator.clipboard.writeText(boxCode);
+    setCopiedBoxCode(boxCode);
+    setTimeout(() => {
+      setCopiedBoxCode(null);
+    }, 2000);
+  };
 
   if (!isOpen || !reception) return null;
 
@@ -217,9 +226,24 @@ export const BoxPrintModal: React.FC<BoxPrintModalProps> = ({
                 {/* Visual Label Preview snippet */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="font-mono text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded border border-primary/20">
-                      {item.boxCode}
-                    </span>
+                    <button
+                      type="button"
+                      onClick={() => item.boxCode && handleCopyBoxCode(item.boxCode)}
+                      className="font-mono text-xs font-bold text-primary bg-primary/10 hover:bg-primary/20 px-2 py-0.5 rounded border border-primary/20 hover:border-primary/40 flex items-center gap-1.5 transition-all cursor-pointer group active:scale-95"
+                      title="Clic para copiar código de caja"
+                    >
+                      <span>{item.boxCode}</span>
+                      <Icon
+                        name={copiedBoxCode === item.boxCode ? 'Check' : 'Copy'}
+                        size="xs"
+                        className={copiedBoxCode === item.boxCode ? 'text-success font-bold' : 'opacity-60 group-hover:opacity-100'}
+                      />
+                      {copiedBoxCode === item.boxCode && (
+                        <span className="text-[9px] font-sans font-bold bg-base-content text-base-100 px-1 py-0.2 rounded">
+                          ¡Copiado!
+                        </span>
+                      )}
+                    </button>
                     <Badge variant={item.isBoxSealed ? 'success' : 'neutral'} size="sm">
                       {item.isBoxSealed ? 'Sellada en Bodega' : 'Abierta en Mostrador'}
                     </Badge>
