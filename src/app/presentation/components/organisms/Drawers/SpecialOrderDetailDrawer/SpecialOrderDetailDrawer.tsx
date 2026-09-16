@@ -89,8 +89,8 @@ export const SpecialOrderDetailDrawer: React.FC<SpecialOrderDetailDrawerProps> =
       />
 
       {/* Slide-over panel */}
-      <Box className="absolute inset-y-0 right-0 max-w-full flex pl-10">
-        <Box className="w-screen max-w-xl bg-white dark:bg-slate-900 shadow-2xl flex flex-col border-l border-slate-200 dark:border-slate-800">
+      <Box className="absolute inset-y-0 right-0 max-w-full flex pl-0 sm:pl-10">
+        <Box className="w-full sm:w-screen max-w-full sm:max-w-xl bg-white dark:bg-slate-900 shadow-2xl flex flex-col border-l border-slate-200 dark:border-slate-800">
           {/* HEADER */}
           <Box className="px-6 py-5 bg-[#091426] text-white flex items-center justify-between border-b border-white/10">
             <Stack spacing="xs">

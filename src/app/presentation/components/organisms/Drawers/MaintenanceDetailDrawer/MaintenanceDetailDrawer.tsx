@@ -248,13 +248,13 @@ export const MaintenanceDetailDrawer: React.FC<MaintenanceDetailDrawerProps> = (
       />
 
       {/* Slide-over panel */}
-      <Box className="absolute inset-y-0 right-0 max-w-full flex pl-6 sm:pl-10">
-        <Box className="w-screen max-w-2xl bg-base-100 shadow-2xl flex flex-col border-l border-base-300">
+      <Box className="absolute inset-y-0 right-0 max-w-full flex pl-0 sm:pl-10">
+        <Box className="w-full sm:w-screen max-w-full sm:max-w-2xl bg-base-100 shadow-2xl flex flex-col border-l border-base-300">
           
           {/* HEADER */}
-          <Box className="px-6 py-4 bg-base-200 border-b border-base-300 flex items-center justify-between">
-            <Stack spacing="xs">
-              <Flex align="center" gap="sm">
+          <Box className="px-4 sm:px-6 py-3 sm:py-4 bg-base-200 border-b border-base-300 flex items-start justify-between gap-2">
+            <Stack spacing="xs" className="min-w-0 flex-1">
+              <Flex align="center" gap="xs" wrap className="gap-1.5">
                 <Badge variant="soft" color={sColor.badgeColor} size="sm" className="font-bold">
                   {SERVICE_STATUS_LABELS[order.status] || order.status}
                 </Badge>
@@ -297,17 +297,17 @@ export const MaintenanceDetailDrawer: React.FC<MaintenanceDetailDrawerProps> = (
                   </SecondaryButton>
                 )}
               </Flex>
-              <Heading level={3} className="text-lg font-black text-base-content tracking-tight">
+              <Heading level={3} className="text-base sm:text-lg font-black text-base-content tracking-tight truncate">
                 {order.vehicle.brand} {order.vehicle.model} {order.vehicle.year ? `(${order.vehicle.year})` : ''}
               </Heading>
-              <Text size="xs" variant="muted">
+              <Text size="xs" variant="muted" className="truncate">
                 Serie: <span className="font-mono font-bold text-base-content">{order.vehicle.serialNumberLastFour}</span>
                 {order.vehicle.licensePlate && ` • Placas: ${order.vehicle.licensePlate}`}
               </Text>
             </Stack>
 
-            <Flex align="center" gap="xs">
-              <KbdBadge keys="Esc" className="opacity-70 text-[10px]" />
+            <Flex align="center" gap="xs" className="shrink-0">
+              <KbdBadge keys="Esc" className="opacity-70 text-[10px] hidden sm:inline-flex" />
               <TertiaryButton
                 size="sm"
                 onClick={onClose}
@@ -320,22 +320,24 @@ export const MaintenanceDetailDrawer: React.FC<MaintenanceDetailDrawerProps> = (
           </Box>
 
           {/* SCROLLABLE BODY */}
-          <Box className="flex-1 overflow-y-auto p-6 space-y-6">
+          <Box className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5 sm:space-y-6">
 
             {/* MILESTONE TIMELINE */}
-            <Box bg="base-200" rounded="DEFAULT" className="p-4 border border-base-300">
+            <Box bg="base-200" rounded="DEFAULT" className="p-3 sm:p-4 border border-base-300">
               <Text size="xs" weight="bold" variant="muted" className="uppercase tracking-wider mb-3">
                 Línea de Tiempo del Servicio
               </Text>
               
               <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 relative">
-                {timelineMilestones.map((m) => {
+                {timelineMilestones.map((m, idx) => {
                   const isDone = m.completed;
                   const dateInfo = m.date ? formatDateTimeSplit(m.date) : null;
                   return (
                     <div
                       key={m.key}
                       className={`flex flex-col items-center text-center p-2 rounded-lg border transition-all ${
+                        idx === 4 ? 'col-span-2 sm:col-span-1' : ''
+                      } ${
                         isDone
                           ? 'bg-base-100 border-success/40 text-base-content shadow-xs'
                           : 'bg-base-200/50 border-base-300 text-base-content/40 opacity-70'

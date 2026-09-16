@@ -1,4 +1,4 @@
-import React, { useMemo, useCallback } from 'react';
+import React, { useMemo, useCallback, useRef } from 'react';
 import { Icon } from '@/app/presentation/components';
 import type { AdminAppointment } from '@/app/domain';
 
@@ -240,44 +240,93 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
     onWeekRefDateChange(new Date());
   }, [onWeekRefDateChange]);
 
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  const handleScrollLeft = useCallback(() => {
+    scrollContainerRef.current?.scrollBy({ left: -320, behavior: 'smooth' });
+  }, []);
+
+  const handleScrollRight = useCallback(() => {
+    scrollContainerRef.current?.scrollBy({ left: 320, behavior: 'smooth' });
+  }, []);
+
   return (
     <div className="flex flex-col bg-base-100 border border-base-300 rounded-xl shadow-xs overflow-hidden">
       {/* Navigation Toolbar */}
-      <div className="px-5 py-3.5 border-b border-base-300 flex items-center gap-3 bg-base-200/50">
-        <div className="flex items-center gap-1">
+      <div className="px-4 sm:px-5 py-3 border-b border-base-300 flex flex-wrap items-center justify-between gap-3 bg-base-200/50">
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={handlePrevWeek}
+              aria-label="Semana anterior"
+              className="btn btn-sm btn-ghost border border-base-300 bg-base-100 hover:bg-base-200 text-base-content p-2"
+              title="Semana anterior"
+            >
+              <Icon name="ChevronLeft" size="sm" />
+            </button>
+            <button
+              type="button"
+              onClick={handleNextWeek}
+              aria-label="Semana siguiente"
+              className="btn btn-sm btn-ghost border border-base-300 bg-base-100 hover:bg-base-200 text-base-content p-2"
+              title="Semana siguiente"
+            >
+              <Icon name="ChevronRight" size="sm" />
+            </button>
+          </div>
+
           <button
             type="button"
-            onClick={handlePrevWeek}
-            aria-label="Semana anterior"
-            className="btn btn-sm btn-ghost border border-base-300 bg-base-100 hover:bg-base-200 text-base-content p-2"
+            onClick={handleTodayWeek}
+            className="btn btn-sm btn-ghost border border-base-300 bg-base-100 hover:bg-base-200 text-base-content font-bold px-3.5"
           >
-            <Icon name="ChevronLeft" size="sm" />
+            Hoy
           </button>
-          <button
-            type="button"
-            onClick={handleNextWeek}
-            aria-label="Semana siguiente"
-            className="btn btn-sm btn-ghost border border-base-300 bg-base-100 hover:bg-base-200 text-base-content p-2"
-          >
-            <Icon name="ChevronRight" size="sm" />
-          </button>
+
+          <div className="text-sm font-bold text-base-content ml-1">
+            {formatWeekRange(monday)}
+          </div>
         </div>
 
-        <button
-          type="button"
-          onClick={handleTodayWeek}
-          className="btn btn-sm btn-ghost border border-base-300 bg-base-100 hover:bg-base-200 text-base-content font-bold px-3.5"
-        >
-          Hoy
-        </button>
-
-        <div className="text-sm font-bold text-base-content ml-2">
-          {formatWeekRange(monday)}
+        {/* Horizontal scroll helpers for small laptops / MacBook Air */}
+        <div className="flex items-center gap-2">
+          <span className="hidden sm:inline-flex items-center gap-1 text-xs text-base-content/60 font-medium">
+            <Icon name="MoveHorizontal" size="xs" />
+            <span>Mover días:</span>
+          </span>
+          <div className="flex items-center gap-1 bg-base-100 p-0.5 rounded-lg border border-base-300 shadow-2xs">
+            <button
+              type="button"
+              onClick={handleScrollLeft}
+              className="btn btn-xs btn-ghost hover:bg-base-200 px-2 flex items-center gap-1 text-base-content"
+              title="Desplazar cuadrícula hacia la izquierda (Lunes)"
+            >
+              <Icon name="ArrowLeft" size="xs" />
+              <span className="text-[11px] font-semibold">Lun</span>
+            </button>
+            <div className="w-[1px] h-3.5 bg-base-300" />
+            <button
+              type="button"
+              onClick={handleScrollRight}
+              className="btn btn-xs btn-ghost hover:bg-base-200 px-2 flex items-center gap-1 text-base-content"
+              title="Desplazar cuadrícula hacia la derecha (Sábado)"
+            >
+              <span className="text-[11px] font-semibold">Sáb</span>
+              <Icon name="ArrowRight" size="xs" />
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Scroll Container */}
-      <div className="overflow-x-auto overflow-y-auto max-h-[620px] relative">
+      <div
+        ref={scrollContainerRef}
+        className="overflow-x-auto overflow-y-auto max-h-[620px] relative scroll-smooth focus:outline-none"
+        tabIndex={0}
+        role="region"
+        aria-label="Cuadrícula semanal de citas"
+      >
         <div
           className="min-w-[950px] relative grid bg-base-100"
           style={{ gridTemplateColumns: '80px repeat(6, 1fr)' }}
