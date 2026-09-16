@@ -11,8 +11,7 @@ import {
   Icon,
 } from '@/app/presentation/components';
 import type { AdminMaintenanceOrder } from '@/app/domain';
-import { formatCurrency } from '@/core/utils';
-import { cleanPhoneDigits } from '@/core/utils/formatters/formatPhoneNumber';
+import { formatCurrency, formatWhatsAppUrl } from '@/core/utils';
 import { useActiveBranch } from '@/app/presentation/hooks';
 
 export interface NotifyMaintenanceModalProps {
@@ -54,8 +53,7 @@ export const NotifyMaintenanceModal: React.FC<NotifyMaintenanceModalProps> = ({
 
   if (!order) return null;
 
-  const phoneDigits = cleanPhoneDigits(order.customer.phone || '');
-  const waUrl = phoneDigits ? `https://wa.me/52${phoneDigits}?text=${encodeURIComponent(message)}` : undefined;
+  const waUrl = formatWhatsAppUrl(order.customer.phone, message) || undefined;
 
   const handleSendWhatsAppAndRegister = async () => {
     if (waUrl) {
@@ -91,7 +89,7 @@ export const NotifyMaintenanceModal: React.FC<NotifyMaintenanceModalProps> = ({
           size="sm"
           color="success"
           onClick={handleSendWhatsAppAndRegister}
-          disabled={loading || !phoneDigits}
+          disabled={loading || !waUrl}
           loading={loading}
           iconStart={<Icon name="MessageSquare" size="xs" />}
         >

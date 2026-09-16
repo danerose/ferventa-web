@@ -11,6 +11,8 @@ import {
 } from '@/app/presentation/components';
 import type { MerchandiseReceptionBox } from '@/app/domain';
 import { formatDate } from '@/core/utils';
+import { documentPrintService } from '@/core/services/print/documentPrintService';
+import { generateBoxLabel4x2Html, generateBoxThermalTicketHtml } from '@/core/services/print/templates/boxLabelTemplates';
 
 export interface BoxQrTicketModalProps {
   isOpen: boolean;
@@ -29,7 +31,7 @@ export const BoxQrTicketModal: React.FC<BoxQrTicketModalProps> = ({
   receptionFolio = 'REC-001',
   branchName = 'Sucursal Uman',
 }) => {
-  const [printFormat, setPrintFormat] = useState<'thermal' | 'label4x2'>('label4x2');
+  const [printFormat, setPrintFormat] = useState<'label4x2' | 'thermal'>('label4x2');
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
 
   useEffect(() => {
@@ -51,11 +53,34 @@ export const BoxQrTicketModal: React.FC<BoxQrTicketModalProps> = ({
 
   if (!isOpen || !box) return null;
 
-  const handlePrint = () => {
-    window.print();
-  };
-
   const isLabel = printFormat === 'label4x2';
+
+  const handlePrint = () => {
+    const data = {
+      boxCode: box.boxCode,
+      productName,
+      itemsPerBox: box.itemsPerBox ?? box.quantity,
+      receptionFolio,
+      branchName,
+      qrDataUrl,
+      dateStr: formatDate(new Date().toISOString()),
+    };
+
+    if (isLabel) {
+      const html = generateBoxLabel4x2Html(data);
+      documentPrintService.printLabelContent(html, {
+        widthMm: 101.6, // 4 pulgadas
+        heightMm: 50.8, // 2 pulgadas
+        title: `Etiqueta QR - ${box.boxCode}`,
+      });
+    } else {
+      const html = generateBoxThermalTicketHtml(data, '58mm');
+      documentPrintService.printThermalContent(html, {
+        paperWidth: '58mm',
+        title: `Ticket QR - ${box.boxCode}`,
+      });
+    }
+  };
 
   return (
     <Modal
@@ -74,11 +99,10 @@ export const BoxQrTicketModal: React.FC<BoxQrTicketModalProps> = ({
             <button
               type="button"
               onClick={() => setPrintFormat('label4x2')}
-              className={`flex-1 p-2.5 rounded-lg border text-left transition-all cursor-pointer ${
-                isLabel
+              className={`flex-1 p-2.5 rounded-lg border text-left transition-all cursor-pointer ${isLabel
                   ? 'bg-primary/10 border-primary ring-2 ring-primary/30 text-primary font-bold'
                   : 'bg-base-100 border-base-300 text-base-content hover:bg-base-200'
-              }`}
+                }`}
             >
               <Flex align="center" gap="xs" className="mb-0.5">
                 <Icon name="Tag" size="xs" />
@@ -92,18 +116,17 @@ export const BoxQrTicketModal: React.FC<BoxQrTicketModalProps> = ({
             <button
               type="button"
               onClick={() => setPrintFormat('thermal')}
-              className={`flex-1 p-2.5 rounded-lg border text-left transition-all cursor-pointer ${
-                !isLabel
+              className={`flex-1 p-2.5 rounded-lg border text-left transition-all cursor-pointer ${!isLabel
                   ? 'bg-primary/10 border-primary ring-2 ring-primary/30 text-primary font-bold'
                   : 'bg-base-100 border-base-300 text-base-content hover:bg-base-200'
-              }`}
+                }`}
             >
               <Flex align="center" gap="xs" className="mb-0.5">
                 <Icon name="Printer" size="xs" />
                 <span className="text-xs">Rollo Térmico Continuo</span>
               </Flex>
               <span className="text-[10px] opacity-70 block font-normal">
-                Ticket térmico de 58mm / 80mm
+                Ticket de 58mm / 80mm
               </span>
             </button>
           </Flex>
@@ -112,9 +135,8 @@ export const BoxQrTicketModal: React.FC<BoxQrTicketModalProps> = ({
         {/* Vista Previa de la Etiqueta */}
         <Box className="flex justify-center p-4 bg-neutral-900/5 dark:bg-neutral-900/30 rounded-xl border border-dashed border-base-300">
           <div
-            className={`bg-white text-black p-4 rounded-md shadow-md flex ${
-              isLabel ? 'w-[380px] h-[190px] flex-row gap-3 items-center justify-between' : 'w-[240px] flex-col items-center text-center gap-2'
-            }`}
+            className={`bg-white text-black p-4 rounded-md shadow-md flex ${isLabel ? 'w-[380px] h-[190px] flex-row gap-3 items-center justify-between' : 'w-[240px] flex-col items-center text-center gap-2'
+              }`}
           >
             {/* QR Code */}
             {qrDataUrl && (
@@ -169,7 +191,7 @@ export const BoxQrTicketModal: React.FC<BoxQrTicketModalProps> = ({
 
       {/* ── CSS Print Template Inyectado para Impresión ── */}
       <div
-        id="box-qr-print-document"
+        id="box-qr-print-ticket"
         className="hidden print:block fixed inset-0 bg-white z-[99999] text-black"
         style={{
           fontFamily: "'Inter', sans-serif",
@@ -179,26 +201,26 @@ export const BoxQrTicketModal: React.FC<BoxQrTicketModalProps> = ({
           style={
             isLabel
               ? {
-                  width: '101.6mm',
-                  height: '50.8mm',
-                  padding: '4mm',
-                  boxSizing: 'border-box',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: '4mm',
-                  pageBreakInside: 'avoid',
-                }
+                width: '101.6mm',
+                height: '50.8mm',
+                padding: '4mm',
+                boxSizing: 'border-box',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '4mm',
+                pageBreakInside: 'avoid',
+              }
               : {
-                  width: '58mm',
-                  padding: '4mm',
-                  boxSizing: 'border-box',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  textAlign: 'center',
-                  pageBreakInside: 'avoid',
-                }
+                width: '58mm',
+                padding: '4mm',
+                boxSizing: 'border-box',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                textAlign: 'center',
+                pageBreakInside: 'avoid',
+              }
           }
         >
           {qrDataUrl && (

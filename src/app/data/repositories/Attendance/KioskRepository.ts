@@ -26,7 +26,15 @@ export class APIKioskRepository implements IKioskRepository {
     if (!res.ok || json.success === false) {
       throw new Error(json.message || 'Error al obtener colaboradores del kiosco');
     }
-    const list = json.data ?? [];
+    const raw = json.data;
+    const list = Array.isArray(raw)
+      ? raw
+      : Array.isArray(raw?.data)
+        ? raw.data
+        : Array.isArray(raw?.employees)
+          ? raw.employees
+          : [];
+
     return list.map((e: Record<string, unknown>) => ({
       ...e,
       id: String(e.id || e._id || ''),
@@ -50,6 +58,7 @@ export class APIKioskRepository implements IKioskRepository {
     if (!res.ok || json.success === false) {
       throw new Error(json.message || 'Error al registrar turno');
     }
-    return json.data as KioskClockResult;
+    const resData = (json.data && typeof json.data === 'object' && 'data' in json.data) ? (json.data as { data: unknown }).data : json.data;
+    return resData as KioskClockResult;
   }
 }

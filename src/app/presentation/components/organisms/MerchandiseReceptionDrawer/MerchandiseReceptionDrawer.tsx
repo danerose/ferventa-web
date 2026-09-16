@@ -95,7 +95,20 @@ export const MerchandiseReceptionDrawer = ({
   const [highlightedIndex, setHighlightedIndex] = useState<number>(0);
 
   const [selectedProviderId, setSelectedProviderId] = useState('');
+  const [draftFolioInput, setDraftFolioInput] = useState('');
+  const [draftNotesInput, setDraftNotesInput] = useState('');
+  const [draftError, setDraftError] = useState<string | null>(null);
+
+  // Auto-select provider when available
+  useEffect(() => {
+    if (providers.length > 0 && !selectedProviderId) {
+      setSelectedProviderId(providers[0].id);
+    }
+  }, [providers, selectedProviderId]);
+
   const [quantity, setQuantity] = useState<number>(1);
+  const [costPrice, setCostPrice] = useState<number | ''>('');
+  const [sellingPrice, setSellingPrice] = useState<number | ''>('');
   const [reason, setReason] = useState('Ingreso Manual de Mercancía');
   const [formErrors, setFormErrors] = useState<{ [key: string]: string }>({});
   const [submitting, setSubmitting] = useState(false);
@@ -124,6 +137,9 @@ export const MerchandiseReceptionDrawer = ({
 
   // Exit / Finish Reception Confirmation Modal State
   const [showFinishConfirmModal, setShowFinishConfirmModal] = useState(false);
+
+  // Discard Session Confirmation Modal State
+  const [showDiscardConfirmModal, setShowDiscardConfirmModal] = useState(false);
 
   // Deletion Confirmation Modal State
   const [itemToDelete, setItemToDelete] = useState<ReceptionArticleItem | null>(null);
@@ -185,12 +201,16 @@ export const MerchandiseReceptionDrawer = ({
     setProductSearchTerm('');
     setIsProductDropdownOpen(false);
     setQuantity(1);
+    setCostPrice('');
+    setSellingPrice('');
     setLastSuccess(null);
     setMissingProductInfo(null);
     setFormErrors({});
     setDeletionSuccessNotice(null);
+    setDraftSuccessNotice(null);
     setScanNotice(null);
     setShowFinishConfirmModal(false);
+    setShowDiscardConfirmModal(false);
   }, []);
 
   // Handle request to close or finish reception
@@ -203,11 +223,93 @@ export const MerchandiseReceptionDrawer = ({
     }
   }, [sessionItems.length, resetSessionClean, onClose]);
 
-  // Handle confirm finish & exit
-  const handleConfirmFinishAndExit = () => {
+  // Handle discard entire reception session
+  const handleDiscardSession = useCallback(() => {
+    if (sessionItems.length === 0) {
+      resetSessionClean();
+      onClose();
+      return;
+    }
+    setShowDiscardConfirmModal(true);
+  }, [sessionItems.length, resetSessionClean, onClose]);
+
+  const handleConfirmDiscardSession = useCallback(() => {
+    setShowDiscardConfirmModal(false);
     resetSessionClean();
     onClose();
-    onStockUpdated();
+  }, [resetSessionClean, onClose]);
+
+  // Handle save as draft for non-admin
+  const handleSaveAsDraft = async () => {
+    if (!accessToken) {
+      setDraftError('No se encontró sesión activa.');
+      return;
+    }
+    if (sessionItems.length === 0) {
+      setDraftError('No has agregado ningún producto a la remisión.');
+      return;
+    }
+
+    if (!selectedProviderId || !selectedProviderId.trim()) {
+      setDraftError('Debes seleccionar un proveedor para registrar la remisión.');
+      return;
+    }
+
+    // Validate 24-char hex MongoDB ID
+    const isValidMongoId = /^[0-9a-fA-F]{24}$/.test(selectedProviderId.trim());
+    if (!isValidMongoId) {
+      setDraftError('El proveedor seleccionado no tiene un ID de base de datos válido. Por favor selecciona un proveedor del catálogo.');
+      return;
+    }
+
+    setSavingDraft(true);
+    setDraftError(null);
+
+    try {
+      const itemsPayload = sessionItems.map((item) => ({
+        productId: item.productId,
+        quantity: item.quantity,
+        costPrice: typeof item.costPrice === 'number' ? item.costPrice : 0,
+        sellingPrice: typeof item.sellingPrice === 'number' ? item.sellingPrice : 0,
+      }));
+
+      await inventoryRepo.createDraftReception(accessToken, {
+        providerId: selectedProviderId.trim(),
+        items: itemsPayload,
+        invoiceOrFolio: draftFolioInput.trim() || undefined,
+        notes: draftNotesInput.trim() || undefined,
+      });
+
+      await onStockUpdated();
+      setShowFinishConfirmModal(false);
+      resetSessionClean();
+      onClose();
+    } catch (err: any) {
+      setDraftError(err?.message || 'Error al guardar la recepción en borrador.');
+    } finally {
+      setSavingDraft(false);
+    }
+  };
+
+  // Handle confirm finish & exit
+  const handleConfirmFinishAndExit = async () => {
+    if (!isAdmin && sessionItems.length > 0) {
+      await handleSaveAsDraft();
+    } else {
+      setSavingDraft(true);
+      try {
+        await onStockUpdated();
+        setShowFinishConfirmModal(false);
+        resetSessionClean();
+        onClose();
+      } catch {
+        setShowFinishConfirmModal(false);
+        resetSessionClean();
+        onClose();
+      } finally {
+        setSavingDraft(false);
+      }
+    }
   };
 
   // Initialize or reset when drawer opens
@@ -221,6 +323,8 @@ export const MerchandiseReceptionDrawer = ({
         const initProd = localProducts.find((p) => p.id === initialProductId);
         if (initProd) {
           setProductSearchTerm(initProd.sku ? `[${initProd.sku}] ${initProd.name}` : initProd.name);
+          setCostPrice(initProd.costPrice ?? 0);
+          setSellingPrice(initProd.sellingPrice ?? 0);
         }
       }
     } else {
@@ -304,6 +408,8 @@ export const MerchandiseReceptionDrawer = ({
         setSelectedProductId(matched.id);
         setProductSearchTerm(matched.sku ? `[${matched.sku}] ${matched.name}` : matched.name);
         setIsProductDropdownOpen(false);
+        setCostPrice(matched.costPrice ?? 0);
+        setSellingPrice(matched.sellingPrice ?? 0);
 
         if (selectedProductId === matched.id) {
           // If already selected, scanning again increments quantity (+1 per trigger pull)
@@ -497,6 +603,9 @@ export const MerchandiseReceptionDrawer = ({
         );
       }
 
+      const itemCost = typeof costPrice === 'number' ? costPrice : (targetProd?.costPrice ?? 0);
+      const itemSelling = typeof sellingPrice === 'number' ? sellingPrice : (targetProd?.sellingPrice ?? 0);
+
       // Add to Session Registered Items (placed at top of right column)
       const newArticle: ReceptionArticleItem = {
         id: movementId,
@@ -507,8 +616,8 @@ export const MerchandiseReceptionDrawer = ({
         photo: targetProd?.photos?.[0],
         brandName: targetProd?.brand?.name,
         categoryName: targetProd?.category?.name,
-        costPrice: targetProd?.costPrice,
-        sellingPrice: targetProd?.sellingPrice,
+        costPrice: itemCost,
+        sellingPrice: itemSelling,
         quantity,
         previousStock: currentStock,
         newStock: newStock,
@@ -529,11 +638,13 @@ export const MerchandiseReceptionDrawer = ({
         photo: targetProd?.photos?.[0],
       });
 
-      // Clear product input so user can type/scan the next one, keep provider
+      // Clear product input and prices so user can type/scan the next one
       setSelectedProductId('');
       setProductSearchTerm('');
       setIsProductDropdownOpen(false);
       setQuantity(1);
+      setCostPrice('');
+      setSellingPrice('');
 
       // Refresh parent page inventory data if admin
       if (isAdmin) {
@@ -560,35 +671,6 @@ export const MerchandiseReceptionDrawer = ({
   useEffect(() => {
     handleRegisterMovementRef.current = handleRegisterMovement;
   });
-
-  const handleSaveAsDraft = async () => {
-    if (!accessToken || sessionItems.length === 0) return;
-    setSavingDraft(true);
-    try {
-      const draftFolio = `REM-${Date.now().toString().slice(-6)}`;
-      await inventoryRepo.createDraftReception(accessToken, {
-        providerId: selectedProviderId || '',
-        invoiceOrFolio: draftFolio,
-        notes: reason || 'Remisión capturada en almacén',
-        items: sessionItems.map((it) => ({
-          productId: it.productId,
-          quantity: it.quantity,
-          costPrice: it.costPrice ?? 0,
-          sellingPrice: it.sellingPrice ?? 0,
-        })),
-      });
-      setDraftSuccessNotice(`Remisión ${draftFolio} guardada en Borrador exitosamente. Pendiente de aprobación administrativa.`);
-      setTimeout(() => {
-        setDraftSuccessNotice(null);
-        onStockUpdated();
-        onClose();
-      }, 2500);
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'Error al guardar remisión en borrador');
-    } finally {
-      setSavingDraft(false);
-    }
-  };
 
   // Handle confirm delete movement
   const handleConfirmDelete = async () => {
@@ -636,6 +718,8 @@ export const MerchandiseReceptionDrawer = ({
   const handleSelectProduct = (prod: Product) => {
     setSelectedProductId(prod.id);
     setProductSearchTerm(prod.sku ? `[${prod.sku}] ${prod.name}` : prod.name);
+    setCostPrice(prod.costPrice ?? 0);
+    setSellingPrice(prod.sellingPrice ?? 0);
     setIsProductDropdownOpen(false);
     setMissingProductInfo(null);
     playBeep(true);
@@ -652,6 +736,8 @@ export const MerchandiseReceptionDrawer = ({
     setLocalProducts((prev) => [newProd, ...prev]);
     setSelectedProductId(newProd.id);
     setProductSearchTerm(newProd.sku ? `[${newProd.sku}] ${newProd.name}` : newProd.name);
+    setCostPrice(newProd.costPrice ?? 0);
+    setSellingPrice(newProd.sellingPrice ?? 0);
     setIsProductDropdownOpen(false);
     setMissingProductInfo(null);
     setQuantity(1);
@@ -713,14 +799,26 @@ export const MerchandiseReceptionDrawer = ({
 
           <Flex align="center" gap="sm">
             {sessionTotalItems > 0 && (
-              <button
-                type="button"
-                onClick={handleRequestClose}
-                className="btn btn-sm btn-primary font-bold shadow-xs text-xs flex items-center gap-1.5 mr-2"
-              >
-                <Icon name="CheckCheck" size="xs" />
-                Terminar de registrar ({sessionTotalItems})
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={handleDiscardSession}
+                  className="btn btn-sm btn-ghost text-error hover:bg-error/15 font-semibold text-xs flex items-center gap-1.5"
+                  title="Cancelar y descartar los artículos de esta sesión"
+                >
+                  <Icon name="Trash2" size="xs" />
+                  <span>Cancelar Registro</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleRequestClose}
+                  className="btn btn-sm btn-primary font-bold shadow-xs text-xs flex items-center gap-1.5 mr-2"
+                  title={isAdmin ? "Terminar de registrar e ingresar al stock" : "Terminar y enviar a aprobación de administrador"}
+                >
+                  <Icon name={isAdmin ? "CheckCheck" : "Send"} size="xs" />
+                  {isAdmin ? `Finalizar Ingreso Directo (${sessionTotalItems})` : `Terminar y Mandar a Aprobación (${sessionTotalItems})`}
+                </button>
+              </>
             )}
             <KbdBadge keys="Esc" className="opacity-75 text-[11px]" />
             <button
@@ -1363,6 +1461,82 @@ export const MerchandiseReceptionDrawer = ({
                   </Flex>
                 </Box>
 
+                {/* Cost Price and Suggested / New Selling Price */}
+                <div className="p-3 bg-base-100 rounded-xl border border-base-300 space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {/* Cost Price */}
+                    <Box>
+                      <Flex justify="between" align="center" className="mb-1">
+                        <Text as="label" size="xs" weight="bold" className="text-base-content/80">
+                          Costo Unitario ($) <span className="text-error">*</span>
+                        </Text>
+                        {selectedProduct?.costPrice !== undefined && (
+                          <span className="text-[10px] text-base-content/50 font-mono">
+                            Base: ${selectedProduct.costPrice.toFixed(2)}
+                          </span>
+                        )}
+                      </Flex>
+                      <div className="relative">
+                        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-base-content/40 text-xs font-mono font-bold">
+                          $
+                        </span>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          placeholder="0.00"
+                          value={costPrice}
+                          onChange={(e) => {
+                            const val = parseFloat(e.target.value);
+                            setCostPrice(isNaN(val) ? '' : val);
+                          }}
+                          className="input input-sm input-bordered w-full pl-6 text-xs font-mono font-semibold"
+                        />
+                      </div>
+                    </Box>
+
+                    {/* New Suggested Selling Price */}
+                    <Box>
+                      <Flex justify="between" align="center" className="mb-1">
+                        <Text as="label" size="xs" weight="bold" className="text-base-content/80">
+                          Nuevo P. Venta ($)
+                        </Text>
+                        {selectedProduct?.sellingPrice !== undefined && (
+                          <span className="text-[10px] text-base-content/50 font-mono">
+                            Actual: ${selectedProduct.sellingPrice.toFixed(2)}
+                          </span>
+                        )}
+                      </Flex>
+                      <div className="relative">
+                        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-base-content/40 text-xs font-mono font-bold">
+                          $
+                        </span>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          placeholder="0.00"
+                          value={sellingPrice}
+                          onChange={(e) => {
+                            const val = parseFloat(e.target.value);
+                            setSellingPrice(isNaN(val) ? '' : val);
+                          }}
+                          className="input input-sm input-bordered w-full pl-6 text-xs font-mono font-semibold"
+                        />
+                      </div>
+                    </Box>
+                  </div>
+
+                  {typeof costPrice === 'number' && typeof sellingPrice === 'number' && costPrice > 0 && (
+                    <div className="pt-2 border-t border-base-200 flex items-center justify-between text-[11px]">
+                      <span className="text-base-content/60 font-medium">Margen sugerido por pieza:</span>
+                      <span className={`font-mono font-bold ${sellingPrice >= costPrice ? 'text-success' : 'text-error'}`}>
+                        {sellingPrice >= costPrice ? '+' : ''}${(sellingPrice - costPrice).toFixed(2)} ({(((sellingPrice - costPrice) / costPrice) * 100).toFixed(1)}%)
+                      </span>
+                    </div>
+                  )}
+                </div>
+
                 {/* Reason / Invoice Reference */}
                 <Box>
                   <Text as="label" size="xs" weight="bold" className="block mb-1.5 text-base-content/80">
@@ -1419,9 +1593,20 @@ export const MerchandiseReceptionDrawer = ({
                 </div>
 
                 {sessionTotalItems > 0 && (
-                  <Badge variant="success" size="sm" className="font-mono font-bold text-xs py-1 px-3 shadow-xs">
-                    +{sessionTotalUnits} unidades registradas
-                  </Badge>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleDiscardSession}
+                      className="btn btn-xs btn-ghost text-error hover:bg-error/10 font-semibold text-[11px]"
+                      title="Descartar todos los artículos de esta lista"
+                    >
+                      <Icon name="Trash2" size="xs" className="mr-1" />
+                      Vaciar Lista
+                    </button>
+                    <Badge variant="success" size="sm" className="font-mono font-bold text-xs py-1 px-3 shadow-xs">
+                      +{sessionTotalUnits} unidades registradas
+                    </Badge>
+                  </div>
                 )}
               </div>
 
@@ -1525,8 +1710,14 @@ export const MerchandiseReceptionDrawer = ({
                               </div>
 
                               {item.costPrice !== undefined && item.costPrice > 0 && (
-                                <span className="text-[11px] font-mono text-base-content/60">
+                                <span className="text-[11px] font-mono text-base-content/70 font-semibold bg-base-200 px-1.5 py-0.5 rounded border border-base-300">
                                   Costo: ${item.costPrice.toFixed(2)}
+                                </span>
+                              )}
+
+                              {item.sellingPrice !== undefined && item.sellingPrice > 0 && (
+                                <span className="text-[11px] font-mono text-success font-bold bg-success/10 px-1.5 py-0.5 rounded border border-success/25">
+                                  P. Venta: ${item.sellingPrice.toFixed(2)}
                                 </span>
                               )}
 
@@ -1602,28 +1793,37 @@ export const MerchandiseReceptionDrawer = ({
 
                   {sessionTotalItems > 0 && (
                     <Flex gap="xs">
-                      <SecondaryButton
-                        size="sm"
-                        onClick={handleSaveAsDraft}
-                        loading={savingDraft}
-                        iconStart={<Icon name="FileText" size="xs" />}
-                        title="Guardar como remisión en borrador para aprobación y generación de QR"
-                      >
-                        Guardar en Borrador
-                      </SecondaryButton>
                       {isAdmin ? (
+                        <>
+                          <SecondaryButton
+                            size="sm"
+                            onClick={handleSaveAsDraft}
+                            loading={savingDraft}
+                            iconStart={<Icon name="FileText" size="xs" />}
+                            title="Guardar como remisión en borrador para aprobación y generación de QR"
+                          >
+                            Guardar en Borrador
+                          </SecondaryButton>
+                          <PrimaryButton
+                            size="sm"
+                            onClick={handleRequestClose}
+                            className="font-bold shadow-sm"
+                          >
+                            <Icon name="CheckCheck" size="xs" className="mr-1.5" />
+                            Finalizar Ingreso Directo
+                          </PrimaryButton>
+                        </>
+                      ) : (
                         <PrimaryButton
                           size="sm"
                           onClick={handleRequestClose}
+                          loading={savingDraft}
+                          iconStart={<Icon name="Send" size="xs" />}
                           className="font-bold shadow-sm"
+                          title="Enviar remisión en borrador a aprobación administrativa"
                         >
-                          <Icon name="CheckCheck" size="xs" className="mr-1.5" />
-                          Finalizar Ingreso
+                          Terminar y Mandar a Aprobación
                         </PrimaryButton>
-                      ) : (
-                        <span className="text-[11px] text-warning font-medium italic">
-                          (Pendiente de aprobación por Admin)
-                        </span>
                       )}
                     </Flex>
                   )}
@@ -1729,37 +1929,73 @@ export const MerchandiseReceptionDrawer = ({
       {showFinishConfirmModal && (
         <Modal
           isOpen={showFinishConfirmModal}
-          onClose={() => setShowFinishConfirmModal(false)}
+          onClose={() => {
+            if (!savingDraft) setShowFinishConfirmModal(false);
+          }}
           onConfirm={handleConfirmFinishAndExit}
-          title="¿Deseas terminar de registrar productos?"
-          maxWidth="540px"
+          title={isAdmin ? "¿Deseas terminar de registrar productos?" : "¿Mandar recepción a aprobación administrativa?"}
+          maxWidth="640px"
           footer={
-            <div className="flex items-center justify-end gap-2.5 w-full flex-wrap sm:flex-nowrap">
-              <SecondaryButton
-                size="sm"
-                onClick={() => setShowFinishConfirmModal(false)}
-                className="font-medium whitespace-nowrap"
+            <div className="flex items-center justify-between gap-2.5 w-full flex-wrap sm:flex-nowrap">
+              <button
+                type="button"
+                disabled={savingDraft}
+                onClick={() => {
+                  setShowFinishConfirmModal(false);
+                  handleDiscardSession();
+                }}
+                className="btn btn-sm btn-ghost text-error hover:bg-error/15 font-semibold text-xs flex items-center gap-1.5 disabled:opacity-50"
               >
-                Continuar registrando
-                <KbdBadge keys="Esc" className="ml-1.5" />
-              </SecondaryButton>
-              <PrimaryButton
-                size="sm"
-                onClick={handleConfirmFinishAndExit}
-                className="font-bold whitespace-nowrap"
-              >
-                <Icon name="CheckCheck" size="xs" className="mr-1" />
-                Sí, terminar y cerrar
-                <KbdBadge keys="Enter ↵" className="ml-1.5" />
-              </PrimaryButton>
+                <Icon name="Trash2" size="xs" />
+                Descartar y Salir
+              </button>
+
+              <div className="flex items-center gap-2 ml-auto">
+                <SecondaryButton
+                  size="sm"
+                  disabled={savingDraft}
+                  onClick={() => setShowFinishConfirmModal(false)}
+                  className="font-medium whitespace-nowrap"
+                >
+                  Continuar registrando
+                  <KbdBadge keys="Esc" className="ml-1.5" />
+                </SecondaryButton>
+                <PrimaryButton
+                  size="sm"
+                  onClick={handleConfirmFinishAndExit}
+                  loading={savingDraft}
+                  disabled={savingDraft}
+                  className="font-bold whitespace-nowrap"
+                >
+                  <Icon name={isAdmin ? "CheckCheck" : "Send"} size="xs" className="mr-1" />
+                  {savingDraft
+                    ? (isAdmin ? "Guardando y cerrando..." : "Enviando remisión...")
+                    : (isAdmin ? "Sí, terminar y cerrar" : "Mandar a Aprobación")}
+                  <KbdBadge keys="Enter ↵" className="ml-1.5" />
+                </PrimaryButton>
+              </div>
             </div>
           }
         >
           <Stack spacing="md">
-            <Box className="p-3.5 bg-info/10 border border-info/30 rounded-xl text-base-content text-xs leading-relaxed flex items-start gap-3 shadow-xs">
-              <Icon name="Info" size="sm" className="shrink-0 mt-0.5 text-info" />
+            {savingDraft && (
+              <div className="p-3.5 bg-primary/10 border border-primary/30 rounded-xl flex items-center gap-3 text-primary text-xs font-semibold animate-pulse shadow-sm">
+                <span className="loading loading-spinner loading-sm text-primary shrink-0"></span>
+                <div>
+                  <div className="font-bold text-primary">
+                    {isAdmin ? 'Guardando movimientos y actualizando catálogo...' : 'Enviando remisión a aprobación administrativa...'}
+                  </div>
+                  <div className="text-[11px] text-base-content/70 font-normal mt-0.5">
+                    Por favor espera un momento mientras procesamos los registros con el servidor.
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <Box className={`p-3.5 ${isAdmin ? 'bg-info/10 border-info/30 text-info' : 'bg-warning/10 border-warning/30 text-warning'} border rounded-xl text-base-content text-xs leading-relaxed flex items-start gap-3 shadow-xs`}>
+              <Icon name={isAdmin ? "Info" : "Send"} size="sm" className="shrink-0 mt-0.5" />
               <div>
-                Has registrado exitosamente{' '}
+                Has {isAdmin ? 'registrado exitosamente' : 'capturado'}{' '}
                 <strong className="text-primary font-bold">
                   {sessionTotalItems} {sessionTotalItems === 1 ? 'producto' : 'productos'} (+{sessionTotalUnits} unidades)
                 </strong>{' '}
@@ -1768,9 +2004,72 @@ export const MerchandiseReceptionDrawer = ({
             </Box>
 
             <Text size="xs" variant="caption" className="text-base-content/75 leading-relaxed">
-              Al terminar, los registros quedarán guardados en el inventario y la lista de esta recepción se
-              cerrará limpiamente para que la próxima vez comiences desde cero.
+              {isAdmin
+                ? 'Al terminar, los registros quedarán guardados en el inventario y la lista de esta recepción se cerrará limpiamente para que la próxima vez comiences desde cero.'
+                : 'Al confirmar, esta remisión se guardará en estado de Borrador para que un Administrador revise y autorice formalmente el ingreso de las piezas al inventario.'}
             </Text>
+
+            {!isAdmin && (
+              <div className="space-y-3 pt-2 border-t border-base-300">
+                <div>
+                  <Text as="label" size="xs" weight="bold" className="block mb-1 text-base-content/80">
+                    Proveedor de la Remisión <span className="text-error">*</span>
+                  </Text>
+                  <SearchableSelect
+                    options={providerOptions}
+                    value={selectedProviderId}
+                    onChange={(id) => {
+                      setSelectedProviderId(id);
+                      setDraftError(null);
+                    }}
+                    placeholder="Seleccionar proveedor registrado..."
+                    size="sm"
+                    disabled={savingDraft}
+                  />
+                  {providers.length === 0 && (
+                    <p className="text-[11px] text-error mt-1 font-medium">
+                      No hay proveedores registrados. Debes registrar al menos un proveedor en el catálogo.
+                    </p>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <div>
+                    <Text as="label" size="xs" weight="bold" className="block mb-1 text-base-content/80">
+                      Folio / Factura Proveedor
+                    </Text>
+                    <input
+                      type="text"
+                      value={draftFolioInput}
+                      onChange={(e) => setDraftFolioInput(e.target.value)}
+                      placeholder={`Ej. REM-${Date.now().toString().slice(-6)}`}
+                      className="input input-sm input-bordered w-full text-xs font-mono"
+                      disabled={savingDraft}
+                    />
+                  </div>
+                  <div>
+                    <Text as="label" size="xs" weight="bold" className="block mb-1 text-base-content/80">
+                      Observaciones / Nota
+                    </Text>
+                    <input
+                      type="text"
+                      value={draftNotesInput}
+                      onChange={(e) => setDraftNotesInput(e.target.value)}
+                      placeholder="Ej. Remisión capturada en almacén"
+                      className="input input-sm input-bordered w-full text-xs"
+                      disabled={savingDraft}
+                    />
+                  </div>
+                </div>
+
+                {draftError && (
+                  <div className="p-2.5 bg-error/15 border border-error/30 rounded-lg text-error text-xs font-semibold flex items-center gap-2">
+                    <Icon name="AlertCircle" size="xs" className="shrink-0" />
+                    <span>{draftError}</span>
+                  </div>
+                )}
+              </div>
+            )}
           </Stack>
         </Modal>
       )}
@@ -1787,6 +2086,44 @@ export const MerchandiseReceptionDrawer = ({
           activeBranchId={activeBranchId}
           onProductCreated={handleProductCreated}
         />
+      )}
+
+      {/* ── MODAL: Discard Session Confirmation ── */}
+      {showDiscardConfirmModal && (
+        <Modal
+          isOpen={showDiscardConfirmModal}
+          onClose={() => setShowDiscardConfirmModal(false)}
+          onConfirm={handleConfirmDiscardSession}
+          title="¿Cancelar y descartar registro?"
+          maxWidth="440px"
+          headerVariant="error"
+          footer={
+            <div className="flex justify-end gap-2 w-full">
+              <SecondaryButton size="sm" onClick={() => setShowDiscardConfirmModal(false)}>
+                Volver al registro
+                <KbdBadge keys="Esc" className="ml-1.5" />
+              </SecondaryButton>
+              <button
+                type="button"
+                onClick={handleConfirmDiscardSession}
+                className="btn btn-error btn-sm font-bold text-white shadow-sm flex items-center gap-1.5"
+              >
+                <Icon name="Trash2" size="xs" />
+                Sí, descartar todo
+                <KbdBadge keys="Enter ↵" className="ml-1.5" />
+              </button>
+            </div>
+          }
+        >
+          <div className="space-y-3 text-xs text-base-content/80 leading-relaxed">
+            <p>
+              Estás a punto de descartar <strong className="text-base-content font-bold">{sessionItems.length} artículos</strong> registrados en esta sesión.
+            </p>
+            <div className="p-3 bg-error/10 border border-error/30 rounded-xl text-error font-medium">
+              Los cambios no guardados se perderán permanentemente.
+            </div>
+          </div>
+        </Modal>
       )}
     </>
   );

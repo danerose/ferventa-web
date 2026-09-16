@@ -69,7 +69,7 @@ export class AuditRemoteDataSource {
     return { logs, total: res.total ?? logs.length };
   }
 
-  async getEntityAuditLogs(entityId: string): Promise<AuditLog[]> {
+  async getEntityAuditLogs(entityId: string, entityType?: string): Promise<AuditLog[]> {
     if (!entityId) return [];
 
     try {
@@ -121,6 +121,34 @@ export class AuditRemoteDataSource {
       });
       if (fallbackResult.logs.length > 0) {
         return fallbackResult.logs;
+      }
+
+      if (entityType) {
+        const typeFallback = await this.getAuditLogs({
+          entityType,
+          search: entityId,
+          limit: 50,
+        });
+        if (typeFallback.logs.length > 0) {
+          return typeFallback.logs;
+        }
+
+        const moduleName = entityType.toLowerCase().includes('appoint')
+          ? 'appointments'
+          : entityType.toLowerCase().includes('sale')
+          ? 'sales'
+          : entityType.toLowerCase().includes('maint')
+          ? 'maintenance'
+          : entityType.toLowerCase();
+
+        const moduleFallback = await this.getAuditLogs({
+          module: moduleName,
+          search: entityId,
+          limit: 50,
+        });
+        if (moduleFallback.logs.length > 0) {
+          return moduleFallback.logs;
+        }
       }
 
       const searchFallback = await this.getAuditLogs({

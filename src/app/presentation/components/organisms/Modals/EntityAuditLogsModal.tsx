@@ -31,7 +31,7 @@ export const EntityAuditLogsModal: React.FC<EntityAuditLogsModalProps> = ({
       setLoading(true);
       setError(null);
       try {
-        const data = await auditRepository.getEntityAuditLogs(entityId);
+        const data = await auditRepository.getEntityAuditLogs(entityId, entityType);
         if (isMounted) {
           setLogs(data || []);
         }
@@ -50,7 +50,7 @@ export const EntityAuditLogsModal: React.FC<EntityAuditLogsModalProps> = ({
     return () => {
       isMounted = false;
     };
-  }, [isOpen, entityId]);
+  }, [isOpen, entityId, entityType]);
 
   const getActionBadgeVariant = (action: string): StatusVariant => {
     const act = (action || '').toLowerCase();

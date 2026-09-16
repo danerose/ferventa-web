@@ -19,7 +19,7 @@ import {
 import type { ServiceInvoiceCustomerData } from '@/app/presentation/components/organisms/Modals/ServiceInvoiceCustomerModal';
 
 import { useAuthStore, usePOSStore, usePrinterSettingsStore } from '@/app/presentation/stores';
-import { thermalPrintService } from '@/core/services';
+import { thermalPrintService, documentPrintService } from '@/core/services';
 import { useBarcodeScanner } from '@/core/hooks';
 import type { Sale, CartItem, Product } from '@/app/domain';
 
@@ -649,11 +649,7 @@ export const POSPage: React.FC = () => {
   }, [lastCompletedSale, activeBranchName, user?.name]);
 
   const handlePrintQuotation = () => {
-    document.body.classList.remove('print-ticket-mode');
-    document.body.classList.add('print-doc-mode');
-    setTimeout(() => {
-      window.print();
-    }, 100);
+    documentPrintService.printQuotation();
   };
 
   // ── Payment Modal Keyboard Shortcuts ──────────────────────────────────────
@@ -1315,11 +1311,9 @@ export const POSPage: React.FC = () => {
         onConfirm={(data) => {
           setSelectedCustomerInvoiceData(data);
           setIsCustomerInvoiceModalOpen(false);
-          document.body.classList.remove('print-ticket-mode', 'print-doc-mode');
-          document.body.classList.add('print-invoice-mode');
           setTimeout(() => {
-            window.print();
-          }, 150);
+            documentPrintService.printServiceInvoice();
+          }, 100);
         }}
       />
 

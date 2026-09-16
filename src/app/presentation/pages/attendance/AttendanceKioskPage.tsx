@@ -136,11 +136,11 @@ export const AttendanceKioskPage: React.FC = () => {
   };
 
   const getStatusBadge = (emp: KioskEmployee) => {
-    const s = emp.shiftStatus || (emp.hasActiveShift ? (emp.isOnBreak ? 'on-break' : 'clocked-in') : 'clocked-out');
-    if (s === 'clocked-in' || s === 'working') {
+    const rawStatus = String(emp.status || emp.shiftStatus || '').toLowerCase();
+    if (rawStatus === 'working' || rawStatus === 'clocked-in' || (emp.hasActiveShift && !emp.isOnBreak && !emp.activeBreak)) {
       return <Badge variant="success" size="sm">Trabajando</Badge>;
     }
-    if (s === 'on-break' || s === 'break') {
+    if (rawStatus === 'break' || rawStatus === 'onbreak' || rawStatus === 'on-break' || emp.isOnBreak || Boolean(emp.activeBreak)) {
       return <Badge variant="warning" size="sm">En Descanso</Badge>;
     }
     return <Badge variant="neutral" size="sm">Fuera de Turno</Badge>;
@@ -254,13 +254,13 @@ export const AttendanceKioskPage: React.FC = () => {
                 className="bg-base-100 hover:bg-base-200/60 active:scale-95 transition-all p-5 rounded-3xl border border-base-300 shadow-sm hover:shadow-md hover:border-primary/40 flex flex-col items-center text-center cursor-pointer group"
               >
                 <div className="w-16 h-16 rounded-2xl bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-content transition-all flex items-center justify-center text-2xl font-black mb-3 shadow-xs">
-                  {emp.name.charAt(0).toUpperCase()}
+                  {(emp.name || 'U').charAt(0).toUpperCase()}
                 </div>
                 <h3 className="text-base font-bold text-base-content leading-tight line-clamp-1">
-                  {emp.name}
+                  {emp.name || 'Colaborador'}
                 </h3>
                 <span className="text-[11px] font-semibold text-base-content/50 capitalize mt-0.5 mb-3">
-                  {emp.role}
+                  {emp.role || 'Personal'}
                 </span>
                 <div className="mt-auto">
                   {getStatusBadge(emp)}

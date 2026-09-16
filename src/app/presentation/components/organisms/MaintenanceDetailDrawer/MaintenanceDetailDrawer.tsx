@@ -15,6 +15,7 @@ import {
   Textarea,
   Grid,
   KbdBadge,
+  Modal,
 } from '@/app/presentation/components';
 import {
   ServiceStatus,
@@ -25,12 +26,14 @@ import {
 import { useAuthorization } from '@/core/hooks';
 import { EntityAuditLogsModal } from '@/app/presentation/components/organisms/Modals/EntityAuditLogsModal';
 import type { AdminMaintenanceOrder, Sale } from '@/app/domain';
-import { formatDate, formatCurrency } from '@/core/utils';
-import { cleanPhoneDigits } from '@/core/utils/formatters/formatPhoneNumber';
+import { formatDate, formatCurrency, formatWhatsAppUrl } from '@/core/utils';
 import { useActiveBranch } from '@/app/presentation/hooks';
 import { ServiceReceptionReceipt } from '@/app/presentation/components/molecules/Receipt/ServiceReceptionReceipt';
 import { ServiceInvoiceReceipt } from '@/app/presentation/components/molecules/Receipt/ServiceInvoiceReceipt';
 import { TicketReceipt } from '@/app/presentation/components/molecules/Receipt/TicketReceipt';
+import { documentPrintService } from '@/core/services/print/documentPrintService';
+import { thermalPrintService } from '@/core/services/print/ThermalPrintService';
+import { usePrinterSettingsStore } from '@/app/presentation/stores';
 
 export interface MaintenanceDetailDrawerProps {
   isOpen: boolean;
@@ -75,13 +78,17 @@ export const MaintenanceDetailDrawer: React.FC<MaintenanceDetailDrawerProps> = (
   const [editingLaborCost, setEditingLaborCost] = useState(false);
   const [laborCostValue, setLaborCostValue] = useState<number | string>('');
   const [savingLaborCost, setSavingLaborCost] = useState(false);
+  const [showUnlinkConfirmModal, setShowUnlinkConfirmModal] = useState(false);
 
   useEffect(() => {
+    if (!isOpen) {
+      setIsAuditModalOpen(false);
+    }
     if (order) {
       setLaborCostValue(order.laborCost ?? order.laborPrice ?? 0);
       setEditingLaborCost(false);
     }
-  }, [order]);
+  }, [isOpen, order]);
 
   useEffect(() => {
     if (!isOpen || !order) return;
@@ -103,27 +110,41 @@ export const MaintenanceDetailDrawer: React.FC<MaintenanceDetailDrawerProps> = (
   };
 
   const handlePrintReception = () => {
-    document.body.classList.remove('print-ticket-mode', 'print-invoice-mode');
-    document.body.classList.add('print-doc-mode');
-    setTimeout(() => {
-      window.print();
-    }, 100);
+    documentPrintService.printServiceReception(
+      order,
+      activeBranchName,
+      typeof order.assignedMechanic === 'string'
+        ? order.assignedMechanic
+        : (order.assignedMechanic?.name || 'Taller')
+    );
+  };
+
+  const handlePrintReceptionTicket = () => {
+    thermalPrintService.printReceptionTicket(
+      order,
+      usePrinterSettingsStore.getState(),
+      activeBranchName,
+      typeof order.assignedMechanic === 'string'
+        ? order.assignedMechanic
+        : (order.assignedMechanic?.name || 'Taller')
+    );
   };
 
   const handlePrintInvoice = () => {
-    document.body.classList.remove('print-ticket-mode', 'print-doc-mode');
-    document.body.classList.add('print-invoice-mode');
-    setTimeout(() => {
-      window.print();
-    }, 100);
+    documentPrintService.printServiceInvoice();
   };
 
   const handlePrintTicket = () => {
-    document.body.classList.remove('print-doc-mode', 'print-invoice-mode');
-    document.body.classList.add('print-ticket-mode');
-    setTimeout(() => {
-      window.print();
-    }, 100);
+    if (order.sale) {
+      thermalPrintService.print({
+        sale: order.sale as unknown as Sale,
+        branchName: activeBranchName,
+        sellerName: typeof order.assignedMechanic === 'string'
+          ? order.assignedMechanic
+          : (order.assignedMechanic?.name || 'Taller'),
+        settings: usePrinterSettingsStore.getState(),
+      });
+    }
   };
 
   const handleAddNoteSubmit = async (e: React.FormEvent) => {
@@ -163,22 +184,21 @@ export const MaintenanceDetailDrawer: React.FC<MaintenanceDetailDrawerProps> = (
     }
   };
 
-  const handleUnlinkSale = async () => {
+  const handleConfirmUnlinkSale = async () => {
     if (!onUnlinkSale || !order) return;
-    if (!window.confirm('¿Estás seguro de desvincular este ticket de venta del mantenimiento?')) return;
     setUnlinkingSale(true);
     try {
       await onUnlinkSale(order.id);
+      setShowUnlinkConfirmModal(false);
     } finally {
       setUnlinkingSale(false);
     }
   };
 
   const sColor = SERVICE_STATUS_COLORS[order.status] || SERVICE_STATUS_COLORS[ServiceStatus.NotStarted];
-  const phoneDigits = cleanPhoneDigits(order.customer.phone || '');
 
   // WhatsApp quick link (empty message for direct chat)
-  const waUrl = phoneDigits ? `https://wa.me/52${phoneDigits}` : undefined;
+  const waUrl = formatWhatsAppUrl(order.customer.phone) || undefined;
 
   // Milestone timeline calculation
   const timelineMilestones = [
@@ -251,10 +271,19 @@ export const MaintenanceDetailDrawer: React.FC<MaintenanceDetailDrawerProps> = (
                   size="xs"
                   onClick={handlePrintReception}
                   className="py-0.5 px-2 text-xs flex items-center gap-1"
-                  title="Imprimir Comprobante de Recepción con Cláusulas Legales"
+                  title="Imprimir Comprobante Formal de Recepción (Hoja Carta)"
+                >
+                  <Icon name="FileText" size="xs" />
+                  <span className="text-[11px] font-semibold">Hoja Recepción</span>
+                </SecondaryButton>
+                <SecondaryButton
+                  size="xs"
+                  onClick={handlePrintReceptionTicket}
+                  className="py-0.5 px-2 text-xs flex items-center gap-1"
+                  title="Imprimir Ticket Térmico de Recepción (58mm/80mm)"
                 >
                   <Icon name="Printer" size="xs" />
-                  <span className="text-[11px] font-semibold">Imprimir Recepción</span>
+                  <span className="text-[11px] font-semibold">Ticket Recepción</span>
                 </SecondaryButton>
                 {isAdmin && (
                   <SecondaryButton
@@ -637,7 +666,7 @@ export const MaintenanceDetailDrawer: React.FC<MaintenanceDetailDrawerProps> = (
                             size="xs"
                             className="h-6 min-h-6 px-1.5 text-error hover:bg-error/10 text-[10px] gap-1"
                             disabled={unlinkingSale}
-                            onClick={handleUnlinkSale}
+                            onClick={() => setShowUnlinkConfirmModal(true)}
                             title="Desvincular ticket de este mantenimiento"
                           >
                             <Icon name="Trash2" size="xs" />
@@ -849,11 +878,21 @@ export const MaintenanceDetailDrawer: React.FC<MaintenanceDetailDrawerProps> = (
               <SecondaryButton
                 size="sm"
                 onClick={handlePrintReception}
+                iconStart={<Icon name="FileText" size="xs" />}
+                className="text-xs py-1.5 flex-1 sm:flex-initial justify-center"
+                title="Imprimir comprobante formal e inventario de recepción en hoja Carta"
+              >
+                Hoja Recepción
+              </SecondaryButton>
+
+              <SecondaryButton
+                size="sm"
+                onClick={handlePrintReceptionTicket}
                 iconStart={<Icon name="Printer" size="xs" />}
                 className="text-xs py-1.5 flex-1 sm:flex-initial justify-center"
-                title="Imprimir comprobante e inventario de recepción"
+                title="Imprimir ticket térmico de recepción (58mm/80mm)"
               >
-                Comprobante Recepción
+                Ticket Recepción
               </SecondaryButton>
 
               <SecondaryButton
@@ -863,7 +902,7 @@ export const MaintenanceDetailDrawer: React.FC<MaintenanceDetailDrawerProps> = (
                 className="text-xs py-1.5 flex-1 sm:flex-initial justify-center bg-primary/5 border-primary/30 text-primary hover:bg-primary/10"
                 title="Imprimir factura / remisión de cobro y servicio del taller"
               >
-                Hoja de Servicio (Factura)
+                Hoja de Servicio
               </SecondaryButton>
 
               {order.sale && (
@@ -872,9 +911,9 @@ export const MaintenanceDetailDrawer: React.FC<MaintenanceDetailDrawerProps> = (
                   onClick={handlePrintTicket}
                   iconStart={<Icon name="Receipt" size="xs" />}
                   className="text-xs py-1.5 flex-1 sm:flex-initial justify-center"
-                  title="Imprimir ticket térmico"
+                  title="Imprimir ticket térmico de la venta"
                 >
-                  Ticket
+                  Ticket Venta
                 </SecondaryButton>
               )}
             </div>
@@ -932,6 +971,47 @@ export const MaintenanceDetailDrawer: React.FC<MaintenanceDetailDrawerProps> = (
           entityType="Maintenance"
           title={`Auditoría - Orden ${order.vehicle.brand} ${order.vehicle.model}`}
         />
+      )}
+
+      {/* Unlink Sale Confirmation Modal */}
+      {showUnlinkConfirmModal && (
+        <Modal
+          isOpen={showUnlinkConfirmModal}
+          onClose={() => setShowUnlinkConfirmModal(false)}
+          title="¿Desvincular ticket de venta?"
+          maxWidth="440px"
+          headerVariant="warning"
+          footer={
+            <div className="flex justify-end gap-2 w-full">
+              <SecondaryButton size="sm" onClick={() => setShowUnlinkConfirmModal(false)}>
+                Cancelar
+                <KbdBadge keys="Esc" className="ml-1.5" />
+              </SecondaryButton>
+              <PrimaryButton
+                size="sm"
+                color="error"
+                onClick={handleConfirmUnlinkSale}
+                loading={unlinkingSale}
+                iconStart={<Icon name="Trash2" size="xs" />}
+              >
+                Desvincular ticket
+              </PrimaryButton>
+            </div>
+          }
+        >
+          <div className="space-y-3 text-xs leading-relaxed text-base-content/80">
+            <p>
+              ¿Estás seguro de que deseas desvincular el ticket{' '}
+              <strong className="text-base-content font-mono font-bold">
+                {order.sale?.folio || order.sale?.id?.slice(-6) || ''}
+              </strong>{' '}
+              de esta orden de mantenimiento?
+            </p>
+            <div className="p-3 bg-base-200 rounded-lg text-[11px] text-base-content/70">
+              El ticket de venta permanecerá en el sistema de Punto de Venta, pero se desvinculará de la ficha de este servicio.
+            </div>
+          </div>
+        </Modal>
       )}
     </Box>
   );

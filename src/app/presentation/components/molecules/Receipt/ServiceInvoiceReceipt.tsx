@@ -98,7 +98,7 @@ export const ServiceInvoiceReceipt: React.FC<ServiceInvoiceReceiptProps> = ({
   order,
   customerData,
   branchName = 'Nova FV Sucursal Uman',
-  sellerName = 'Taller Ferventa',
+  sellerName = 'Taller Nova FV Sucursal Uman',
 }) => {
   if (!sale && !order) return null;
 
@@ -125,16 +125,16 @@ export const ServiceInvoiceReceipt: React.FC<ServiceInvoiceReceiptProps> = ({
     order?.customer?.phone ||
     ((sale?.customer as unknown as { phone?: string })?.phone) ||
     '';
-  
+
   const customVehicle: InvoiceVehicle | null = customerData && (customerData.vehicleBrand || customerData.vehicleModel || customerData.vehicleSerial || customerData.vehiclePlate)
     ? {
-        brand: customerData.vehicleBrand || '',
-        model: customerData.vehicleModel || '',
-        year: customerData.vehicleYear || '',
-        serialNumberLastFour: customerData.vehicleSerial || '',
-        licensePlate: customerData.vehiclePlate || '',
-        color: '',
-      }
+      brand: customerData.vehicleBrand || '',
+      model: customerData.vehicleModel || '',
+      year: customerData.vehicleYear || '',
+      serialNumberLastFour: customerData.vehicleSerial || '',
+      licensePlate: customerData.vehiclePlate || '',
+      color: '',
+    }
     : null;
 
   const vehicle: InvoiceVehicle | null | undefined =
@@ -199,6 +199,11 @@ export const ServiceInvoiceReceipt: React.FC<ServiceInvoiceReceiptProps> = ({
           <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
             Fecha de Emisión: {formatDate(invoiceDate)}
           </div>
+          {sellerName && (
+            <div style={{ fontSize: '11px', color: '#64748b', marginTop: '1px' }}>
+              Atendió: <strong>{sellerName}</strong>
+            </div>
+          )}
         </div>
       </div>
 
@@ -217,9 +222,6 @@ export const ServiceInvoiceReceipt: React.FC<ServiceInvoiceReceiptProps> = ({
               Teléfono: <span style={{ fontFamily: 'monospace', fontWeight: '600' }}>{customerPhone}</span>
             </div>
           )}
-          <div style={{ fontSize: '11px', color: '#64748b', marginTop: '4px' }}>
-            Atendido por: <strong style={{ color: '#0f172a' }}>{sellerName}</strong>
-          </div>
         </div>
 
         {/* Vehicle details */}
@@ -405,7 +407,7 @@ export const ServiceInvoiceReceipt: React.FC<ServiceInvoiceReceiptProps> = ({
         <div style={{ textAlign: 'center' }}>
           <div style={{ borderBottom: '1px solid #0f172a', height: '40px', marginBottom: '8px' }} />
           <div style={{ fontSize: '11px', fontWeight: '800', color: '#0f172a', textTransform: 'uppercase' }}>
-            Taller Nova FV
+            {'Moto Servicio Nova FV'}
           </div>
           <div style={{ fontSize: '10px', color: '#64748b' }}>Sucursal: {branchName}</div>
         </div>

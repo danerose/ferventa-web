@@ -13,7 +13,7 @@ export class AuditRepository implements IAuditRepository {
     return this.remote.getAuditLogs(filter);
   }
 
-  getEntityAuditLogs(entityId: string): Promise<AuditLog[]> {
-    return this.remote.getEntityAuditLogs(entityId);
+  getEntityAuditLogs(entityId: string, entityType?: string): Promise<AuditLog[]> {
+    return this.remote.getEntityAuditLogs(entityId, entityType);
   }
 }

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Icon,
@@ -11,7 +11,9 @@ import {
   Checkbox,
   SearchableSelect,
   Modal,
+  BoxPrintModal,
   MerchandiseReceptionDrawer,
+  ReceptionDetailDrawer,
   KbdBadge,
   Box,
   Flex,
@@ -34,7 +36,7 @@ import type { Branch } from '@/app/domain';
 import type { PredefinedService, CreateServiceDto } from '@/app/domain';
 import { useAuthorization } from '@/core/hooks';
 import { UserRole } from '@/core/enums';
-import { cn } from '@/core/utils/cn';
+import { cn, formatCurrency } from '@/core/utils';
 
 import { useShallow } from 'zustand/react/shallow';
 
@@ -45,6 +47,16 @@ export const InventoryPage: React.FC = () => {
   const activeBranchId = useAuthStore((s) => s.activeBranchId);
   const clearAuth = useAuthStore((s) => s.clearAuth);
   const [branches, setBranches] = useState<Branch[]>([]);
+
+  // Toast notification system
+  const [toasts, setToasts] = useState<{ id: number; type: 'success' | 'error'; message: string }[]>([]);
+  const toastIdCounter = useRef(0);
+  const addToast = useCallback((type: 'success' | 'error', message: string) => {
+    toastIdCounter.current += 1;
+    const id = toastIdCounter.current;
+    setToasts((prev) => [...prev, { id, type, message }]);
+    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 4500);
+  }, []);
 
   useEffect(() => {
     const fetchBranches = async () => {
@@ -158,6 +170,8 @@ export const InventoryPage: React.FC = () => {
   const { hasRole } = useAuthorization();
   const isAdmin = hasRole([UserRole.Admin]);
   const canManageCatalog = isAdmin;
+  const canViewReceptions = true; // Sellers, cashiers, warehouse & admin can all view receptions and open boxes
+  const canApproveReceptions = isAdmin; // Only Admin can approve or reject receptions
 
   // Open box modal states
   const [openBoxCode, setOpenBoxCode] = useState('');
@@ -179,6 +193,28 @@ export const InventoryPage: React.FC = () => {
       setOpenBoxError(err?.message || 'Error al abrir la caja');
     } finally {
       setOpeningBox(false);
+    }
+  };
+
+  const handleOpenBoxDirect = async (boxCode: string) => {
+    if (!accessToken || !boxCode.trim()) return;
+    try {
+      const res = await inventoryRepo.openBox(accessToken, boxCode.trim());
+      addToast('success',
+        `¡Caja ${boxCode} abierta! +${res.addedQuantity} piezas al mostrador.` +
+          (res.newSellingPrice ? ` Precio: $${res.newSellingPrice.toFixed(2)}` : '')
+      );
+      fetchInventoryData();
+      if (boxQrModalReception) {
+        try {
+          const updatedRec = await inventoryRepo.getReceptionById(accessToken, boxQrModalReception.id);
+          setBoxQrModalReception(updatedRec);
+        } catch {
+          // If individual fetch fails, keep existing
+        }
+      }
+    } catch (err: any) {
+      addToast('error', err?.message || 'Error al abrir la caja');
     }
   };
 
@@ -217,15 +253,29 @@ export const InventoryPage: React.FC = () => {
 
   // ── Receptions Tab State ────────────────────────────────────────────────
   const [receptions, setReceptions] = useState<MerchandiseReception[]>([]);
+  const [receptionStatusFilter, setReceptionStatusFilter] = useState<'all' | 'draft' | 'approved' | 'rejected'>('all');
   const [receptionsLoading, setReceptionsLoading] = useState(false);
   const [actionReceptionId, setActionReceptionId] = useState<string | null>(null);
+  const [selectedReception, setSelectedReception] = useState<MerchandiseReception | null>(null);
+  const [boxQrModalReception, setBoxQrModalReception] = useState<MerchandiseReception | null>(null);
 
   const fetchReceptions = async () => {
     if (!accessToken) return;
     setReceptionsLoading(true);
     try {
-      const res = await inventoryRepo.getReceptions(accessToken);
-      setReceptions(res || []);
+      const res = await inventoryRepo.getReceptionsPaginated(accessToken, {
+        search: searchValue,
+        status: receptionStatusFilter === 'all' ? undefined : receptionStatusFilter,
+        page,
+        limit,
+      });
+      setReceptions(res.items || []);
+      setPagination({
+        page: res.page,
+        limit: res.limit,
+        total: res.total,
+        totalPages: res.totalPages,
+      });
     } catch (err) {
       console.error('Error al cargar recepciones:', err);
     } finally {
@@ -241,23 +291,30 @@ export const InventoryPage: React.FC = () => {
       await fetchReceptions();
       const prodsRes = await inventoryRepo.getProductsPaginated(accessToken, { page, limit });
       setProducts(prodsRes.items);
+      setSelectedReception(null);
+      addToast('success', 'Remisión aprobada exitosamente.');
     } catch (err: any) {
-      alert(err?.message || 'Error al aprobar la remisión');
+      addToast('error', err?.message || 'Error al aprobar la remisión');
     } finally {
       setActionReceptionId(null);
     }
   };
 
-  const handleRejectReception = async (receptionId: string) => {
+  const handleRejectReception = async (receptionId: string, customReason?: string) => {
     if (!accessToken || actionReceptionId) return;
-    const reason = window.prompt('Motivo del rechazo de la remisión:');
-    if (reason === null) return;
+    const reason = customReason;
+    if (reason === undefined) {
+      // Caller should provide reason via ReceptionDetailDrawer modal
+      return;
+    }
     setActionReceptionId(receptionId);
     try {
       await inventoryRepo.rejectReception(accessToken, receptionId, reason || undefined);
       await fetchReceptions();
+      setSelectedReception(null);
+      addToast('success', 'Remisión rechazada correctamente.');
     } catch (err: any) {
-      alert(err?.message || 'Error al rechazar la remisión');
+      addToast('error', err?.message || 'Error al rechazar la remisión');
     } finally {
       setActionReceptionId(null);
     }
@@ -365,7 +422,19 @@ export const InventoryPage: React.FC = () => {
       } else if (activeTab === 'services') {
         fetchServices();
       } else if (activeTab === 'receptions') {
-        fetchReceptions();
+        const res = await inventoryRepo.getReceptionsPaginated(accessToken, {
+          search: searchValue,
+          status: receptionStatusFilter === 'all' ? undefined : receptionStatusFilter,
+          page,
+          limit,
+        });
+        setReceptions(res.items || []);
+        setPagination({
+          page: res.page,
+          limit: res.limit,
+          total: res.total,
+          totalPages: res.totalPages,
+        });
       } else if (activeTab === 'movements') {
         const res = await inventoryRepo.getMovementsPaginated(accessToken, {
           page,
@@ -423,7 +492,7 @@ export const InventoryPage: React.FC = () => {
   useEffect(() => {
     fetchInventoryData();
     // eslint-disable-next-line
-  }, [activeTab, page, limit, searchValue, movementTypeFilter, activeBranchId]);
+  }, [activeTab, page, limit, searchValue, movementTypeFilter, receptionStatusFilter, activeBranchId]);
 
   const handleOpenAddProduct = useCallback(async () => {
     setEditingProductId(null);
@@ -944,6 +1013,16 @@ export const InventoryPage: React.FC = () => {
                     <KbdBadge keys="Alt+N" className="ml-1.5" />
                   </PrimaryButton>
                 )
+              ) : activeTab === 'receptions' ? (
+                <PrimaryButton
+                  size="sm"
+                  color="success"
+                  onClick={() => setActiveModal('addMovement')}
+                  iconStart={<Icon name="PackagePlus" size="sm" />}
+                >
+                  Nueva Recepción
+                  <KbdBadge keys="Alt+M" className="ml-1.5" />
+                </PrimaryButton>
               ) : null}
             </Flex>
           </Flex>
@@ -961,7 +1040,9 @@ export const InventoryPage: React.FC = () => {
                 { id: 'providers' as const, label: 'Proveedores', key: 'Alt+4' },
                 { id: 'services' as const, label: 'Servicios', key: 'Alt+5' },
                 { id: 'movements' as const, label: 'Movimientos', key: 'Alt+6' },
-                { id: 'receptions' as const, label: 'Recepciones / Borradores', key: 'Alt+7' },
+                ...(canViewReceptions
+                  ? [{ id: 'receptions' as const, label: 'Recepciones / Borradores', key: 'Alt+7' }]
+                  : []),
               ]).map(t => (
                 activeTab === t.id ? (
                   <PrimaryButton
@@ -994,11 +1075,32 @@ export const InventoryPage: React.FC = () => {
                   size="sm"
                   fullWidth={false}
                   value={movementTypeFilter}
-                  onChange={(e) => setMovementTypeFilter(e.target.value as 'all' | 'in' | 'out')}
+                  onChange={(e) => {
+                    setMovementTypeFilter(e.target.value as 'all' | 'in' | 'out');
+                    setPage(1);
+                  }}
                   options={[
                     { value: 'all', label: 'Todos los tipos' },
                     { value: 'in', label: 'Entradas (Ingresos)' },
                     { value: 'out', label: 'Salidas (Bajas)' },
+                  ]}
+                />
+              )}
+
+              {activeTab === 'receptions' && (
+                <Select
+                  size="sm"
+                  fullWidth={false}
+                  value={receptionStatusFilter}
+                  onChange={(e) => {
+                    setReceptionStatusFilter(e.target.value as 'all' | 'draft' | 'approved' | 'rejected');
+                    setPage(1);
+                  }}
+                  options={[
+                    { value: 'all', label: 'Todos los estados' },
+                    { value: 'draft', label: 'Borradores' },
+                    { value: 'approved', label: 'Aprobadas' },
+                    { value: 'rejected', label: 'Rechazadas' },
                   ]}
                 />
               )}
@@ -1012,10 +1114,14 @@ export const InventoryPage: React.FC = () => {
                         : activeTab === 'brands' ? 'marcas'
                           : activeTab === 'services' ? 'servicios'
                             : activeTab === 'movements' ? 'movimientos'
-                              : 'proveedores'
+                              : activeTab === 'receptions' ? 'remisiones / folios'
+                                : 'proveedores'
                     }...`}
                   value={searchValue}
-                  onChange={(e) => setSearchValue(e.target.value)}
+                  onChange={(e) => {
+                    setSearchValue(e.target.value);
+                    setPage(1);
+                  }}
                 />
                 <Box className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
                   <KbdBadge keys="Alt+F" />
@@ -1023,6 +1129,54 @@ export const InventoryPage: React.FC = () => {
               </Box>
             </Flex>
           </Flex>
+
+          {/* Inventory Summary Cards */}
+          {activeTab === 'inventory' && (
+            <Grid cols={4} gap="md" className="mb-5">
+              <Box className="bg-base-100 p-4 px-5 rounded-DEFAULT border border-base-300 flex items-center gap-3.5">
+                <Flex align="center" justify="center" className="p-2.5 rounded-DEFAULT bg-primary/10 text-primary">
+                  <Icon name="Package" size="md" />
+                </Flex>
+                <Box>
+                  <Text size="xs" color="muted" weight="medium">Total Catálogo</Text>
+                  <Text weight="bold" className="text-xl">{products.length} productos</Text>
+                </Box>
+              </Box>
+              <Box className="bg-base-100 p-4 px-5 rounded-DEFAULT border border-base-300 flex items-center gap-3.5">
+                <Flex align="center" justify="center" className="p-2.5 rounded-DEFAULT bg-success/10 text-success">
+                  <Icon name="Store" size="md" />
+                </Flex>
+                <Box>
+                  <Text size="xs" color="muted" weight="medium">Piso / Mostrador</Text>
+                  <Text weight="bold" className="text-xl text-success font-mono">
+                    {products.reduce((acc, p) => acc + (p.stock || 0), 0)} pzas
+                  </Text>
+                </Box>
+              </Box>
+              <Box className="bg-base-100 p-4 px-5 rounded-DEFAULT border border-base-300 flex items-center gap-3.5">
+                <Flex align="center" justify="center" className="p-2.5 rounded-DEFAULT bg-warning/10 text-warning">
+                  <Icon name="Archive" size="md" />
+                </Flex>
+                <Box>
+                  <Text size="xs" color="muted" weight="medium">Bodega (Sellado)</Text>
+                  <Text weight="bold" className="text-xl text-warning font-mono">
+                    {products.reduce((acc, p) => acc + (p.sealedStock || 0), 0)} pzas
+                  </Text>
+                </Box>
+              </Box>
+              <Box className="bg-base-100 p-4 px-5 rounded-DEFAULT border border-base-300 flex items-center gap-3.5">
+                <Flex align="center" justify="center" className="p-2.5 rounded-DEFAULT bg-neutral/10 text-base-content">
+                  <Icon name="Layers" size="md" />
+                </Flex>
+                <Box>
+                  <Text size="xs" color="muted" weight="medium">Stock Total</Text>
+                  <Text weight="bold" className="text-xl text-primary font-mono">
+                    {products.reduce((acc, p) => acc + (p.totalStock ?? ((p.stock || 0) + (p.sealedStock || 0))), 0)} pzas
+                  </Text>
+                </Box>
+              </Box>
+            </Grid>
+          )}
 
           {/* Movements Summary Cards (only in movements tab) */}
           {activeTab === 'movements' && (
@@ -1076,66 +1230,113 @@ export const InventoryPage: React.FC = () => {
                       <Box as="th" className="py-3 px-4 text-left text-xs font-semibold text-base-content/60 uppercase">Producto</Box>
                       <Box as="th" className="py-3 px-4 text-left text-xs font-semibold text-base-content/60 uppercase">Categoría</Box>
                       <Box as="th" className="py-3 px-4 text-left text-xs font-semibold text-base-content/60 uppercase">Precio Venta</Box>
-                      <Box as="th" className="py-3 px-4 text-left text-xs font-semibold text-base-content/60 uppercase">Stock</Box>
+                      <Box as="th" className="py-3 px-4 text-left text-xs font-semibold text-base-content/60 uppercase">Mostrador (Piso)</Box>
+                      <Box as="th" className="py-3 px-4 text-left text-xs font-semibold text-base-content/60 uppercase">Bodega (Sellado)</Box>
+                      <Box as="th" className="py-3 px-4 text-left text-xs font-semibold text-base-content/60 uppercase">Stock Total</Box>
                       <Box as="th" className="py-3 px-4 text-center text-xs font-semibold text-base-content/60 uppercase">Acciones</Box>
                     </Box>
                   </Box>
                   <Box as="tbody">
-                    {products.length > 0 ? products.map(product => (
-                      <Box as="tr" key={product.id} className="border-b border-base-200 hover:bg-base-200/40 transition-colors">
-                        <Box as="td" className="py-4 px-4 font-mono text-sm text-warning font-semibold">
-                          {product.sku}
-                        </Box>
-                        <Box as="td" className="py-4 px-4">
-                          <TertiaryButton
-                            size="xs"
-                            color="primary"
-                            onClick={() => handleOpenProductHistory(product)}
-                            className="p-0 h-auto min-h-0 font-semibold underline text-left"
-                            title="Ver historial de movimientos de este producto"
-                          >
-                            {product.name}
-                          </TertiaryButton>
-                          <Text size="xs" color="muted" className="block mt-0.5">{product.brand?.name}</Text>
-                        </Box>
-                        <Box as="td" className="py-4 px-4 text-sm text-base-content/70">
-                          {product.category?.name}
-                        </Box>
-                        <Box as="td" className="py-4 px-4 font-mono text-sm font-bold">
-                          ${product.sellingPrice.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
-                        </Box>
-                        <Box as="td" className="py-4 px-4">
-                          <Badge
-                            variant={product.stock <= product.minStock ? 'error' : 'success'}
-                            size="sm"
-                          >
-                            {product.stock} {product.unit}
-                          </Badge>
-                        </Box>
-                        <Box as="td" className="py-4 px-4 text-center">
-                          <Flex gap="xs" justify="center">
+                    {products.length > 0 ? products.map(product => {
+                      const totalProdStock = product.totalStock ?? ((product.stock || 0) + (product.sealedStock || 0));
+                      const sealedQty = product.sealedStock ?? 0;
+                      const hasSealedBoxes = sealedQty > 0 || (product.sealedBoxesCount ?? 0) > 0;
+
+                      return (
+                        <Box as="tr" key={product.id} className="border-b border-base-200 hover:bg-base-200/40 transition-colors">
+                          <Box as="td" className="py-4 px-4 font-mono text-sm text-warning font-semibold">
+                            {product.sku}
+                          </Box>
+                          <Box as="td" className="py-4 px-4">
                             <TertiaryButton
                               size="xs"
                               color="primary"
                               onClick={() => handleOpenProductHistory(product)}
-                              title="Ver Historial de Movimientos"
+                              className="p-0 h-auto min-h-0 font-semibold underline text-left"
+                              title="Ver historial de movimientos de este producto"
                             >
-                              <Icon name="History" size="sm" />
+                              {product.name}
                             </TertiaryButton>
-                            <TertiaryButton
-                              size="xs"
-                              color="warning"
-                              onClick={() => handleOpenEditProduct(product)}
-                              title="Editar Producto"
+                            <Text size="xs" color="muted" className="block mt-0.5">{product.brand?.name}</Text>
+                          </Box>
+                          <Box as="td" className="py-4 px-4 text-sm text-base-content/70">
+                            {product.category?.name || '-'}
+                          </Box>
+                          <Box as="td" className="py-4 px-4 font-mono text-sm font-bold">
+                            {formatCurrency(product.sellingPrice)}
+                          </Box>
+                          {/* Mostrador activo */}
+                          <Box as="td" className="py-4 px-4">
+                            <Badge
+                              variant={product.stock <= product.minStock ? 'error' : 'success'}
+                              size="sm"
+                              className="font-bold font-mono"
                             >
-                              <Icon name="Edit2" size="sm" />
-                            </TertiaryButton>
-                          </Flex>
+                              {product.stock} {product.unit}
+                            </Badge>
+                          </Box>
+                          {/* Bodega sellada */}
+                          <Box as="td" className="py-4 px-4">
+                            {hasSealedBoxes ? (
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="font-mono text-xs font-bold text-base-content bg-base-200/80 px-2 py-0.5 rounded border border-base-300">
+                                  📦 {sealedQty} {product.unit}
+                                </span>
+                                {product.sealedBoxesCount ? (
+                                  <span className="text-[10px] text-base-content/60 font-semibold">
+                                    ({product.sealedBoxesCount} {product.sealedBoxesCount === 1 ? 'caja' : 'cajas'})
+                                  </span>
+                                ) : null}
+                              </div>
+                            ) : (
+                              <span className="text-xs text-base-content/40 font-mono">0 {product.unit}</span>
+                            )}
+                          </Box>
+                          {/* Stock Total */}
+                          <Box as="td" className="py-4 px-4 font-mono text-sm font-extrabold text-primary">
+                            {totalProdStock} {product.unit}
+                          </Box>
+                          {/* Acciones */}
+                          <Box as="td" className="py-4 px-4 text-center">
+                            <Flex gap="xs" justify="center">
+                              {hasSealedBoxes && (
+                                <TertiaryButton
+                                  size="xs"
+                                  color="success"
+                                  onClick={() => {
+                                    setOpenBoxCode('');
+                                    setOpenBoxError(null);
+                                    setOpenBoxResult(null);
+                                    setActiveModal('openBox');
+                                  }}
+                                  title="Abrir caja de bodega para ingresar piezas al mostrador"
+                                >
+                                  <Icon name="PackageCheck" size="sm" />
+                                </TertiaryButton>
+                              )}
+                              <TertiaryButton
+                                size="xs"
+                                color="primary"
+                                onClick={() => handleOpenProductHistory(product)}
+                                title="Ver Historial de Movimientos"
+                              >
+                                <Icon name="History" size="sm" />
+                              </TertiaryButton>
+                              <TertiaryButton
+                                size="xs"
+                                color="warning"
+                                onClick={() => handleOpenEditProduct(product)}
+                                title="Editar Producto"
+                              >
+                                <Icon name="Edit2" size="sm" />
+                              </TertiaryButton>
+                            </Flex>
+                          </Box>
                         </Box>
-                      </Box>
-                    )) : (
+                      );
+                    }) : (
                       <Box as="tr">
-                        <Box as="td" colSpan={6} className="py-10 text-center">
+                        <Box as="td" colSpan={8} className="py-10 text-center">
                           <Text color="muted">No hay productos en el inventario.</Text>
                         </Box>
                       </Box>
@@ -1334,6 +1535,7 @@ export const InventoryPage: React.FC = () => {
                         <Box as="th" className="py-3 px-4 text-left text-xs font-semibold text-base-content/60 uppercase">Proveedor</Box>
                         <Box as="th" className="py-3 px-4 text-left text-xs font-semibold text-base-content/60 uppercase">Fecha</Box>
                         <Box as="th" className="py-3 px-4 text-left text-xs font-semibold text-base-content/60 uppercase">Artículos / Insumos</Box>
+                        <Box as="th" className="py-3 px-4 text-center text-xs font-semibold text-base-content/60 uppercase">Cajas / Lotes</Box>
                         <Box as="th" className="py-3 px-4 text-center text-xs font-semibold text-base-content/60 uppercase">Estado</Box>
                         <Box as="th" className="py-3 px-4 text-center text-xs font-semibold text-base-content/60 uppercase">Acciones</Box>
                       </Box>
@@ -1345,10 +1547,23 @@ export const InventoryPage: React.FC = () => {
                           const isApproved = r.status === 'approved';
                           const isRejected = r.status === 'rejected';
 
+                          const totBoxes = r.totalBoxes ?? (r.boxes?.length || r.items?.filter(it => it.boxCode).length || 0);
+                          const sealedBoxes = r.sealedBoxesCount ?? (r.boxes?.filter(b => !b.isOpened).length ?? r.items?.filter(it => it.boxCode && it.isBoxSealed !== false).length ?? 0);
+                          const openedBoxes = r.openedBoxesCount ?? (r.boxes?.filter(b => b.isOpened).length ?? r.items?.filter(it => it.boxCode && it.isBoxSealed === false).length ?? 0);
+                          const fullyOpened = r.isFullyOpened ?? (totBoxes > 0 && sealedBoxes === 0);
+
                           return (
-                            <Box as="tr" key={r.id} className="border-b border-base-200 hover:bg-base-200/40">
+                            <Box
+                              as="tr"
+                              key={r.id}
+                              className="border-b border-base-200 hover:bg-base-200/50 cursor-pointer transition-colors"
+                              onClick={() => setSelectedReception(r)}
+                            >
                               <Box as="td" className="py-4 px-4 font-mono font-bold text-sm text-primary">
-                                {r.invoiceOrFolio || `REM-${r.id.slice(-6).toUpperCase()}`}
+                                <div className="flex items-center gap-1.5">
+                                  <span>{r.invoiceOrFolio || `REM-${r.id.slice(-6).toUpperCase()}`}</span>
+                                  <Icon name="ExternalLink" size="xs" className="opacity-40" />
+                                </div>
                                 {r.notes && (
                                   <Text size="xs" color="muted" className="block font-normal mt-0.5 font-sans">
                                     {r.notes}
@@ -1373,13 +1588,48 @@ export const InventoryPage: React.FC = () => {
                                   </div>
                                 )}
                               </Box>
+                              {/* Cajas / Lotes */}
+                              <Box as="td" className="py-4 px-4 text-center">
+                                {isApproved ? (
+                                  totBoxes > 0 ? (
+                                    fullyOpened || sealedBoxes === 0 ? (
+                                      <div>
+                                        <Badge variant="success" size="xs" className="font-bold">
+                                          ✓ {totBoxes || openedBoxes} abiertas
+                                        </Badge>
+                                        <div className="text-[10px] text-success/80 mt-0.5 font-mono">
+                                          100% en mostrador
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <div>
+                                        <Badge variant="warning" size="xs" className="font-bold">
+                                          📦 {sealedBoxes} sellada{sealedBoxes === 1 ? '' : 's'}
+                                        </Badge>
+                                        <div className="text-[10px] text-base-content/60 mt-0.5 font-mono">
+                                          {r.sealedStock ?? 0} bod. · {r.openedStock ?? 0} most.
+                                        </div>
+                                      </div>
+                                    )
+                                  ) : (
+                                    <span className="text-xs text-base-content/40 font-mono">-</span>
+                                  )
+                                ) : isDraft ? (
+                                  <span className="text-xs text-base-content/50 italic font-medium">
+                                    Pendiente
+                                  </span>
+                                ) : (
+                                  <span className="text-xs text-error/60 font-medium">Rechazada</span>
+                                )}
+                              </Box>
+                              {/* Estado */}
                               <Box as="td" className="py-4 px-4 text-center">
                                 <Badge
                                   variant={isApproved ? 'success' : isRejected ? 'error' : 'warning'}
                                   size="sm"
                                   className="font-bold"
                                 >
-                                  {isApproved ? 'Aprobada' : isRejected ? 'Rechazada' : 'Borrador Pendiente'}
+                                  {isApproved ? 'Aprobada' : isRejected ? 'Rechazada' : 'Borrador'}
                                 </Badge>
                                 {r.rejectionReason && (
                                   <Text size="xs" color="error" className="block mt-1">
@@ -1387,43 +1637,67 @@ export const InventoryPage: React.FC = () => {
                                   </Text>
                                 )}
                               </Box>
-                              <Box as="td" className="py-4 px-4 text-center">
-                                {isDraft && canManageCatalog ? (
-                                  <Flex gap="xs" justify="center">
-                                    <PrimaryButton
+                              {/* Acciones */}
+                              <Box as="td" className="py-4 px-4 text-center" onClick={(e: React.MouseEvent) => e.stopPropagation()}>
+                                <Flex gap="xs" justify="center" align="center">
+                                  <SecondaryButton
+                                    size="xs"
+                                    onClick={() => setSelectedReception(r)}
+                                    title="Ver lista completa de artículos y detalles"
+                                  >
+                                    <Icon name="Eye" size="xs" className="mr-1" />
+                                    Artículos
+                                  </SecondaryButton>
+                                  {isDraft && (
+                                    canApproveReceptions ? (
+                                      <>
+                                        <PrimaryButton
+                                          size="xs"
+                                          color="success"
+                                          loading={actionReceptionId === r.id}
+                                          disabled={!!actionReceptionId}
+                                          onClick={() => handleApproveReception(r.id)}
+                                          title="Aprobar remisión e ingresar piezas al almacén"
+                                        >
+                                          <Icon name="Check" size="xs" className="mr-1" />
+                                          Aprobar
+                                        </PrimaryButton>
+                                        <PrimaryButton
+                                          size="xs"
+                                          color="error"
+                                          disabled={!!actionReceptionId}
+                                          onClick={() => handleRejectReception(r.id)}
+                                          title="Rechazar remisión"
+                                        >
+                                          <Icon name="X" size="xs" className="mr-1" />
+                                          Rechazar
+                                        </PrimaryButton>
+                                      </>
+                                    ) : (
+                                      <Badge variant="warning" size="xs" className="font-semibold whitespace-nowrap">
+                                        ⏳ Pend. Aprobación
+                                      </Badge>
+                                    )
+                                  )}
+                                  {isApproved && (
+                                    <TertiaryButton
                                       size="xs"
-                                      color="success"
-                                      loading={actionReceptionId === r.id}
-                                      disabled={!!actionReceptionId}
-                                      onClick={() => handleApproveReception(r.id)}
-                                      title="Aprobar remisión e ingresar piezas al almacén"
+                                      color="neutral"
+                                      onClick={() => setBoxQrModalReception(r)}
+                                      title="Ver Cajas / Imprimir QR"
                                     >
-                                      <Icon name="Check" size="xs" className="mr-1" />
-                                      Aprobar
-                                    </PrimaryButton>
-                                    <PrimaryButton
-                                      size="xs"
-                                      color="error"
-                                      disabled={!!actionReceptionId}
-                                      onClick={() => handleRejectReception(r.id)}
-                                      title="Rechazar remisión"
-                                    >
-                                      <Icon name="X" size="xs" className="mr-1" />
-                                      Rechazar
-                                    </PrimaryButton>
-                                  </Flex>
-                                ) : (
-                                  <Text size="xs" color="muted">
-                                    {isApproved ? 'Ingresado al stock' : isRejected ? 'Descartado' : 'Solo lectura'}
-                                  </Text>
-                                )}
+                                      <Icon name="QrCode" size="xs" className="mr-1" />
+                                      Cajas QR
+                                    </TertiaryButton>
+                                  )}
+                                </Flex>
                               </Box>
                             </Box>
                           );
                         })
                       ) : (
                         <Box as="tr">
-                          <Box as="td" colSpan={6} className="py-10 text-center">
+                          <Box as="td" colSpan={7} className="py-10 text-center">
                             <Text color="muted">No hay remisiones o borradores de recepción registrados.</Text>
                           </Box>
                         </Box>
@@ -1744,6 +2018,31 @@ export const InventoryPage: React.FC = () => {
         activeBranchId={activeBranchId}
         initialProductId={selectedProduct?.id}
         onStockUpdated={fetchInventoryData}
+      />
+
+      {/* Drawer for Reception Items Detail and Approval */}
+      <ReceptionDetailDrawer
+        isOpen={Boolean(selectedReception)}
+        onClose={() => setSelectedReception(null)}
+        reception={selectedReception}
+        onApprove={handleApproveReception}
+        onReject={handleRejectReception}
+        onViewBoxes={(rec) => {
+          setSelectedReception(null);
+          setBoxQrModalReception(rec);
+        }}
+        onOpenBox={handleOpenBoxDirect}
+        isAdmin={isAdmin}
+        actionLoading={Boolean(actionReceptionId)}
+      />
+
+      {/* Modal for Viewing/Printing Reception Boxes QR */}
+      <BoxPrintModal
+        isOpen={Boolean(boxQrModalReception)}
+        onClose={() => setBoxQrModalReception(null)}
+        reception={boxQrModalReception}
+        branchName="Taller Nova FV Sucursal Uman"
+        onOpenBox={handleOpenBoxDirect}
       />
 
       {/* Modal for Batch Upload */}
@@ -2142,6 +2441,25 @@ export const InventoryPage: React.FC = () => {
           )}
         </div>
       </Modal>
+
+      {/* Floating Toast Notifications */}
+      <Box className="fixed bottom-6 right-6 z-[9999] flex flex-col gap-2 pointer-events-none">
+        {toasts.map((toast) => (
+          <Box
+            key={toast.id}
+            bg="neutral"
+            rounded="DEFAULT"
+            className="p-3.5 shadow-xl border border-neutral-content/20 pointer-events-auto flex items-center gap-2 text-xs font-semibold text-neutral-content animate-in fade-in slide-in-from-bottom-2"
+          >
+            <Icon
+              name={toast.type === 'success' ? 'CheckCircle' : 'AlertCircle'}
+              size="sm"
+              className={toast.type === 'success' ? 'text-success' : 'text-error'}
+            />
+            {toast.message}
+          </Box>
+        ))}
+      </Box>
 
     </PageLayout>
   );

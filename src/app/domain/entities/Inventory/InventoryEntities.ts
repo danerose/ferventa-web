@@ -16,6 +16,7 @@ export interface Provider {
 
 export interface Product {
   id: string;
+  _id?: string;
   sku: string;
   name: string;
   description?: string;
@@ -23,7 +24,10 @@ export interface Product {
   category?: Category;
   costPrice: number;
   sellingPrice: number;
-  stock: number;
+  stock: number; // Mostrador / Piso de venta activo
+  sealedStock?: number; // Piezas en cajas selladas en bodega
+  totalStock?: number; // Stock total (mostrador + bodega)
+  sealedBoxesCount?: number; // Número de cajas pendientes por abrir
   minStock: number;
   unit: string;
   photos?: string[];
@@ -76,11 +80,17 @@ export interface CreateStockMovementDto {
 }
 
 export interface MerchandiseReceptionItem {
+  _id?: string;
+  id?: string;
   productId: string;
   product?: Product;
+  sku?: string;
+  name?: string;
   quantity: number;
   costPrice: number;
   sellingPrice: number;
+  boxCode?: string;
+  isBoxSealed?: boolean;
 }
 
 export interface MerchandiseReceptionBox {
@@ -105,11 +115,19 @@ export interface MerchandiseReceptionBox {
 
 export interface MerchandiseReception {
   id: string;
+  _id?: string;
   providerId: string;
   provider?: Provider;
   status: 'draft' | 'approved' | 'rejected';
   items: MerchandiseReceptionItem[];
   boxes?: MerchandiseReceptionBox[];
+  totalBoxes?: number;          // Total de bultos/cajas en esta recepción
+  sealedBoxesCount?: number;    // Cuántas cajas quedan por abrir
+  openedBoxesCount?: number;    // Cuántas cajas ya se abrieron
+  isFullyOpened?: boolean;      // true si ya se abrieron todas (sealedBoxesCount === 0)
+  sealedStock?: number;         // Total de piezas aún selladas en bodega
+  openedStock?: number;         // Total de piezas que ya pasaron al mostrador
+  totalStock?: number;          // Total de piezas en la remisión
   invoiceOrFolio?: string;
   notes?: string;
   rejectionReason?: string;

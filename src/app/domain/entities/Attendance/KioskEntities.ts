@@ -7,9 +7,12 @@ export interface KioskEmployee {
   username?: string;
   role: string;
   avatarUrl?: string;
+  status?: string;
   shiftStatus?: 'clocked-in' | 'on-break' | 'clocked-out' | string;
   hasActiveShift?: boolean;
   isOnBreak?: boolean;
+  activeBreak?: unknown;
+  currentWorkMinutes?: number;
   lastRecordAt?: string;
   lastAction?: string;
 }

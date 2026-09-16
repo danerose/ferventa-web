@@ -163,22 +163,58 @@ export class MaintenanceOrderModel {
       notifiedAt: raw.notifiedAt,
       deliveredAt,
       statusHistory: raw.statusHistory || [],
-      notifications: Array.isArray((raw as unknown as { notifications?: unknown[] }).notifications)
-        ? (raw as unknown as { notifications: { sentAt?: string; createdAt?: string; sentBy?: { _id?: string; id?: string; name?: string }; channel?: string; notes?: string; message?: string }[] }).notifications.map((n) => ({
-            sentAt: n.sentAt || n.createdAt || new Date().toISOString(),
-            sentBy: n.sentBy ? { _id: n.sentBy._id, id: n.sentBy.id || n.sentBy._id, name: n.sentBy.name } : undefined,
-            channel: n.channel || 'WhatsApp',
-            notes: n.notes || n.message || '',
-          }))
-        : raw.notifiedAt
-        ? [
-            {
-              sentAt: raw.notifiedAt,
-              channel: 'WhatsApp',
-              notes: 'Vehículo listo para entrega',
-            },
-          ]
-        : [],
+      notifications: (() => {
+        const rawAny = raw as Record<string, unknown>;
+        const list: { sentAt: string; sentBy?: { _id?: string; id?: string; name?: string }; channel: string; notes?: string }[] = [];
+
+        const candidateLists = [
+          rawAny.notificationHistory,
+          rawAny.notifications,
+          rawAny.whatsappHistory,
+          rawAny.notificationLogs,
+          rawAny.notificationsLog,
+          rawAny.whatsappNotifications,
+        ];
+
+        for (const candidate of candidateLists) {
+          if (Array.isArray(candidate) && candidate.length > 0) {
+            for (const n of candidate as Record<string, unknown>[]) {
+              if (!n) continue;
+              const sentByObj = n.sentBy && typeof n.sentBy === 'object'
+                ? {
+                    _id: (n.sentBy as { _id?: string; id?: string })._id,
+                    id: (n.sentBy as { _id?: string; id?: string }).id || (n.sentBy as { _id?: string; id?: string })._id,
+                    name: (n.sentBy as { name?: string }).name,
+                  }
+                : undefined;
+
+              const sentAt = String(n.sentAt || n.createdAt || n.date || new Date().toISOString());
+              const notes = String(n.notes || n.message || n.text || '');
+              const channel = String(n.channel || 'WhatsApp');
+
+              list.push({
+                sentAt,
+                sentBy: sentByObj,
+                channel,
+                notes,
+              });
+            }
+            break; // Stop at first non-empty list found
+          }
+        }
+
+        // If list is empty but notifiedAt exists, create initial fallback
+        if (list.length === 0 && raw.notifiedAt) {
+          list.push({
+            sentAt: raw.notifiedAt,
+            channel: 'WhatsApp',
+            notes: 'Vehículo listo para entrega',
+          });
+        }
+
+        // Sort descending by date (most recent first)
+        return list.sort((a, b) => new Date(b.sentAt).getTime() - new Date(a.sentAt).getTime());
+      })(),
       appointment: appointmentObj,
       customer: {
         id: raw.customer?.id || raw.customer?._id || '',

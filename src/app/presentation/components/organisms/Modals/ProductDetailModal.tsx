@@ -103,7 +103,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
               </div>
             )}
 
-            {/* Stock Badge */}
+            {/* Stock Breakdown Badges */}
             <div style={{
               display: 'inline-flex', alignItems: 'center', gap: '4px',
               fontSize: '12px',
@@ -112,15 +112,41 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
               border: isLowStock ? '1px solid #fecaca' : '1px solid #bbf7d0',
               padding: '4px 10px', borderRadius: '6px', fontWeight: '600'
             }}>
-              <Icon name="Package" size="xs" />
-              <span>Stock: {product.stock} {product.unit || 'uds'} {isLowStock ? '(Bajo)' : ''}</span>
+              <Icon name="Store" size="xs" />
+              <span>Mostrador: {product.stock} {product.unit || 'uds'}</span>
+            </div>
+
+            {(product.sealedStock ?? 0) > 0 && (
+              <div style={{
+                display: 'inline-flex', alignItems: 'center', gap: '4px',
+                fontSize: '12px',
+                background: '#fffbeb',
+                color: '#b45309',
+                border: '1px solid #fde68a',
+                padding: '4px 10px', borderRadius: '6px', fontWeight: '600'
+              }}>
+                <Icon name="Archive" size="xs" />
+                <span>Bodega: {product.sealedStock} {product.unit || 'uds'} ({product.sealedBoxesCount ?? 1} caja{(product.sealedBoxesCount ?? 1) === 1 ? '' : 's'})</span>
+              </div>
+            )}
+
+            <div style={{
+              display: 'inline-flex', alignItems: 'center', gap: '4px',
+              fontSize: '12px',
+              background: '#f8fafc',
+              color: '#0f172a',
+              border: '1px solid #cbd5e1',
+              padding: '4px 10px', borderRadius: '6px', fontWeight: '700'
+            }}>
+              <Icon name="Layers" size="xs" />
+              <span>Total: {product.totalStock ?? ((product.stock || 0) + (product.sealedStock || 0))} {product.unit || 'uds'}</span>
             </div>
           </div>
         </div>
 
         {/* Pricing & Stock Details Grid */}
         <div style={{
-          display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+          display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
           gap: '16px', background: '#f8fafc', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0'
         }}>
           <div>
@@ -145,10 +171,28 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 
           <div>
             <span style={{ fontSize: '11px', color: '#64748b', fontWeight: '600', textTransform: 'uppercase' }}>
-              Unidad de Medida
+              Mostrador (Activo)
             </span>
-            <div style={{ fontSize: '14px', fontWeight: '600', color: '#0f172a', marginTop: '4px', textTransform: 'capitalize' }}>
-              {product.unit || 'Pieza'}
+            <div style={{ fontSize: '16px', fontWeight: '800', color: isLowStock ? '#dc2626' : '#16a34a', marginTop: '4px' }}>
+              {product.stock} {product.unit || 'Pieza'}
+            </div>
+          </div>
+
+          <div>
+            <span style={{ fontSize: '11px', color: '#64748b', fontWeight: '600', textTransform: 'uppercase' }}>
+              Bodega (Sellado)
+            </span>
+            <div style={{ fontSize: '16px', fontWeight: '800', color: '#b45309', marginTop: '4px' }}>
+              {product.sealedStock ?? 0} {product.unit || 'Pieza'}
+            </div>
+          </div>
+
+          <div>
+            <span style={{ fontSize: '11px', color: '#64748b', fontWeight: '600', textTransform: 'uppercase' }}>
+              Stock Total
+            </span>
+            <div style={{ fontSize: '16px', fontWeight: '800', color: '#0f172a', marginTop: '4px' }}>
+              {product.totalStock ?? ((product.stock || 0) + (product.sealedStock || 0))} {product.unit || 'Pieza'}
             </div>
           </div>
 

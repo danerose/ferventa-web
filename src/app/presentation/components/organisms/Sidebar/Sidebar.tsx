@@ -31,6 +31,12 @@ const ALL_NAV_ITEMS: NavItemConfig[] = [
     allowedRoles: [UserRole.Admin, UserRole.Receptionist],
   },
   {
+    icon: 'ShoppingCart',
+    label: 'Punto de Venta',
+    path: '/admin/pos',
+    allowedRoles: [UserRole.Admin, UserRole.Cashier, UserRole.Seller],
+  },
+  {
     icon: 'CalendarCheck',
     label: 'Citas',
     path: '/admin/citas',
@@ -41,12 +47,6 @@ const ALL_NAV_ITEMS: NavItemConfig[] = [
     label: 'Mantenimiento',
     path: '/admin/mantenimiento',
     allowedRoles: [UserRole.Admin, UserRole.Mechanic, UserRole.Receptionist, UserRole.Seller],
-  },
-  {
-    icon: 'ShoppingCart',
-    label: 'Punto de Venta',
-    path: '/admin/pos',
-    allowedRoles: [UserRole.Admin, UserRole.Cashier, UserRole.Seller],
   },
   {
     icon: 'PackageOpen',

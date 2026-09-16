@@ -430,34 +430,46 @@ export const AttendancePage: React.FC = () => {
         {/* Tabs Bar (Only visible to Admin) */}
         {isAdmin && (
           <Box className="bg-base-100 border-b border-base-300 px-7">
-            <Flex gap="lg">
+            <Flex justify="between" align="center">
+              <Flex gap="lg">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('my-clock')}
+                  className={`py-4 border-b-2 font-semibold text-sm cursor-pointer transition-colors ${
+                    activeTab === 'my-clock'
+                      ? 'border-primary text-primary'
+                      : 'border-transparent text-base-content/60 hover:text-base-content'
+                  }`}
+                >
+                  <Flex align="center" gap="xs">
+                    <Icon name="Clock" size="sm" />
+                    Terminal de Asistencia (Kiosco)
+                  </Flex>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('admin-dashboard')}
+                  className={`py-4 border-b-2 font-semibold text-sm cursor-pointer transition-colors ${
+                    activeTab === 'admin-dashboard'
+                      ? 'border-primary text-primary'
+                      : 'border-transparent text-base-content/60 hover:text-base-content'
+                  }`}
+                >
+                  <Flex align="center" gap="xs">
+                    <Icon name="Shield" size="sm" />
+                    Panel de Gestión y Registros
+                  </Flex>
+                </button>
+              </Flex>
+
               <button
                 type="button"
-                onClick={() => setActiveTab('my-clock')}
-                className={`py-4 border-b-2 font-semibold text-sm cursor-pointer transition-colors ${
-                  activeTab === 'my-clock'
-                    ? 'border-primary text-primary'
-                    : 'border-transparent text-base-content/60 hover:text-base-content'
-                }`}
+                onClick={() => window.open('#/kiosco', '_blank')}
+                className="btn btn-outline btn-xs gap-1.5 text-primary border-primary/40 hover:bg-primary hover:text-white cursor-pointer"
+                title="Abrir terminal de kiosco en pantalla completa"
               >
-                <Flex align="center" gap="xs">
-                  <Icon name="Clock" size="sm" />
-                  Terminal de Asistencia (Kiosco)
-                </Flex>
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab('admin-dashboard')}
-                className={`py-4 border-b-2 font-semibold text-sm cursor-pointer transition-colors ${
-                  activeTab === 'admin-dashboard'
-                    ? 'border-primary text-primary'
-                    : 'border-transparent text-base-content/60 hover:text-base-content'
-                }`}
-              >
-                <Flex align="center" gap="xs">
-                  <Icon name="Shield" size="sm" />
-                  Panel de Gestión y Registros
-                </Flex>
+                <Icon name="Maximize2" size="xs" />
+                <span>Abrir Kiosco Pantalla Completa</span>
               </button>
             </Flex>
           </Box>

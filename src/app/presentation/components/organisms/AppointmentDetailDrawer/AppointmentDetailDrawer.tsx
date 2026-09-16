@@ -18,6 +18,9 @@ import { useActiveBranch } from '@/app/presentation/hooks';
 import { EntityAuditLogsModal } from '@/app/presentation/components/organisms/Modals/EntityAuditLogsModal';
 import { useAuthorization } from '@/core/hooks';
 import { UserRole } from '@/core/enums';
+import { documentPrintService } from '@/core/services/print/documentPrintService';
+import { thermalPrintService } from '@/core/services/print/ThermalPrintService';
+import { usePrinterSettingsStore } from '@/app/presentation/stores';
 
 export interface AppointmentDetailDrawerProps {
   appt: AdminAppointment | null;
@@ -74,6 +77,7 @@ export const AppointmentDetailDrawer: React.FC<AppointmentDetailDrawerProps> = (
   const [isReceiving, setIsReceiving] = useState(false);
 
   useEffect(() => {
+    setIsAuditModalOpen(false);
     if (appt) {
       setLaborCost(0);
       setReceptionNotes(appt.receptionNotes || '');
@@ -96,6 +100,23 @@ export const AppointmentDetailDrawer: React.FC<AppointmentDetailDrawerProps> = (
 
   const statusStyle = STATUS_STYLES[appt.status] || STATUS_STYLES.pending;
 
+  const handlePrintDocument = () => {
+    if (!appt) return;
+    documentPrintService.printAppointmentVoucher(
+      appt,
+      formatBranchWorkshopName(appt.branchName || activeBranchName)
+    );
+  };
+
+  const handlePrintTicket = () => {
+    if (!appt) return;
+    thermalPrintService.printAppointmentTicket(
+      appt,
+      usePrinterSettingsStore.getState(),
+      formatBranchWorkshopName(appt.branchName || activeBranchName)
+    );
+  };
+
   return (
     <div
       className="print:contents fixed inset-0 bg-neutral-900/60 z-50 flex justify-end backdrop-blur-xs transition-opacity duration-200"
@@ -107,15 +128,46 @@ export const AppointmentDetailDrawer: React.FC<AppointmentDetailDrawerProps> = (
       >
         {/* Header */}
         <div className="p-6 border-b border-base-300 bg-base-200/50 flex justify-between items-center">
-          <div>
-            <h3 className="text-lg font-extrabold text-base-content m-0">
-              Detalle de la Cita
-            </h3>
-            <span className="text-[11px] font-bold text-base-content/60 uppercase tracking-wider">
-              Información rápida
-            </span>
-          </div>
           <div className="flex items-center gap-2">
+            <div>
+              <h3 className="text-lg font-extrabold text-base-content m-0">
+                Detalle de la Cita
+              </h3>
+              <span className="text-[11px] font-bold text-base-content/60 uppercase tracking-wider">
+                Información rápida
+              </span>
+            </div>
+            <KbdBadge keys="Esc" className="opacity-70 text-[10px]" />
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-1 rounded-lg hover:bg-base-300/50 text-base-content/60 hover:text-base-content cursor-pointer transition-colors"
+              title="Cerrar (Esc)"
+            >
+              <Icon name="X" size="md" />
+            </button>
+          </div>
+        </div>
+        <div className="p-6 border-b border-base-300 bg-base-200/50 flex justify-between items-center">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handlePrintDocument}
+              className="btn btn-ghost btn-xs text-base-content/80 gap-1 px-2 border border-base-300 hover:bg-base-200"
+              title="Imprimir comprobante formal (Carta/A4)"
+            >
+              <Icon name="FileText" size="xs" />
+              <span className="text-[11px] font-bold">Imprimir Hoja</span>
+            </button>
+            <button
+              type="button"
+              onClick={handlePrintTicket}
+              className="btn btn-ghost btn-xs text-base-content/80 gap-1 px-2 border border-base-300 hover:bg-base-200"
+              title="Imprimir ticket térmico (58mm/80mm)"
+            >
+              <Icon name="Printer" size="xs" />
+              <span className="text-[11px] font-bold">Ticket</span>
+            </button>
             {isAdmin && (
               <button
                 type="button"
@@ -127,15 +179,7 @@ export const AppointmentDetailDrawer: React.FC<AppointmentDetailDrawerProps> = (
                 <span className="text-[11px] font-bold">Auditoría</span>
               </button>
             )}
-            <KbdBadge keys="Esc" className="opacity-70 text-[10px]" />
-            <button
-              type="button"
-              onClick={onClose}
-              className="p-1 rounded-lg hover:bg-base-300/50 text-base-content/60 hover:text-base-content cursor-pointer transition-colors"
-              title="Cerrar (Esc)"
-            >
-              <Icon name="X" size="md" />
-            </button>
+
           </div>
         </div>
 
@@ -359,14 +403,26 @@ export const AppointmentDetailDrawer: React.FC<AppointmentDetailDrawerProps> = (
 
         {/* Sidebar Footer Actions */}
         <div className="p-5 border-t border-base-300 bg-base-200/50 flex flex-col gap-2">
-          <button
-            type="button"
-            onClick={() => window.print()}
-            className="btn btn-sm btn-outline border-base-300 text-base-content hover:bg-base-200 w-full mb-2 gap-2"
-          >
-            <Icon name="Printer" size="sm" />
-            Imprimir Comprobante
-          </button>
+          <div className="grid grid-cols-2 gap-2 mb-2">
+            <button
+              type="button"
+              onClick={handlePrintDocument}
+              className="btn btn-sm btn-outline border-base-300 text-base-content hover:bg-base-200 gap-1.5 justify-center"
+              title="Imprimir comprobante formal en hoja Carta"
+            >
+              <Icon name="FileText" size="xs" />
+              <span className="text-xs font-semibold">Hoja Carta</span>
+            </button>
+            <button
+              type="button"
+              onClick={handlePrintTicket}
+              className="btn btn-sm btn-outline border-base-300 text-base-content hover:bg-base-200 gap-1.5 justify-center"
+              title="Imprimir ticket en rollo térmico (58mm/80mm)"
+            >
+              <Icon name="Printer" size="xs" />
+              <span className="text-xs font-semibold">Ticket</span>
+            </button>
+          </div>
 
           {(appt.status === 'pending' || appt.status === 'rescheduled') && (
             <>
@@ -476,51 +532,6 @@ export const AppointmentDetailDrawer: React.FC<AppointmentDetailDrawerProps> = (
           )}
         </div>
       </aside>
-
-      {/* Print Layout for Appointment Voucher */}
-      <div id="appointment-receipt" className="printable-document hidden print:block fixed inset-0 bg-white z-[9999] p-8 text-black font-sans min-h-screen">
-        <div className="text-center mb-8 border-b pb-4">
-          <h1 className="text-2xl font-bold">{formatBranchWorkshopName(appt.branchName || activeBranchName).toUpperCase()}</h1>
-          <p className="text-gray-600">Comprobante de Cita</p>
-          <p className="text-sm text-gray-500 mt-2">Folio: {appt.id.slice(-6).toUpperCase()}</p>
-          {appt.branchName && <p className="text-sm text-gray-500 font-medium">Sucursal: {appt.branchName}</p>}
-        </div>
-
-        <div className="grid grid-cols-2 gap-8 mb-8">
-          <div>
-            <h3 className="font-bold border-b pb-2 mb-2">Datos del Cliente</h3>
-            <p><strong>Nombre:</strong> {appt.customerName}</p>
-            {appt.customerPhone && <p><strong>Teléfono:</strong> {appt.customerPhone}</p>}
-            {appt.customerEmail && <p><strong>Email:</strong> {appt.customerEmail}</p>}
-          </div>
-          <div>
-            <h3 className="font-bold border-b pb-2 mb-2">Datos del Vehículo</h3>
-            {appt.vehicle ? (
-              <>
-                <p><strong>Marca:</strong> {appt.vehicle.brand}</p>
-                <p><strong>Modelo:</strong> {appt.vehicle.model}</p>
-                <p><strong>Año:</strong> {appt.vehicle.year}</p>
-                <p><strong>Serie (últimos 4):</strong> {appt.vehicle.serialNumberLastFour}</p>
-              </>
-            ) : (
-              <p>Vehículo genérico / No especificado</p>
-            )}
-          </div>
-        </div>
-
-        <div className="mb-8">
-          <h3 className="font-bold border-b pb-2 mb-2">Detalles de la Cita</h3>
-          <p><strong>Fecha programada:</strong> {formatScheduledAt(appt.scheduledAt).date} a las {formatScheduledAt(appt.scheduledAt).time} {formatScheduledAt(appt.scheduledAt).period}</p>
-          <p><strong>Estado de la cita:</strong> {STATUS_LABELS[appt.status] || appt.status}</p>
-          <p><strong>Motivo/Servicio:</strong> {appt.serviceRequested}</p>
-          <p><strong>Notas:</strong> {appt.notes || 'Ninguna'}</p>
-        </div>
-
-        <div className="mt-16 text-center text-gray-500 text-sm border-t pt-4">
-          <p>Este documento es un comprobante informativo de su cita.</p>
-          <p>Para dudas o reagendaciones, por favor contáctenos.</p>
-        </div>
-      </div>
 
       {/* Entity Audit Logs Modal (Admin Only) */}
       {isAdmin && appt && (

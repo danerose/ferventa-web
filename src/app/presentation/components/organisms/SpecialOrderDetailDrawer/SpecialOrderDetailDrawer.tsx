@@ -17,7 +17,7 @@ import {
   SPECIAL_ORDER_STATUS_COLORS,
 } from '@/core/enums';
 import type { SpecialOrder } from '@/app/domain';
-import { formatCurrency, formatDate, buildSpecialOrderWhatsAppMessage } from '@/core/utils';
+import { formatCurrency, formatDate, buildSpecialOrderWhatsAppUrl } from '@/core/utils';
 import { useActiveBranch } from '@/app/presentation/hooks';
 
 export interface SpecialOrderDetailDrawerProps {
@@ -61,8 +61,8 @@ export const SpecialOrderDetailDrawer: React.FC<SpecialOrderDetailDrawerProps> =
   };
 
   // WhatsApp link preparation
-  const cleanPhone = order.customer.phone.replace(/\D/g, '');
-  const waMessage = buildSpecialOrderWhatsAppMessage({
+  const waUrl = buildSpecialOrderWhatsAppUrl({
+    phone: order.customer.phone,
     customerName: order.customer.name,
     folio: order.folio,
     itemDescription: order.itemDescription,
@@ -70,7 +70,6 @@ export const SpecialOrderDetailDrawer: React.FC<SpecialOrderDetailDrawerProps> =
     remainingBalance: order.remainingBalance,
     branchName: activeBranchName,
   });
-  const waUrl = `https://wa.me/52${cleanPhone}?text=${encodeURIComponent(waMessage)}`;
 
   const statusColor = SPECIAL_ORDER_STATUS_COLORS[order.status] || {
     bg: 'bg-slate-100 dark:bg-slate-800',
@@ -168,7 +167,7 @@ export const SpecialOrderDetailDrawer: React.FC<SpecialOrderDetailDrawerProps> =
                   </Heading>
                 </Flex>
 
-                {cleanPhone && (
+                {waUrl && (
                   <a
                     href={waUrl}
                     target="_blank"

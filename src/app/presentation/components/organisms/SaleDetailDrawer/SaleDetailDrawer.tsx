@@ -6,6 +6,7 @@ import { EntityAuditLogsModal } from '@/app/presentation/components/organisms/Mo
 import { useAuthorization } from '@/core/hooks';
 import { UserRole } from '@/core/enums';
 import type { Sale } from '@/app/domain';
+import { documentPrintService } from '@/core/services/print/documentPrintService';
 
 interface SaleDetailDrawerProps {
   isOpen: boolean;
@@ -188,7 +189,16 @@ export const SaleDetailDrawer: React.FC<SaleDetailDrawerProps> = ({
   const [cancelError, setCancelError] = useState<string | null>(null);
 
   React.useEffect(() => {
-    if (!isOpen || isCancelModalOpen || isInvoiceModalOpen) return;
+    if (!isOpen) {
+      setIsAuditModalOpen(false);
+      setIsCancelModalOpen(false);
+      setIsInvoiceModalOpen(false);
+      setCancelReason('');
+    }
+  }, [isOpen, sale]);
+
+  React.useEffect(() => {
+    if (!isOpen || isCancelModalOpen || isInvoiceModalOpen || isAuditModalOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.preventDefault();
@@ -534,11 +544,9 @@ export const SaleDetailDrawer: React.FC<SaleDetailDrawerProps> = ({
         onConfirm={(data) => {
           setCustomerInvoiceData(data);
           setIsInvoiceModalOpen(false);
-          document.body.classList.remove('print-ticket-mode', 'print-doc-mode');
-          document.body.classList.add('print-invoice-mode');
           setTimeout(() => {
-            window.print();
-          }, 150);
+            documentPrintService.printServiceInvoice();
+          }, 100);
         }}
       />
 

@@ -429,19 +429,33 @@ export class APIInventoryRepository {
   // ── Receptions & QR Boxes ──────────────────────────────────────────────────
 
   async getReceptions(token: string, status?: string): Promise<MerchandiseReception[]> {
+    const res = await this.getReceptionsPaginated(token, { status, limit: 100 });
+    return res.items;
+  }
+
+  async getReceptionsPaginated(
+    token: string,
+    filter: { status?: string; search?: string; page?: number; limit?: number } = {}
+  ): Promise<PaginatedResult<MerchandiseReception>> {
     const params = new URLSearchParams();
-    if (status && status !== 'all') params.set('status', status);
+    if (filter.status && filter.status !== 'all') params.set('status', filter.status);
+    if (filter.search) {
+      params.set('search', filter.search);
+      params.set('q', filter.search);
+    }
+    if (filter.page) params.set('page', String(filter.page));
+    if (filter.limit) params.set('limit', String(filter.limit));
+
     const res = await this.fetchWithAuth(`${this.baseUrl}/inventory/receptions?${params.toString()}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     const json = await res.json();
     if (res.status === 401) throw new Error('UNAUTHORIZED');
     if (!res.ok || !json.success) throw new Error(json.message || 'Error al obtener recepciones');
-    const list = json.data ?? [];
-    return list.map((r: Record<string, unknown>) => ({
+    return this.normalizePaginatedResponse<MerchandiseReception>(json.data, (r) => ({
       ...r,
       id: String(r.id || r._id || ''),
-    })) as MerchandiseReception[];
+    }) as unknown as MerchandiseReception);
   }
 
   async getReceptionById(token: string, id: string): Promise<MerchandiseReception> {

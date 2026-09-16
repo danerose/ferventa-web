@@ -99,3 +99,55 @@ export function buildSpecialOrderWhatsAppMessage(params: {
       return `Hola ${params.customerName}, le saludamos del ${workshop}. Con respecto a su pedido ${params.folio} (${params.itemDescription}): se encuentra en estatus "${SPECIAL_ORDER_STATUS_LABELS[params.status] || params.status}".${balanceText}`;
   }
 }
+
+/**
+ * Normalizes a phone number and builds a direct https://wa.me link with optional encoded text.
+ * Automatically handles standard 10-digit Mexican phone numbers by prepending country code 52.
+ */
+export function formatWhatsAppUrl(phone?: string | null, message?: string | null): string {
+  if (!phone) return '';
+  const digits = phone.replace(/\D/g, '');
+  if (!digits) return '';
+
+  let normalized = digits;
+  if (digits.length === 10) {
+    normalized = `52${digits}`;
+  } else if (digits.length === 13 && digits.startsWith('521')) {
+    // Standardize legacy mobile prefix +52 1 ... to 52...
+    normalized = `52${digits.slice(3)}`;
+  }
+
+  const query = message ? `?text=${encodeURIComponent(message)}` : '';
+  return `https://wa.me/${normalized}${query}`;
+}
+
+/**
+ * Builds both the personalized message and the formatted https://wa.me link for a special order.
+ */
+export function buildSpecialOrderWhatsAppUrl(params: {
+  phone: string;
+  customerName: string;
+  folio: string;
+  itemDescription: string;
+  status: SpecialOrderStatus | string;
+  remainingBalance: number;
+  branchName?: string | null;
+}): string {
+  const message = buildSpecialOrderWhatsAppMessage(params);
+  return formatWhatsAppUrl(params.phone, message);
+}
+
+/**
+ * Builds both the personalized message and the formatted https://wa.me link for a maintenance order.
+ */
+export function buildMaintenanceWhatsAppUrl(params: {
+  phone: string;
+  customerName: string;
+  vehicle: MaintenanceMessageVehicle;
+  status: ServiceStatus | string;
+  branchName?: string | null;
+  serviceRequested?: string;
+}): string {
+  const message = buildMaintenanceWhatsAppMessage(params);
+  return formatWhatsAppUrl(params.phone, message);
+}

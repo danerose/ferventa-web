@@ -33,7 +33,7 @@ import type {
   UpdateSpecialOrderStatusPayload,
   CancelSpecialOrderPayload,
 } from '@/app/domain';
-import { formatCurrency, formatDate, buildSpecialOrderWhatsAppMessage } from '@/core/utils';
+import { formatCurrency, formatDate, buildSpecialOrderWhatsAppUrl } from '@/core/utils';
 
 import { useShallow } from 'zustand/react/shallow';
 
@@ -429,8 +429,8 @@ export const SpecialOrdersPage: React.FC = () => {
                 border: 'border-base-300',
               };
 
-              const cleanPhone = order.customer.phone.replace(/\D/g, '');
-              const waMessage = buildSpecialOrderWhatsAppMessage({
+              const waUrl = buildSpecialOrderWhatsAppUrl({
+                phone: order.customer.phone,
                 customerName: order.customer.name,
                 folio: order.folio,
                 itemDescription: order.itemDescription,
@@ -438,7 +438,6 @@ export const SpecialOrdersPage: React.FC = () => {
                 remainingBalance: order.remainingBalance,
                 branchName: activeBranchName,
               });
-              const waUrl = `https://wa.me/52${cleanPhone}?text=${encodeURIComponent(waMessage)}`;
 
               const isCancelled = order.status === SpecialOrderStatus.CANCELLED;
               const isDelivered = order.status === SpecialOrderStatus.DELIVERED;
@@ -556,7 +555,7 @@ export const SpecialOrdersPage: React.FC = () => {
                           <Text>{order.customer.phone}</Text>
                         </Flex>
 
-                        {cleanPhone && (
+                        {waUrl && (
                           <Box
                             as="a"
                             href={waUrl}

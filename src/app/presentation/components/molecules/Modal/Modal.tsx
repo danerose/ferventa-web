@@ -105,16 +105,25 @@ export const Modal: React.FC<ModalProps> = ({
 
   const headerClass = headerVariantMap[headerVariant] || headerVariantMap.neutral;
 
+  const isTailwindMaxWidth = Boolean(maxWidth && maxWidth.startsWith('max-w-'));
+  const customMaxWidthStyle = isTailwindMaxWidth ? undefined : maxWidth;
+
   return (
     <div
       className="fixed inset-0 bg-neutral/50 backdrop-blur-xs flex items-center justify-center p-5"
       style={{ zIndex }}
-      onClick={closeOnBackdropClick ? onClose : undefined}
+      onClick={(e) => {
+        e.stopPropagation();
+        if (closeOnBackdropClick) onClose();
+      }}
     >
       <div
         ref={containerRef}
-        className="bg-base-100 text-base-content rounded-2xl flex flex-col overflow-hidden shadow-2xl m-auto max-h-[90vh] w-full border border-base-300 animate-in fade-in zoom-in-95 duration-150"
-        style={{ maxWidth }}
+        className={cn(
+          'bg-base-100 text-base-content rounded-2xl flex flex-col overflow-hidden shadow-2xl m-auto max-h-[90vh] w-full border border-base-300 animate-in fade-in zoom-in-95 duration-150',
+          isTailwindMaxWidth ? maxWidth : 'max-w-xl'
+        )}
+        style={{ maxWidth: customMaxWidthStyle }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
