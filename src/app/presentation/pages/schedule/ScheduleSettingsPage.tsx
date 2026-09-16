@@ -1,6 +1,22 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Icon, PageLayout, PrimaryButton, SecondaryButton, TextInput, Modal, AlertModal, ConfirmModal, KbdBadge } from '@/app/presentation/components';
+import {
+  Icon,
+  PageLayout,
+  PrimaryButton,
+  SecondaryButton,
+  TextInput,
+  Checkbox,
+  Modal,
+  AlertModal,
+  ConfirmModal,
+  KbdBadge,
+  Heading,
+  Text,
+  Box,
+  Flex,
+  Stack,
+} from '@/app/presentation/components';
 import { useAuthStore } from '@/app/presentation/stores';
 import { scheduleUseCases } from '@/core/di/container';
 import type { Schedule, Holiday } from '@/app/domain';
@@ -42,11 +58,10 @@ export const ScheduleSettingsPage: React.FC = () => {
         scheduleUseCases.getHolidays()
       ]);
 
-      // Initialize with default if empty
       if (schData.length === 0) {
         const defaultSchedule = Array.from({ length: 7 }).map((_, i) => ({
           dayOfWeek: i,
-          isWorking: i >= 1 && i <= 5, // Mon-Fri
+          isWorking: i >= 1 && i <= 5,
           startTime: '09:00',
           endTime: '18:00'
         }));
@@ -93,7 +108,7 @@ export const ScheduleSettingsPage: React.FC = () => {
       }
       await scheduleUseCases.createHoliday(holidayDate, holidayDesc);
       closeHolidayModal();
-      fetchData(); // reload
+      fetchData();
     } catch {
       setAlertState({ isOpen: true, title: 'Error', message: 'Error al guardar festivo.', isError: true });
     } finally {
@@ -120,7 +135,7 @@ export const ScheduleSettingsPage: React.FC = () => {
     setDeletingHoliday(true);
     try {
       await scheduleUseCases.deleteHoliday(confirmDeleteId);
-      fetchData(); // reload
+      fetchData();
     } catch {
       setAlertState({ isOpen: true, title: 'Error', message: 'Error al eliminar festivo.', isError: true });
     } finally {
@@ -139,84 +154,93 @@ export const ScheduleSettingsPage: React.FC = () => {
 
   return (
     <PageLayout userName={user?.name || 'Admin'}>
-      <header className="bg-base-100 px-7 py-4 border-b border-base-300 flex justify-between items-center shadow-xs">
-        <div>
-          <h1 className="text-xl font-bold text-base-content">Horarios y Calendario</h1>
-        </div>
+      <Flex as="header" justify="between" align="center" className="bg-base-100 px-7 py-4 border-b border-base-300 shadow-xs">
+        <Box>
+          <Heading level={1} className="text-xl font-bold text-base-content m-0">
+            Horarios y Calendario
+          </Heading>
+        </Box>
         {activeTab === 'schedule' ? (
-          <PrimaryButton onClick={handleSaveSchedule} loading={savingSchedule} disabled={savingSchedule}>Guardar Horarios</PrimaryButton>
+          <PrimaryButton onClick={handleSaveSchedule} loading={savingSchedule} disabled={savingSchedule}>
+            Guardar Horarios
+          </PrimaryButton>
         ) : (
-          <PrimaryButton onClick={() => setShowAddHoliday(true)}>
-            <Icon name="Plus" size="sm" className="mr-2" /> Agregar Día Festivo
+          <PrimaryButton onClick={() => setShowAddHoliday(true)} iconStart={<Icon name="Plus" size="sm" />}>
+            Agregar Día Festivo
           </PrimaryButton>
         )}
-      </header>
+      </Flex>
 
-      <main className="flex-1 p-7 max-w-3xl w-full mx-auto">
-        <div className="flex gap-1.5 bg-base-100 p-1 rounded-xl border border-base-300 mb-6 w-fit">
-          <button
+      <Box as="main" className="flex-1 p-7 max-w-3xl w-full mx-auto">
+        <Flex gap="xs" className="bg-base-100 p-1 rounded-xl border border-base-300 mb-6 w-fit">
+          <SecondaryButton
+            size="sm"
+            color={activeTab === 'schedule' ? 'primary' : 'secondary'}
             onClick={() => setActiveTab('schedule')}
-            className={`px-4 py-2 rounded-lg font-semibold text-sm transition-all cursor-pointer ${
-              activeTab === 'schedule'
-                ? 'bg-primary text-primary-content shadow-xs'
-                : 'text-base-content/70 hover:text-base-content hover:bg-base-200'
-            }`}
+            className={activeTab === 'schedule' ? 'bg-primary text-primary-content font-bold' : ''}
           >
             Horario Laboral
-          </button>
-          <button
+          </SecondaryButton>
+          <SecondaryButton
+            size="sm"
+            color={activeTab === 'holidays' ? 'primary' : 'secondary'}
             onClick={() => setActiveTab('holidays')}
-            className={`px-4 py-2 rounded-lg font-semibold text-sm transition-all cursor-pointer ${
-              activeTab === 'holidays'
-                ? 'bg-primary text-primary-content shadow-xs'
-                : 'text-base-content/70 hover:text-base-content hover:bg-base-200'
-            }`}
+            className={activeTab === 'holidays' ? 'bg-primary text-primary-content font-bold' : ''}
           >
             Días Festivos
-          </button>
-        </div>
+          </SecondaryButton>
+        </Flex>
 
-        <div className="bg-base-100 rounded-xl border border-base-300 overflow-hidden shadow-xs">
+        <Box className="bg-base-100 rounded-xl border border-base-300 overflow-hidden shadow-xs">
           {loading ? (
-            <div className="p-10 text-center text-base-content/60 text-sm">Cargando...</div>
+            <Flex justify="center" align="center" className="p-10">
+              <Text size="sm" color="muted">Cargando...</Text>
+            </Flex>
           ) : activeTab === 'schedule' ? (
-            <div className="p-5">
-              <h3 className="text-base font-semibold mb-4 text-base-content">Horario Semanal</h3>
-              <div className="flex flex-col gap-3">
+            <Box p="lg">
+              <Heading level={3} className="text-base font-semibold mb-4 text-base-content">
+                Horario Semanal
+              </Heading>
+              <Stack gap="sm">
                 {schedules.map((s, index) => (
-                  <div key={s.dayOfWeek} className="flex items-center gap-4 p-3 bg-base-200 rounded-lg border border-base-300">
-                    <div className="w-24 font-semibold text-sm text-base-content">
-                      {dayNames[s.dayOfWeek]}
-                    </div>
-                    <label className="flex items-center gap-2 text-sm text-base-content/80 w-28 cursor-pointer">
-                      <input
-                        type="checkbox"
+                  <Flex key={s.dayOfWeek} align="center" gap="md" className="p-3 bg-base-200 rounded-lg border border-base-300">
+                    <Box className="w-24">
+                      <Text size="sm" weight="bold" className="text-base-content">
+                        {dayNames[s.dayOfWeek]}
+                      </Text>
+                    </Box>
+
+                    <Flex align="center" gap="xs" className="w-28">
+                      <Checkbox
                         checked={s.isWorking}
                         onChange={(e) => updateScheduleDay(index, { isWorking: e.target.checked })}
-                        className="checkbox checkbox-sm checkbox-primary"
                       />
-                      Laborable
-                    </label>
+                      <Text size="sm" color="muted">
+                        Laborable
+                      </Text>
+                    </Flex>
 
-                    <div className={`flex items-center gap-2 flex-1 transition-opacity ${s.isWorking ? 'opacity-100' : 'opacity-30 pointer-events-none'}`}>
-                      <input
+                    <Flex align="center" gap="xs" className={`flex-1 transition-opacity ${s.isWorking ? 'opacity-100' : 'opacity-30 pointer-events-none'}`}>
+                      <TextInput
                         type="time"
+                        size="sm"
                         value={s.startTime}
                         onChange={(e) => updateScheduleDay(index, { startTime: e.target.value })}
-                        className="input input-sm input-bordered bg-base-100 border-base-300 text-base-content font-mono"
+                        className="font-mono"
                       />
-                      <span className="text-xs text-base-content/60">a</span>
-                      <input
+                      <Text size="xs" color="muted">a</Text>
+                      <TextInput
                         type="time"
+                        size="sm"
                         value={s.endTime}
                         onChange={(e) => updateScheduleDay(index, { endTime: e.target.value })}
-                        className="input input-sm input-bordered bg-base-100 border-base-300 text-base-content font-mono"
+                        className="font-mono"
                       />
-                    </div>
-                  </div>
+                    </Flex>
+                  </Flex>
                 ))}
-              </div>
-            </div>
+              </Stack>
+            </Box>
           ) : (
             <table className="w-full border-collapse">
               <thead className="bg-base-200 border-b border-base-300">
@@ -227,17 +251,25 @@ export const ScheduleSettingsPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {holidays.length > 0 ? holidays.map(h => (
+                {holidays.length > 0 ? holidays.map((h) => (
                   <tr key={h.id} className="border-b border-base-300 hover:bg-base-200/50 transition-colors">
                     <td className="p-4 text-sm text-base-content font-semibold">{new Date(h.date).toLocaleDateString('es-MX')}</td>
                     <td className="p-4 text-sm text-base-content/80">{h.description}</td>
-                    <td className="p-4 text-center flex gap-2 justify-center">
-                      <button onClick={() => openEditHoliday(h)} className="btn btn-ghost btn-xs text-primary hover:bg-primary/10">
-                        <Icon name="Edit2" size="sm" />
-                      </button>
-                      <button onClick={() => setConfirmDeleteId(h.id)} className="btn btn-ghost btn-xs text-error hover:bg-error/10">
-                        <Icon name="Trash2" size="sm" />
-                      </button>
+                    <td className="p-4 text-center">
+                      <Flex justify="center" gap="xs">
+                        <SecondaryButton
+                          size="xs"
+                          color="secondary"
+                          onClick={() => openEditHoliday(h)}
+                          iconStart={<Icon name="Edit2" size="xs" />}
+                        />
+                        <SecondaryButton
+                          size="xs"
+                          color="secondary"
+                          onClick={() => setConfirmDeleteId(h.id)}
+                          iconStart={<Icon name="Trash2" size="xs" className="text-error" />}
+                        />
+                      </Flex>
                     </td>
                   </tr>
                 )) : (
@@ -248,14 +280,14 @@ export const ScheduleSettingsPage: React.FC = () => {
               </tbody>
             </table>
           )}
-        </div>
-      </main>
+        </Box>
+      </Box>
 
       <Modal
         isOpen={showAddHoliday}
         onClose={closeHolidayModal}
         title={editingHolidayId ? "Editar Día Festivo" : "Agregar Día Festivo"}
-        maxWidth="400px"
+        maxWidth="max-w-md"
         footer={
           <>
             <SecondaryButton onClick={closeHolidayModal} disabled={savingHoliday}>
@@ -267,25 +299,28 @@ export const ScheduleSettingsPage: React.FC = () => {
           </>
         }
       >
-        <div className="flex flex-col gap-4">
-          <div>
-            <label className="block text-xs font-semibold text-base-content mb-1.5">Fecha</label>
-            <input
+        <Stack gap="md">
+          <Stack gap="xs">
+            <Text size="xs" weight="bold" color="muted" className="uppercase tracking-wider">
+              Fecha
+            </Text>
+            <TextInput
               type="date"
               value={holidayDate}
               onChange={(e) => setHolidayDate(e.target.value)}
-              className="input input-bordered w-full bg-base-100 border-base-300 text-base-content text-sm"
             />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-base-content mb-1.5">Descripción</label>
+          </Stack>
+          <Stack gap="xs">
+            <Text size="xs" weight="bold" color="muted" className="uppercase tracking-wider">
+              Descripción
+            </Text>
             <TextInput
               placeholder="Día del trabajo..."
               value={holidayDesc}
               onChange={(e) => setHolidayDesc(e.target.value)}
             />
-          </div>
-        </div>
+          </Stack>
+        </Stack>
       </Modal>
 
       <ConfirmModal
@@ -306,7 +341,6 @@ export const ScheduleSettingsPage: React.FC = () => {
         message={alertState.message}
         isError={alertState.isError}
       />
-
     </PageLayout>
   );
 };

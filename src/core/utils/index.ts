@@ -4,5 +4,6 @@ export * from './formatters/formatDate';
 export * from './formatters/formatPhoneNumber';
 export * from './formatters/formatScheduledAt';
 export * from './formatters/formatWhatsAppMessages';
+export * from './formatters/auditFormatters';
 export * from './translate/translateRole';
 export * from './auth/authorization.util';

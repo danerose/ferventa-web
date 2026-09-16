@@ -33,7 +33,7 @@ import { MODULE_THEMES } from '@/core';
 import {
   appointmentUseCases,
   maintenanceUseCases,
-  clientPortalRepository as clientRepo,
+  clientPortalUseCases,
 } from '@/core/di/container';
 import type { AdminAppointment, AdminMaintenanceOrder, Holiday, WorkingHours, BusySlot } from '@/app/domain';
 
@@ -404,7 +404,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onLogout
         const dd = String(d.getDate()).padStart(2, '0');
         return `${yyyy}-${mm}-${dd}`;
       };
-      const slots = await clientRepo.getOccupiedSlots(formatDateStr(today), formatDateStr(futureLimit));
+      const slots = await clientPortalUseCases.getOccupiedSlots.execute(formatDateStr(today), formatDateStr(futureLimit));
       setOccupiedSlots(slots);
     } catch (err) {
       console.error('Error fetching occupied slots:', err);

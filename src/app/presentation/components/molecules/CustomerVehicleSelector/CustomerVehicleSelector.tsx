@@ -1,5 +1,12 @@
 import React from 'react';
-import { Icon } from '@/app/presentation/components';
+import {
+  Icon,
+  Box,
+  Flex,
+  Grid,
+  Text,
+  Badge,
+} from '@/app/presentation/components';
 import type { CustomerLookupVehicle } from '@/app/domain';
 
 export interface CustomerVehicleSelectorProps {
@@ -22,27 +29,27 @@ export const CustomerVehicleSelector: React.FC<CustomerVehicleSelectorProps> = (
   if (!vehicles || vehicles.length === 0) return null;
 
   return (
-    <div className="p-3.5 bg-base-100 rounded-xl border border-base-300 shadow-xs space-y-3">
+    <Box className="p-3.5 bg-base-100 rounded-xl border border-base-300 shadow-xs space-y-3">
       {/* Header */}
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded-md bg-primary/10 text-primary flex items-center justify-center shrink-0">
+      <Flex justify="between" align="center" gap="xs">
+        <Flex align="center" gap="xs">
+          <Box className="w-6 h-6 rounded-md bg-primary/10 text-primary flex items-center justify-center shrink-0">
             <Icon name="Car" size="xs" />
-          </div>
-          <span className="text-xs font-bold text-base-content">
-            Autos registrados de {customerName ? <span className="text-primary">{customerName}</span> : 'este cliente'}
-          </span>
-          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+          </Box>
+          <Text size="xs" weight="bold" className="text-base-content">
+            Autos registrados de {customerName ? <Text as="span" color="primary" weight="bold">{customerName}</Text> : 'este cliente'}
+          </Text>
+          <Badge variant="primary" size="xs" className="font-semibold">
             {vehicles.length} {vehicles.length === 1 ? 'auto' : 'autos'}
-          </span>
-        </div>
-        <span className="text-[11px] text-base-content/50 hidden sm:inline">
+          </Badge>
+        </Flex>
+        <Text size="xs" color="muted" className="hidden sm:inline">
           Selecciona un auto o añade uno nuevo
-        </span>
-      </div>
+        </Text>
+      </Flex>
 
       {/* Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+      <Grid cols={{ base: 1, sm: 2 }} gap="xs">
         {vehicles.map((veh, idx) => {
           const vId = veh.id || veh._id || `veh-${idx}`;
           const isSelected = selectedVehicleId === vId;
@@ -54,19 +61,22 @@ export const CustomerVehicleSelector: React.FC<CustomerVehicleSelectorProps> = (
           const serial = veh.serialNumberLastFour || veh.licensePlate;
 
           return (
-            <button
+            <Box
               key={vId}
-              type="button"
-              disabled={disabled}
-              onClick={() => onSelectVehicle(veh)}
+              role="button"
+              tabIndex={0}
+              onClick={() => !disabled && onSelectVehicle(veh)}
+              onKeyDown={(e) => {
+                if (!disabled && (e.key === 'Enter' || e.key === ' ')) onSelectVehicle(veh);
+              }}
               className={`group relative p-2.5 rounded-xl border text-left transition-all duration-150 flex items-start gap-2.5 cursor-pointer ${
                 isSelected
                   ? 'border-primary bg-primary/[0.06] ring-1 ring-primary/30 shadow-xs'
                   : 'border-base-300 bg-base-100/80 hover:border-primary/40 hover:bg-base-200/50'
-              } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+              } ${disabled ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''}`}
             >
               {/* Vehicle Icon */}
-              <div
+              <Box
                 className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
                   isSelected
                     ? 'bg-primary text-primary-content shadow-xs'
@@ -74,43 +84,43 @@ export const CustomerVehicleSelector: React.FC<CustomerVehicleSelectorProps> = (
                 }`}
               >
                 <Icon name="Car" size="sm" />
-              </div>
+              </Box>
 
               {/* Vehicle Details */}
-              <div className="flex-1 min-w-0 pr-6">
-                <div className="text-xs font-bold text-base-content truncate">
+              <Box className="flex-1 min-w-0 pr-6">
+                <Text size="xs" weight="bold" className="text-base-content truncate">
                   {displayName}
-                </div>
-                <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                </Text>
+                <Flex align="center" gap="xs" wrap="wrap" className="mt-1">
                   {veh.year && (
-                    <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-base-200 text-base-content/80">
+                    <Badge size="xs" variant="neutral" className="font-medium">
                       {veh.year}
-                    </span>
+                    </Badge>
                   )}
                   {serial && (
-                    <span className="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-base-200 text-primary">
+                    <Badge size="xs" variant="primary" className="font-mono font-semibold">
                       {serial}
-                    </span>
+                    </Badge>
                   )}
                   {veh.color && (
-                    <span className="text-[10px] text-base-content/60 truncate max-w-[85px]">
+                    <Text size="xs" color="muted" className="truncate max-w-[85px]">
                       • {veh.color}
-                    </span>
+                    </Text>
                   )}
-                </div>
-              </div>
+                </Flex>
+              </Box>
 
               {/* Selection Checkmark Indicator */}
-              <div className="absolute top-2.5 right-2.5">
+              <Box className="absolute top-2.5 right-2.5">
                 {isSelected ? (
-                  <div className="w-5 h-5 rounded-full bg-primary text-primary-content flex items-center justify-center shadow-xs">
+                  <Box className="w-5 h-5 rounded-full bg-primary text-primary-content flex items-center justify-center shadow-xs">
                     <Icon name="Check" size={12} />
-                  </div>
+                  </Box>
                 ) : (
-                  <div className="w-5 h-5 rounded-full border border-base-300 group-hover:border-primary/50 transition-colors" />
+                  <Box className="w-5 h-5 rounded-full border border-base-300 group-hover:border-primary/50 transition-colors" />
                 )}
-              </div>
-            </button>
+              </Box>
+            </Box>
           );
         })}
 
@@ -118,69 +128,72 @@ export const CustomerVehicleSelector: React.FC<CustomerVehicleSelectorProps> = (
         {(() => {
           const isNewSelected = selectedVehicleId === null;
           return (
-            <button
-              type="button"
-              disabled={disabled}
-              onClick={onSelectNewVehicle}
+            <Box
+              role="button"
+              tabIndex={0}
+              onClick={() => !disabled && onSelectNewVehicle()}
+              onKeyDown={(e) => {
+                if (!disabled && (e.key === 'Enter' || e.key === ' ')) onSelectNewVehicle();
+              }}
               className={`group relative p-2.5 rounded-xl border border-dashed text-left transition-all duration-150 flex items-center gap-2.5 cursor-pointer ${
                 isNewSelected
-                  ? 'border-sky-500 bg-sky-50 dark:bg-sky-950/25 ring-1 ring-sky-400 shadow-xs'
+                  ? 'border-info bg-info/10 ring-1 ring-info/30 shadow-xs'
                   : 'border-base-300 bg-base-100 hover:border-primary/50 hover:bg-primary/[0.03]'
-              } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+              } ${disabled ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''}`}
             >
-              <div
+              <Box
                 className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
                   isNewSelected
-                    ? 'bg-sky-500 text-white shadow-xs'
+                    ? 'bg-info text-info-content shadow-xs'
                     : 'bg-base-200 text-base-content/60 group-hover:text-primary group-hover:bg-primary/10'
                 }`}
               >
                 <Icon name="Plus" size="sm" />
-              </div>
+              </Box>
 
-              <div className="flex-1 min-w-0 pr-6">
-                <div
-                  className={`text-xs font-bold ${
-                    isNewSelected ? 'text-sky-700 dark:text-sky-300' : 'text-base-content/80'
-                  }`}
+              <Box className="flex-1 min-w-0 pr-6">
+                <Text
+                  size="xs"
+                  weight="bold"
+                  className={isNewSelected ? 'text-info font-bold' : 'text-base-content/80'}
                 >
                   + Registrar otro auto
-                </div>
-                <div className="text-[10px] text-base-content/50">
+                </Text>
+                <Text size="xs" color="muted">
                   Capturar datos para un auto nuevo
-                </div>
-              </div>
+                </Text>
+              </Box>
 
-              <div className="absolute top-2.5 right-2.5">
+              <Box className="absolute top-2.5 right-2.5">
                 {isNewSelected ? (
-                  <div className="w-5 h-5 rounded-full bg-sky-500 text-white flex items-center justify-center shadow-xs">
+                  <Box className="w-5 h-5 rounded-full bg-info text-info-content flex items-center justify-center shadow-xs">
                     <Icon name="Check" size={12} />
-                  </div>
+                  </Box>
                 ) : (
-                  <div className="w-5 h-5 rounded-full border border-base-300 group-hover:border-primary/50 transition-colors" />
+                  <Box className="w-5 h-5 rounded-full border border-base-300 group-hover:border-primary/50 transition-colors" />
                 )}
-              </div>
-            </button>
+              </Box>
+            </Box>
           );
         })()}
-      </div>
+      </Grid>
 
       {/* Contextual Feedback Banner */}
       {selectedVehicleId ? (
-        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/[0.05] border border-primary/20 text-xs text-base-content/80 animate-in fade-in duration-150">
+        <Flex align="center" gap="xs" className="px-3 py-2 rounded-lg bg-primary/[0.05] border border-primary/20 text-xs text-base-content/80">
           <Icon name="Sparkles" size="xs" className="text-primary shrink-0" />
-          <span>
-            <strong>Vehículo existente seleccionado.</strong> Si modificas color, año o modelo en los campos de abajo, se actualizará en su expediente.
-          </span>
-        </div>
+          <Text size="xs">
+            <Text as="strong" weight="bold">Vehículo existente seleccionado.</Text> Si modificas color, año o modelo en los campos de abajo, se actualizará en su expediente.
+          </Text>
+        </Flex>
       ) : (
-        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-sky-500/[0.06] border border-sky-500/20 text-xs text-base-content/80 animate-in fade-in duration-150">
-          <Icon name="PlusCircle" size="xs" className="text-sky-500 shrink-0" />
-          <span>
-            <strong>Nuevo auto en proceso.</strong> Ingresa marca, modelo, año y serie para registrarlo a nombre de {customerName || 'este cliente'}.
-          </span>
-        </div>
+        <Flex align="center" gap="xs" className="px-3 py-2 rounded-lg bg-info/[0.06] border border-info/20 text-xs text-base-content/80">
+          <Icon name="PlusCircle" size="xs" className="text-info shrink-0" />
+          <Text size="xs">
+            <Text as="strong" weight="bold">Nuevo auto en proceso.</Text> Ingresa marca, modelo, año y serie para registrarlo a nombre de {customerName || 'este cliente'}.
+          </Text>
+        </Flex>
       )}
-    </div>
+    </Box>
   );
 };

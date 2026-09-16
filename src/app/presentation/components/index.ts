@@ -62,17 +62,17 @@ export * from './molecules/SearchableSelect/SearchableSelect';
 export * from './molecules/Receipt/TicketReceipt';
 
 // ─── Organisms ───────────────────────────────────────────────────────────────
-export * from './organisms/AppointmentDetailDrawer/AppointmentDetailDrawer';
-export * from './organisms/AppointmentForm';
+export * from './organisms/Drawers/AppointmentDetailDrawer/AppointmentDetailDrawer';
+export * from './organisms/AppointmentForm/AppointmentForm';
 export * from './organisms/AttendanceWidget/AttendanceWidget';
 export * from './organisms/DashboardFilters/DashboardFilters';
-export * from './organisms/DashboardQuickDetailDrawer/DashboardQuickDetailDrawer';
-export * from './organisms/MaintenanceDetailDrawer/MaintenanceDetailDrawer';
-export * from './organisms/MerchandiseReceptionDrawer/MerchandiseReceptionDrawer';
-export * from './organisms/MerchandiseReceptionDrawer/ReceptionDetailDrawer';
-export * from './organisms/MerchandiseReceptionDrawer/QuickAddProductModal';
-export * from './organisms/MerchandiseReceptionDrawer/BoxQRLabel';
-export * from './organisms/MerchandiseReceptionDrawer/BoxPrintModal';
+export * from './organisms/Drawers/DashboardQuickDetailDrawer/DashboardQuickDetailDrawer';
+export * from './organisms/Drawers/MaintenanceDetailDrawer/MaintenanceDetailDrawer';
+export * from './organisms/Drawers/MerchandiseReceptionDrawer/MerchandiseReceptionDrawer';
+export * from './organisms/Drawers/MerchandiseReceptionDrawer/ReceptionDetailDrawer';
+export * from './organisms/Drawers/MerchandiseReceptionDrawer/QuickAddProductModal';
+export * from './organisms/Drawers/MerchandiseReceptionDrawer/BoxQRLabel';
+export * from './organisms/Drawers/MerchandiseReceptionDrawer/BoxPrintModal';
 export * from './organisms/Modals/AddAppointmentModal';
 export * from './organisms/Modals/ApproveAppointmentModal';
 export * from './organisms/Modals/ApproveRescheduledModal';
@@ -95,13 +95,13 @@ export * from './organisms/Modals/ChangePasswordModal';
 export * from './organisms/Modals/EntityAuditLogsModal';
 export * from './organisms/Modals/WorkshopLoadModal';
 export * from './organisms/Modals/ServiceInvoiceCustomerModal';
-export * from './organisms/SaleDetailDrawer/SaleDetailDrawer';
+export * from './organisms/Modals/TemporaryServiceModal/TemporaryServiceModal';
+export * from './organisms/Drawers/SaleDetailDrawer/SaleDetailDrawer';
 export * from './organisms/PageLayout/PageLayout';
 export * from './organisms/Sidebar/Sidebar';
-export * from './organisms/SpecialOrderDetailDrawer/SpecialOrderDetailDrawer';
-export * from './organisms/StatusResults';
-export * from './organisms/StatusSearch';
-export * from './organisms/TemporaryServiceModal/TemporaryServiceModal';
+export * from './organisms/Drawers/SpecialOrderDetailDrawer/SpecialOrderDetailDrawer';
+export * from './organisms/StatusResults/StatusResults';
+export * from './organisms/StatusSearch/StatusSearch';
 export * from './organisms/WeeklyCalendar/WeeklyCalendar';
 
 // ─── Primitives ─────────────────────────────────────────────────────────────

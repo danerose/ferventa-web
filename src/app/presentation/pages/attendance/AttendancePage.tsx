@@ -15,8 +15,8 @@ import {
   Text,
   Badge,
 } from '@/app/presentation/components';
-import { useAuthStore } from '@/app/presentation/stores';
-import { userUseCases, branchUseCases, attendanceRepository } from '@/core/di/container';
+import { useAuthStore, useAttendanceStore } from '@/app/presentation/stores';
+import { userUseCases, branchUseCases } from '@/core/di/container';
 import { AttendanceWidget } from '@/app/presentation/components';
 import { UserBreakdownModal } from '@/app/presentation/components';
 import { EditAttendanceModal } from '@/app/presentation/components';
@@ -223,11 +223,11 @@ export const AttendancePage: React.FC = () => {
     // 1. Fetch Single-Day Status (for today or yesterday)
     if (adminPeriod === 'today' || adminPeriod === 'yesterday') {
       try {
-        const bStatus = await attendanceRepository.getBranchTodayStatus(
-          selectedBranchId !== 'all' ? selectedBranchId : (activeBranchId || undefined),
+        const bStatus = await useAttendanceStore.getState().fetchBranchTodayStatus(
+          selectedBranchId !== 'all' ? selectedBranchId : (activeBranchId || ''),
           queryDate
         );
-        setTodayBranchStatus(bStatus);
+        setTodayBranchStatus(bStatus as any);
       } catch (err) {
         console.error('Error al obtener la asistencia del día:', err);
         setTodayBranchStatus(null);
@@ -239,12 +239,13 @@ export const AttendancePage: React.FC = () => {
     // 2. Fetch Multi-day Period Summary & Records
     if (adminPeriod !== 'today' && adminPeriod !== 'yesterday') {
       try {
-        const summary = await attendanceRepository.getAdminSummary({
+        await useAttendanceStore.getState().fetchAdminSummary({
           branchId: selectedBranchId !== 'all' ? selectedBranchId : undefined,
           period: adminPeriod,
           startDate: adminPeriod === 'custom' ? startDate : undefined,
           endDate: adminPeriod === 'custom' ? endDate : undefined,
         });
+        const summary = useAttendanceStore.getState().summary;
         setSummaryData(summary || { period: 'weekly', range: { startDate: '', endDate: '' }, usersSummary: [] });
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'Error al obtener el resumen de asistencia';
@@ -255,12 +256,13 @@ export const AttendancePage: React.FC = () => {
       }
 
       try {
-        const globalRecs = await attendanceRepository.getAdminRecords({
+        await useAttendanceStore.getState().fetchAdminRecords({
           branchId: selectedBranchId !== 'all' ? selectedBranchId : undefined,
           status: statusFilter !== 'all' ? statusFilter : undefined,
           startDate: adminPeriod === 'custom' ? startDate : undefined,
           endDate: adminPeriod === 'custom' ? endDate : undefined,
         });
+        const globalRecs = useAttendanceStore.getState().records;
         setRecords(globalRecs || []);
       } catch (err) {
         console.error(err);

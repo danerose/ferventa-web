@@ -170,63 +170,77 @@ export const SettingsPage: React.FC = () => {
 
   return (
     <PageLayout userName={user?.name || 'Admin'}>
-        <header className="bg-base-100 px-7 py-4 border-b border-base-300 flex justify-between items-center shadow-xs">
-          <div>
-            <h1 className="text-xl font-bold text-base-content m-0">Ajustes del Sistema</h1>
-            <p className="text-xs text-base-content/60 m-0 mt-1">
-              Configuración general de la plataforma, modo visual, datos de sucursal e impresión
-            </p>
-          </div>
-          <div className="flex gap-3 items-center">
-              {savedSuccess && (
-                <Badge variant="success" size="sm" className="gap-1 animate-fade-in mt-1">
-                  <Icon name="Check" size="xs" />
-                  Cambios Guardados
-                </Badge>
-              )}
-              <SecondaryButton size="sm" onClick={handleResetDefaults}>
-                <Icon name="RotateCcw" size="xs" className="mr-1.5" />
-                Restaurar
-              </SecondaryButton>
-              <PrimaryButton size="sm" onClick={handleSaveAllSettings}>
-                <Icon name="Save" size="xs" className="mr-1.5" />
-                Guardar Cambios
-              </PrimaryButton>
-          </div>
-        </header>
-
-        <div className="bg-base-100 border-b border-base-300 flex gap-8 px-7">
-          <button
-            onClick={() => setActiveTab('system')}
-            className={`bg-transparent border-none py-4 text-[14px] font-semibold cursor-pointer flex items-center gap-2 border-b-2 ${
-              activeTab === 'system' ? 'text-primary border-primary' : 'text-base-content/60 border-transparent hover:text-base-content'
-            }`}
-          >
-            <Icon name="Monitor" size="xs" />
-            Sistema & Diagnóstico
-          </button>
-          <button
-            onClick={() => setActiveTab('business')}
-            className={`bg-transparent border-none py-4 text-[14px] font-semibold cursor-pointer flex items-center gap-2 border-b-2 ${
-              activeTab === 'business' ? 'text-primary border-primary' : 'text-base-content/60 border-transparent hover:text-base-content'
-            }`}
-          >
-            <Icon name="Store" size="xs" />
-            Datos del Negocio
-          </button>
-          <button
-            onClick={() => setActiveTab('printer')}
-            className={`bg-transparent border-none py-4 text-[14px] font-semibold cursor-pointer flex items-center gap-2 border-b-2 ${
-              activeTab === 'printer' ? 'text-primary border-primary' : 'text-base-content/60 border-transparent hover:text-base-content'
-            }`}
-          >
-            <Icon name="Printer" size="xs" />
-            Impresora & Tickets
-            <Badge variant="primary" size="xs">
-              {paperWidth}
+      <Flex as="header" justify="between" align="center" className="bg-base-100 px-7 py-4 border-b border-base-300 shadow-xs">
+        <Box>
+          <Heading level={1} className="text-xl font-bold text-base-content m-0">
+            Ajustes del Sistema
+          </Heading>
+          <Text size="xs" variant="muted" className="mt-1">
+            Configuración general de la plataforma, modo visual, datos de sucursal e impresión
+          </Text>
+        </Box>
+        <Flex gap="sm" align="center">
+          {savedSuccess && (
+            <Badge variant="success" size="sm" className="gap-1 animate-fade-in mt-1">
+              <Icon name="Check" size="xs" />
+              Cambios Guardados
             </Badge>
-          </button>
-        </div>
+          )}
+          <SecondaryButton
+            size="sm"
+            onClick={handleResetDefaults}
+            iconStart={<Icon name="RotateCcw" size="xs" />}
+          >
+            Restaurar
+          </SecondaryButton>
+          <PrimaryButton
+            size="sm"
+            onClick={handleSaveAllSettings}
+            iconStart={<Icon name="Save" size="xs" />}
+          >
+            Guardar Cambios
+          </PrimaryButton>
+        </Flex>
+      </Flex>
+
+      <Flex gap="lg" className="bg-base-100 border-b border-base-300 px-7">
+        <SecondaryButton
+          size="sm"
+          color={activeTab === 'system' ? 'primary' : 'secondary'}
+          onClick={() => setActiveTab('system')}
+          className={`py-4 rounded-none border-b-2 ${
+            activeTab === 'system' ? 'border-primary text-primary font-bold' : 'border-transparent text-base-content/60'
+          }`}
+          iconStart={<Icon name="Monitor" size="xs" />}
+        >
+          Sistema & Diagnóstico
+        </SecondaryButton>
+        <SecondaryButton
+          size="sm"
+          color={activeTab === 'business' ? 'primary' : 'secondary'}
+          onClick={() => setActiveTab('business')}
+          className={`py-4 rounded-none border-b-2 ${
+            activeTab === 'business' ? 'border-primary text-primary font-bold' : 'border-transparent text-base-content/60'
+          }`}
+          iconStart={<Icon name="Store" size="xs" />}
+        >
+          Datos del Negocio
+        </SecondaryButton>
+        <SecondaryButton
+          size="sm"
+          color={activeTab === 'printer' ? 'primary' : 'secondary'}
+          onClick={() => setActiveTab('printer')}
+          className={`py-4 rounded-none border-b-2 ${
+            activeTab === 'printer' ? 'border-primary text-primary font-bold' : 'border-transparent text-base-content/60'
+          }`}
+          iconStart={<Icon name="Printer" size="xs" />}
+        >
+          Impresora & Tickets
+          <Badge variant="primary" size="xs" className="ml-1.5">
+            {paperWidth}
+          </Badge>
+        </SecondaryButton>
+      </Flex>
 
         <main className="flex-1 p-7 max-w-7xl w-full mx-auto flex flex-col gap-6">
           {/* ═════════ PESTAÑA: IMPRESORA & TICKETS ═════════ */}

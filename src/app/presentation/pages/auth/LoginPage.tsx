@@ -1,8 +1,16 @@
 import React, { useState } from 'react';
-import { Icon, TextInput, PrimaryButton } from '@/app/presentation/components';
+import {
+  Icon,
+  TextInput,
+  PrimaryButton,
+  Box,
+  Flex,
+  Stack,
+  Heading,
+  Text,
+} from '@/app/presentation/components';
 import { useAuthStore } from '@/app/presentation/stores';
 import { authUseCases } from '@/core/di/container';
-
 
 export interface LoginPageProps {
   onLoginSuccess?: (user?: any) => void;
@@ -49,7 +57,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
     e.preventDefault();
     const uErr = validateUsernameOrEmail(usernameOrEmail);
     const pErr = validatePassword(password);
-    
+
     setUsernameError(uErr);
     setPasswordError(pErr);
 
@@ -74,108 +82,49 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
   };
 
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        background: 'linear-gradient(135deg, #091426 0%, #1a2540 50%, #0d1f38 100%)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '24px',
-        fontFamily: 'Inter, system-ui, sans-serif',
-      }}
-    >
-      {/* Decorative background orbs */}
-      <div
-        style={{
-          position: 'fixed',
-          top: '-120px',
-          right: '-120px',
-          width: '400px',
-          height: '400px',
-          borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(133,83,0,0.15) 0%, transparent 70%)',
-          pointerEvents: 'none',
-        }}
-      />
-      <div
-        style={{
-          position: 'fixed',
-          bottom: '-80px',
-          left: '-80px',
-          width: '300px',
-          height: '300px',
-          borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(9,20,38,0.5) 0%, transparent 70%)',
-          pointerEvents: 'none',
-        }}
-      />
-
-      <div style={{ width: '100%', maxWidth: '420px', position: 'relative', zIndex: 1 }}>
+    <Box className="min-h-screen bg-base-300 flex items-center justify-center p-6 relative overflow-hidden font-sans">
+      <Box className="w-full max-w-md relative z-10">
         {/* Logo Header */}
-        <div style={{ textAlign: 'center', marginBottom: '36px' }}>
-          <div
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '10px',
-              marginBottom: '12px',
-            }}
-          >
-            <div
-              style={{
-                width: '44px',
-                height: '44px',
-                background: '#855300',
-                borderRadius: '12px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: '0 4px 14px rgba(133,83,0,0.4)',
-              }}
-            >
-              <Icon name="Wrench" className="text-white" size="md" />
-            </div>
-            <span
-              style={{
-                color: 'white',
-                fontSize: '26px',
-                fontWeight: '700',
-                letterSpacing: '-0.02em',
-              }}
-            >
+        <Flex direction="col" align="center" className="mb-8 text-center">
+          <Flex align="center" gap="sm" className="mb-3">
+            <Box className="w-11 h-11 bg-primary text-primary-content rounded-xl flex items-center justify-center shadow-lg shadow-primary/30">
+              <Icon name="Wrench" size="md" />
+            </Box>
+            <Heading level={2} className="text-2xl font-bold tracking-tight text-base-content">
               Moto servicio Nova FV
-            </span>
-          </div>
-          <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '13px', letterSpacing: '0.02em' }}>
+            </Heading>
+          </Flex>
+          <Text size="xs" variant="muted" className="tracking-wide">
             Workshop OS — Panel Administrativo
-          </p>
-        </div>
+          </Text>
+        </Flex>
 
         {/* Login Card */}
-        <div className="bg-base-100/95 dark:bg-base-100/80 backdrop-blur-xl border border-white/10 rounded-2xl p-8 shadow-2xl shadow-black/50">
-          <div className="mb-6">
-            <h1 className="text-2xl font-bold text-base-content mb-1 tracking-tight">
+        <Box className="bg-base-100 rounded-2xl p-8 shadow-xl border border-base-content/10">
+          <Box className="mb-6">
+            <Heading level={1} className="text-2xl font-bold text-base-content mb-1 tracking-tight">
               Iniciar Sesión
-            </h1>
-            <p className="text-sm text-base-content/60 leading-relaxed">
+            </Heading>
+            <Text size="sm" variant="muted">
               Accede al panel de gestión del taller.
-            </p>
-          </div>
+            </Text>
+          </Box>
 
           {/* Error alert */}
           {error && (
-            <div className="bg-error/15 border border-error/30 rounded-xl p-3.5 mb-5 flex gap-2.5 items-start">
-              <Icon name="AlertCircle" size="sm" className="text-error shrink-0 mt-0.5" />
-              <span className="text-sm text-error leading-snug">{error}</span>
-            </div>
+            <Flex align="start" gap="sm" className="bg-error/15 border border-error/30 rounded-xl p-3.5 mb-5 text-error">
+              <Icon name="AlertCircle" size="sm" className="shrink-0 mt-0.5" />
+              <Text size="sm" className="leading-snug text-error">
+                {error}
+              </Text>
+            </Flex>
           )}
 
-          <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-base-content/70 mb-1.5">
+          <Box as="form" onSubmit={handleSubmit} className="flex flex-col gap-4">
+            <Stack gap="xs">
+              <Text size="xs" weight="bold" variant="muted" className="uppercase tracking-wider">
                 Usuario o Correo Electrónico
-              </label>
+              </Text>
               <TextInput
                 type="text"
                 value={usernameOrEmail}
@@ -185,12 +134,12 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                 disabled={loading}
                 autoComplete="username"
               />
-            </div>
+            </Stack>
 
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-base-content/70 mb-1.5">
+            <Stack gap="xs">
+              <Text size="xs" weight="bold" variant="muted" className="uppercase tracking-wider">
                 Contraseña
-              </label>
+              </Text>
               <TextInput
                 type="password"
                 value={password}
@@ -200,7 +149,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                 disabled={loading}
                 autoComplete="current-password"
               />
-            </div>
+            </Stack>
 
             <PrimaryButton
               type="submit"
@@ -209,20 +158,13 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
             >
               {loading ? 'Iniciando...' : 'Iniciar Sesión'}
             </PrimaryButton>
-          </form>
-        </div>
+          </Box>
+        </Box>
 
-        <p
-          style={{
-            textAlign: 'center',
-            color: 'rgba(255,255,255,0.25)',
-            fontSize: '12px',
-            marginTop: '28px',
-          }}
-        >
+        <Text size="xs" variant="muted" className="text-center mt-7 opacity-60">
           © {new Date().getFullYear()} Moto servicio Nova FV
-        </p>
-      </div>
-    </div>
+        </Text>
+      </Box>
+    </Box>
   );
 };

@@ -4,6 +4,7 @@ import type {
   AttendanceRecord,
   AttendancePeriodSummary,
   TodayAttendanceStatus,
+  BranchTodayStatus,
 } from '@/app/domain';
 import type { User } from '@/app/domain';
 import type { Branch } from '@/app/domain';
@@ -13,6 +14,7 @@ interface AttendanceState {
   records: AttendanceRecord[];
   summary: AttendancePeriodSummary | null;
   todayStatus: TodayAttendanceStatus | null;
+  branchTodayStatus: BranchTodayStatus | null;
   collaborators: User[];
   branches: Branch[];
   loading: boolean;
@@ -33,6 +35,7 @@ interface AttendanceState {
     startDate?: string;
     endDate?: string;
   }) => Promise<void>;
+  fetchBranchTodayStatus: (branchId: string, date?: string) => Promise<BranchTodayStatus | null>;
   fetchInitialData: (accessToken: string) => Promise<void>;
   clockIn: (note?: string, userId?: string) => Promise<{ success: boolean; message: string; record?: AttendanceRecord }>;
   clockOut: (note?: string, userId?: string) => Promise<{ success: boolean; message: string; record?: AttendanceRecord }>;
@@ -44,6 +47,7 @@ export const useAttendanceStore = create<AttendanceState>((set) => ({
   records: [],
   summary: null,
   todayStatus: null,
+  branchTodayStatus: null,
   collaborators: [],
   branches: [],
   loading: false,
@@ -80,6 +84,18 @@ export const useAttendanceStore = create<AttendanceState>((set) => ({
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Error al cargar resumen del periodo';
       set({ error: msg, loading: false });
+    }
+  },
+
+  fetchBranchTodayStatus: async (branchId: string, date?: string) => {
+    try {
+      const status = await attendanceRepository.getBranchTodayStatus(branchId, date);
+      set({ branchTodayStatus: status });
+      return status;
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Error al cargar estado del día';
+      set({ error: msg });
+      return null;
     }
   },
 

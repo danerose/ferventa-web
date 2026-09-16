@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Icon } from '@/app/presentation/components';
+import { Icon, Box, Flex, Text } from '@/app/presentation/components';
 import { cn } from '@/core/utils/cn';
 import type { Size } from '@/core/types';
 
@@ -81,27 +81,35 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
   };
 
   return (
-    <div className={cn('relative w-full', className)} ref={containerRef}>
-      <button
-        type="button"
-        disabled={disabled}
+    <Box className={cn('relative w-full', className)} ref={containerRef}>
+      <Box
+        role="button"
+        tabIndex={0}
         onClick={() => !disabled && setIsOpen(!isOpen)}
+        onKeyDown={(e) => {
+          if (!disabled && (e.key === 'Enter' || e.key === ' ')) setIsOpen(!isOpen);
+        }}
         className={cn(
           'select select-bordered rounded-DEFAULT w-full bg-base-100 text-base-content border-base-300 transition-colors focus:border-primary focus:outline-none flex items-center justify-between font-normal text-left cursor-pointer select-none',
           sizeStyles[size],
           error && 'select-error border-error text-error',
-          disabled && 'opacity-50 cursor-not-allowed bg-base-200'
+          disabled && 'opacity-50 cursor-not-allowed bg-base-200 pointer-events-none'
         )}
       >
-        <span className={cn('truncate', selectedOption ? 'text-base-content font-medium' : 'text-base-content/40')}>
+        <Text
+          size="xs"
+          weight={selectedOption ? 'medium' : 'normal'}
+          variant={selectedOption ? 'body' : 'muted'}
+          className="truncate"
+        >
           {selectedOption ? selectedOption.name : placeholder}
-        </span>
+        </Text>
         <Icon name="ChevronDown" size="xs" className="text-base-content/50 shrink-0 ml-2" />
-      </button>
+      </Box>
 
       {isOpen && (
-        <div className="absolute z-50 w-full mt-1 bg-base-100 border border-base-300 rounded-DEFAULT shadow-xl max-h-60 overflow-y-auto text-base-content">
-          <div className="sticky top-0 bg-base-100 p-2 border-b border-base-300 z-10">
+        <Box className="absolute z-50 w-full mt-1 bg-base-100 border border-base-300 rounded-DEFAULT shadow-xl max-h-60 overflow-y-auto text-base-content">
+          <Box className="sticky top-0 bg-base-100 p-2 border-b border-base-300 z-10">
             <input
               type="text"
               className="input input-xs input-bordered w-full bg-base-200 text-base-content border-base-300 rounded-DEFAULT focus:border-primary focus:outline-none text-xs"
@@ -111,15 +119,17 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
               onClick={(e) => e.stopPropagation()}
               autoFocus
             />
-          </div>
+          </Box>
 
-          <div className="py-1">
+          <Box className="py-1">
             {filteredOptions.length > 0 ? (
               filteredOptions.map((opt) => (
-                <div
+                <Flex
                   key={opt.id}
+                  align="center"
+                  justify="between"
                   className={cn(
-                    'px-3.5 py-2 text-xs cursor-pointer hover:bg-base-200 text-base-content transition-colors flex items-center justify-between',
+                    'px-3.5 py-2 text-xs cursor-pointer hover:bg-base-200 text-base-content transition-colors',
                     opt.id === value && 'bg-base-200 font-bold text-primary'
                   )}
                   onClick={() => {
@@ -127,35 +137,37 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
                     setIsOpen(false);
                   }}
                 >
-                  <span className="truncate">{opt.name}</span>
+                  <Text size="xs" className="truncate text-inherit">{opt.name}</Text>
                   {opt.id === value && <Icon name="Check" size="xs" className="text-primary shrink-0" />}
-                </div>
+                </Flex>
               ))
             ) : (
-              <div className="px-3.5 py-3 text-xs text-base-content/50 text-center">
-                No se encontraron resultados
-              </div>
+              <Box className="px-3.5 py-3 text-center">
+                <Text size="xs" variant="muted">No se encontraron resultados</Text>
+              </Box>
             )}
-          </div>
+          </Box>
 
           {searchTerm && !filteredOptions.some((opt) => opt.name.toLowerCase() === searchTerm.toLowerCase()) && onCreateNew && (
-            <div
-              className="sticky bottom-0 bg-base-200 p-2.5 border-t border-base-300 cursor-pointer hover:bg-base-300 flex items-center justify-center gap-1.5 text-primary text-xs font-semibold transition-colors"
+            <Flex
+              align="center"
+              justify="center"
+              gap="xs"
+              className="sticky bottom-0 bg-base-200 p-2.5 border-t border-base-300 cursor-pointer hover:bg-base-300 text-primary text-xs font-semibold transition-colors"
               onClick={handleCreateNew}
             >
               {isCreating ? (
-                'Creando...'
+                <Text size="xs" color="primary">Creando...</Text>
               ) : (
                 <>
                   <Icon name="Plus" size="xs" />
-                  Crear "{searchTerm}"
+                  <Text size="xs" color="primary" weight="bold">Crear "{searchTerm}"</Text>
                 </>
               )}
-            </div>
+            </Flex>
           )}
-        </div>
+        </Box>
       )}
-    </div>
+    </Box>
   );
 };
-

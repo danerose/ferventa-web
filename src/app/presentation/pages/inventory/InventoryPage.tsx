@@ -27,9 +27,8 @@ import { useAuthStore } from '@/app/presentation/stores';
 import { useInventoryStore } from '@/app/presentation/stores';
 import {
   inventoryRepository as inventoryRepo,
-  branchUseCases,
-  clientPortalRepository as clientPortalRepo,
   servicesRepository as servicesRepo,
+  branchUseCases,
 } from '@/core/di/container';
 import type { CreateProductDto, CreateProviderDto, Product, Provider, StockMovement, OpenBoxResult, MerchandiseReception } from '@/app/domain';
 import type { Branch } from '@/app/domain';
@@ -71,9 +70,9 @@ export const InventoryPage: React.FC = () => {
       }
 
       try {
-        const publicData = await clientPortalRepo.getPublicBranches();
+        const publicData = await branchUseCases.getPublicBranches();
         if (publicData && publicData.length > 0) {
-          setBranches(publicData.map((b: { id?: string; _id?: string; name: string }) => ({ ...b, id: b.id || b._id || '' } as Branch)));
+          setBranches(publicData);
         }
       } catch {
         // Ignore error

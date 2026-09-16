@@ -23,10 +23,10 @@ import { usePrinterSettingsStore } from '@/app/presentation/stores';
 import { thermalPrintService } from '@/core/services';
 import {
   salesRepository as salesRepo,
+  inventoryRepository as inventoryRepo,
   maintenanceUseCases,
   appointmentUseCases,
   branchUseCases,
-  inventoryRepository as inventoryRepo,
 } from '@/core/di/container';
 import type { Sale, Branch, AdminMaintenanceOrder, Product, AdminAppointment, SalesStats } from '@/app/domain';
 import { MODULE_THEMES } from '@/core';
