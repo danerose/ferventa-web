@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useShallow } from 'zustand/react/shallow';
-import { useClientPortalStore, useAuthStore } from '@/app/presentation/stores';
+import { useClientPortalStore } from '@/app/presentation/stores';
 import {
   Box,
   Flex,
@@ -32,10 +32,7 @@ export interface AppointmentFormProps {
 export const AppointmentForm: React.FC<AppointmentFormProps> = ({
   onCancel,
   onSuccess,
-  isStaff,
 }) => {
-  const accessToken = useAuthStore((s) => s.accessToken);
-  const isStaffMode = isStaff !== undefined ? isStaff : Boolean(accessToken);
 
   const {
     bookingLoading,
@@ -392,9 +389,9 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
             options={
               branches.length > 0
                 ? branches.map((b) => ({
-                    value: b.id || b._id || '',
-                    label: b.name,
-                  }))
+                  value: b.id || b._id || '',
+                  label: b.name,
+                }))
                 : [{ value: '', label: 'Cargando sucursales...' }]
             }
           />

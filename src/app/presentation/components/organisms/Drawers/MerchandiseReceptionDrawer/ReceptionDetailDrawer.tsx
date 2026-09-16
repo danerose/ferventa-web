@@ -30,7 +30,6 @@ export const ReceptionDetailDrawer: React.FC<ReceptionDetailDrawerProps> = ({
   onApprove,
   onReject,
   onViewBoxes,
-  onOpenBox,
   isAdmin = false,
   actionLoading = false,
 }) => {
@@ -184,9 +183,9 @@ export const ReceptionDetailDrawer: React.FC<ReceptionDetailDrawerProps> = ({
                 <span className="font-medium text-base-content">
                   {reception.createdAt
                     ? new Date(reception.createdAt).toLocaleString('es-MX', {
-                        dateStyle: 'medium',
-                        timeStyle: 'short',
-                      })
+                      dateStyle: 'medium',
+                      timeStyle: 'short',
+                    })
                     : '-'}
                 </span>
               </div>
@@ -340,19 +339,18 @@ export const ReceptionDetailDrawer: React.FC<ReceptionDetailDrawerProps> = ({
                                       e.stopPropagation();
                                       handleCopyBoxCode(it.boxCode!);
                                     }}
-                                    className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded border inline-flex items-center gap-1.5 transition-all cursor-pointer group select-none active:scale-95 ${
-                                      isSealed 
-                                        ? 'bg-warning/10 text-warning border-warning/30 hover:bg-warning/20 hover:border-warning/50' 
+                                    className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded border inline-flex items-center gap-1.5 transition-all cursor-pointer group select-none active:scale-95 ${isSealed
+                                        ? 'bg-warning/10 text-warning border-warning/30 hover:bg-warning/20 hover:border-warning/50'
                                         : 'bg-success/10 text-success border-success/30 hover:bg-success/20 hover:border-success/50'
-                                    }`}
+                                      }`}
                                     title="Clic para copiar código de caja"
                                   >
                                     <Icon name={isSealed ? 'Package' : 'PackageCheck'} size="xs" />
                                     <span>{it.boxCode} ({isSealed ? 'Sellada' : 'Abierta'})</span>
-                                    <Icon 
-                                      name={copiedBoxCode === it.boxCode ? 'Check' : 'Copy'} 
-                                      size="xs" 
-                                      className={`transition-all ${copiedBoxCode === it.boxCode ? 'text-success font-bold' : 'opacity-60 group-hover:opacity-100'}`} 
+                                    <Icon
+                                      name={copiedBoxCode === it.boxCode ? 'Check' : 'Copy'}
+                                      size="xs"
+                                      className={`transition-all ${copiedBoxCode === it.boxCode ? 'text-success font-bold' : 'opacity-60 group-hover:opacity-100'}`}
                                     />
                                     {copiedBoxCode === it.boxCode && (
                                       <span className="text-[9px] font-sans font-bold bg-base-content text-base-100 px-1 py-0.2 rounded">
