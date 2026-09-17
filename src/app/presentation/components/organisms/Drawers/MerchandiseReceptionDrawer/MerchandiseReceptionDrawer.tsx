@@ -1468,11 +1468,11 @@ export const MerchandiseReceptionDrawer = ({
                     <Box>
                       <Flex justify="between" align="center" className="mb-1">
                         <Text as="label" size="xs" weight="bold" className="text-base-content/80">
-                          Costo Unitario ($) <span className="text-error">*</span>
+                          Costo de Compra ($) <span className="text-error">*</span>
                         </Text>
                         {selectedProduct?.costPrice !== undefined && (
                           <span className="text-[10px] text-base-content/50 font-mono">
-                            Base: ${selectedProduct.costPrice.toFixed(2)}
+                            Costo base: ${selectedProduct.costPrice.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </span>
                         )}
                       </Flex>
@@ -1499,11 +1499,11 @@ export const MerchandiseReceptionDrawer = ({
                     <Box>
                       <Flex justify="between" align="center" className="mb-1">
                         <Text as="label" size="xs" weight="bold" className="text-base-content/80">
-                          Nuevo P. Venta ($)
+                          Precio de Venta al Público ($)
                         </Text>
                         {selectedProduct?.sellingPrice !== undefined && (
                           <span className="text-[10px] text-base-content/50 font-mono">
-                            Actual: ${selectedProduct.sellingPrice.toFixed(2)}
+                            Venta actual: ${selectedProduct.sellingPrice.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </span>
                         )}
                       </Flex>

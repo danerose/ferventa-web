@@ -1287,79 +1287,128 @@ export const OperationsDashboardPage: React.FC = () => {
                 ))}
               </Grid>
 
-              {/* Item Types Breakdown: Servicios vs Productos */}
+              {/* Item Types Breakdown: Servicios vs Productos vs Rápidos */}
               <Box className="bg-base-100 rounded-DEFAULT border border-base-300 p-5">
                 <Flex justify="between" align="center" className="mb-4">
                   <Box>
-                    <Heading level={5} className="font-bold">Desglose: Servicios vs. Productos</Heading>
-                    <Text size="xs" color="muted">Distribución de ingresos y volumen generados por mano de obra/servicios frente a venta de productos y refacciones</Text>
+                    <Heading level={5} className="font-bold">Desglose: Servicios, Productos y Ventas Rápidas</Heading>
+                    <Text size="xs" color="muted">Distribución de ingresos y volumen generados por mano de obra/servicios, catálogo de productos y compras rápidas bajo demanda</Text>
                   </Box>
-                  <Badge variant="neutral" size="sm">Catálogo & Taller</Badge>
+                  <Badge variant="neutral" size="sm">Catálogo & Operaciones</Badge>
                 </Flex>
                 {salesLoading ? (
                   <Box className="h-28 bg-base-300 rounded-DEFAULT animate-pulse" />
                 ) : (
-                  <Grid cols={2} gap="md">
+                  <Grid cols={3} gap="md">
                     {/* Servicios */}
-                    <Box className="bg-base-200/50 p-4 rounded-DEFAULT border border-base-300/80">
-                      <Flex justify="between" align="center" className="mb-2">
-                        <Flex align="center" gap="xs">
-                          <Box className="w-8 h-8 rounded-DEFAULT bg-warning/10 text-warning flex items-center justify-center">
-                            <Icon name="Wrench" size="sm" />
-                          </Box>
-                          <div>
-                            <Text size="sm" weight="bold">Servicios de Taller</Text>
-                            <Text size="xs" color="muted">Mano de obra y servicios</Text>
-                          </div>
+                    <Box className="bg-base-200/50 p-4 rounded-DEFAULT border border-base-300/80 flex flex-col justify-between">
+                      <div>
+                        <Flex justify="between" align="center" className="mb-2">
+                          <Flex align="center" gap="xs">
+                            <Box className="w-8 h-8 rounded-DEFAULT bg-warning/10 text-warning flex items-center justify-center">
+                              <Icon name="Wrench" size="sm" />
+                            </Box>
+                            <div>
+                              <Text size="sm" weight="bold">Servicios de Taller</Text>
+                              <Text size="xs" color="muted">Mano de obra y paquetes</Text>
+                            </div>
+                          </Flex>
+                          <Badge variant="warning" size="sm">
+                            {salesStats?.itemTypesBreakdown?.services?.revenuePercentage ?? 0}%
+                          </Badge>
                         </Flex>
-                        <Badge variant="warning" size="sm">
-                          {salesStats?.itemTypesBreakdown?.services?.revenuePercentage ?? 0}% del ingreso
-                        </Badge>
-                      </Flex>
-                      <Text weight="bold" className="text-2xl font-mono block text-warning mb-2">
-                        ${(salesStats?.itemTypesBreakdown?.services?.revenue ?? 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </Text>
-                      <Flex justify="between" align="center" className="text-xs text-base-content/70 pt-2 border-t border-base-300/60">
-                        <span>Ítems realizados: <strong className="text-base-content font-mono">{salesStats?.itemTypesBreakdown?.services?.itemsCount ?? 0}</strong></span>
-                        <span>Tickets con servicio: <strong className="text-base-content font-mono">{salesStats?.itemTypesBreakdown?.services?.salesCount ?? 0}</strong></span>
-                      </Flex>
-                      <Box className="w-full bg-base-300 rounded-full h-2 mt-2.5 overflow-hidden">
-                        <Box
-                          className="bg-warning h-full rounded-full transition-all duration-300"
-                          style={{ width: `${Math.min(100, Math.max(0, salesStats?.itemTypesBreakdown?.services?.revenuePercentage ?? 0))}%` }}
-                        />
-                      </Box>
+                        <Text weight="bold" className="text-2xl font-mono block text-warning mb-2">
+                          ${(salesStats?.itemTypesBreakdown?.services?.revenue ?? 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </Text>
+                      </div>
+                      <div>
+                        <Flex justify="between" align="center" className="text-xs text-base-content/70 pt-2 border-t border-base-300/60">
+                          <span>Ítems: <strong className="text-base-content font-mono">{salesStats?.itemTypesBreakdown?.services?.itemsCount ?? 0}</strong></span>
+                          <span>Tickets: <strong className="text-base-content font-mono">{salesStats?.itemTypesBreakdown?.services?.salesCount ?? 0}</strong></span>
+                        </Flex>
+                        <Box className="w-full bg-base-300 rounded-full h-2 mt-2.5 overflow-hidden">
+                          <Box
+                            className="bg-warning h-full rounded-full transition-all duration-300"
+                            style={{ width: `${Math.min(100, Math.max(0, salesStats?.itemTypesBreakdown?.services?.revenuePercentage ?? 0))}%` }}
+                          />
+                        </Box>
+                      </div>
                     </Box>
 
                     {/* Productos */}
-                    <Box className="bg-base-200/50 p-4 rounded-DEFAULT border border-base-300/80">
-                      <Flex justify="between" align="center" className="mb-2">
-                        <Flex align="center" gap="xs">
-                          <Box className="w-8 h-8 rounded-DEFAULT bg-primary/10 text-primary flex items-center justify-center">
-                            <Icon name="Package" size="sm" />
-                          </Box>
-                          <div>
-                            <Text size="sm" weight="bold">Productos y Refacciones</Text>
-                            <Text size="xs" color="muted">Piezas, lubricantes e insumos</Text>
-                          </div>
+                    <Box className="bg-base-200/50 p-4 rounded-DEFAULT border border-base-300/80 flex flex-col justify-between">
+                      <div>
+                        <Flex justify="between" align="center" className="mb-2">
+                          <Flex align="center" gap="xs">
+                            <Box className="w-8 h-8 rounded-DEFAULT bg-primary/10 text-primary flex items-center justify-center">
+                              <Icon name="Package" size="sm" />
+                            </Box>
+                            <div>
+                              <Text size="sm" weight="bold">Productos de Catálogo</Text>
+                              <Text size="xs" color="muted">Inventario y refacciones</Text>
+                            </div>
+                          </Flex>
+                          <Badge variant="info" size="sm">
+                            {salesStats?.itemTypesBreakdown?.products?.revenuePercentage ?? 0}%
+                          </Badge>
                         </Flex>
-                        <Badge variant="info" size="sm">
-                          {salesStats?.itemTypesBreakdown?.products?.revenuePercentage ?? 0}% del ingreso
-                        </Badge>
-                      </Flex>
-                      <Text weight="bold" className="text-2xl font-mono block text-primary mb-2">
-                        ${(salesStats?.itemTypesBreakdown?.products?.revenue ?? 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </Text>
-                      <Flex justify="between" align="center" className="text-xs text-base-content/70 pt-2 border-t border-base-300/60">
-                        <span>Piezas vendidas: <strong className="text-base-content font-mono">{salesStats?.itemTypesBreakdown?.products?.itemsCount ?? 0}</strong></span>
-                        <span>Tickets con producto: <strong className="text-base-content font-mono">{salesStats?.itemTypesBreakdown?.products?.salesCount ?? 0}</strong></span>
-                      </Flex>
-                      <Box className="w-full bg-base-300 rounded-full h-2 mt-2.5 overflow-hidden">
-                        <Box
-                          className="bg-primary h-full rounded-full transition-all duration-300"
-                          style={{ width: `${Math.min(100, Math.max(0, salesStats?.itemTypesBreakdown?.products?.revenuePercentage ?? 0))}%` }}
-                        />
-                      </Box>
+                        <Text weight="bold" className="text-2xl font-mono block text-primary mb-2">
+                          ${(salesStats?.itemTypesBreakdown?.products?.revenue ?? 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </Text>
+                      </div>
+                      <div>
+                        <Flex justify="between" align="center" className="text-xs text-base-content/70 pt-2 border-t border-base-300/60">
+                          <span>Piezas: <strong className="text-base-content font-mono">{salesStats?.itemTypesBreakdown?.products?.itemsCount ?? 0}</strong></span>
+                          <span>Tickets: <strong className="text-base-content font-mono">{salesStats?.itemTypesBreakdown?.products?.salesCount ?? 0}</strong></span>
+                        </Flex>
+                        <Box className="w-full bg-base-300 rounded-full h-2 mt-2.5 overflow-hidden">
+                          <Box
+                            className="bg-primary h-full rounded-full transition-all duration-300"
+                            style={{ width: `${Math.min(100, Math.max(0, salesStats?.itemTypesBreakdown?.products?.revenuePercentage ?? 0))}%` }}
+                          />
+                        </Box>
+                      </div>
+                    </Box>
+
+                    {/* Productos Rápidos / Externos */}
+                    <Box className="bg-base-200/50 p-4 rounded-DEFAULT border border-base-300/80 flex flex-col justify-between">
+                      <div>
+                        <Flex justify="between" align="center" className="mb-2">
+                          <Flex align="center" gap="xs">
+                            <Box className="w-8 h-8 rounded-DEFAULT bg-secondary/10 text-secondary flex items-center justify-center">
+                              <Icon name="PlusCircle" size="sm" />
+                            </Box>
+                            <div>
+                              <Text size="sm" weight="bold">Productos Rápidos</Text>
+                              <Text size="xs" color="muted">Bajo demanda y externos</Text>
+                            </div>
+                          </Flex>
+                          <Badge color="secondary" size="sm">
+                            {salesStats?.itemTypesBreakdown?.external?.revenuePercentage ?? 0}%
+                          </Badge>
+                        </Flex>
+                        <Text weight="bold" className="text-2xl font-mono block text-secondary mb-2">
+                          ${(salesStats?.itemTypesBreakdown?.external?.revenue ?? 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </Text>
+                      </div>
+                      <div>
+                        <Flex justify="between" align="center" className="text-xs text-base-content/70 pt-2 border-t border-base-300/60 flex-wrap gap-1">
+                          <span>Piezas: <strong className="text-base-content font-mono">{salesStats?.itemTypesBreakdown?.external?.itemsCount ?? 0}</strong></span>
+                          <span>Tickets: <strong className="text-base-content font-mono">{salesStats?.itemTypesBreakdown?.external?.salesCount ?? 0}</strong></span>
+                        </Flex>
+                        {(salesStats?.itemTypesBreakdown?.external?.cost !== undefined || salesStats?.itemTypesBreakdown?.external?.profit !== undefined) && (
+                          <Flex justify="between" align="center" className="text-[11px] text-base-content/60 pt-1">
+                            <span>Costo: <strong className="text-error font-mono">${(salesStats?.itemTypesBreakdown?.external?.cost ?? 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</strong></span>
+                            <span>Ganancia: <strong className="text-success font-mono">${(salesStats?.itemTypesBreakdown?.external?.profit ?? 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</strong></span>
+                          </Flex>
+                        )}
+                        <Box className="w-full bg-base-300 rounded-full h-2 mt-2.5 overflow-hidden">
+                          <Box
+                            className="bg-secondary h-full rounded-full transition-all duration-300"
+                            style={{ width: `${Math.min(100, Math.max(0, salesStats?.itemTypesBreakdown?.external?.revenuePercentage ?? 0))}%` }}
+                          />
+                        </Box>
+                      </div>
                     </Box>
                   </Grid>
                 )}

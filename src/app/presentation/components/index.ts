@@ -82,6 +82,7 @@ export * from './organisms/Modals/CompleteAppointmentModal';
 export * from './organisms/Modals/AddSpecialOrderPaymentModal';
 export * from './organisms/Modals/CancelSpecialOrderModal';
 export * from './organisms/Modals/CreateSpecialOrderModal';
+export * from './organisms/Modals/CreateExternalProductModal';
 export * from './organisms/Modals/DirectReceptionModal';
 export * from './organisms/Modals/EditAttendanceModal';
 export * from './organisms/Modals/LinkSaleModal';

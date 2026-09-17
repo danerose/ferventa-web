@@ -47,7 +47,7 @@ export interface CartItem {
   cartId: string;
   /** If this item was added as part of a service, this links to the service's cartId */
   parentCartId?: string;
-  type: 'product' | 'service';
+  type: 'product' | 'service' | 'external';
   // Populated for product items
   product?: Product;
   // Populated for service items
@@ -60,6 +60,14 @@ export interface CartItem {
   unitPrice: number;
   /** Original catalog price (for display reference) */
   originalPrice: number;
+  /** Optional purchase cost from external supplier (internal use) */
+  costPrice?: number;
+  /** Optional external supplier or workshop name */
+  supplier?: string;
+  /** Optional notes or warranty */
+  notes?: string;
+  /** Optional line item discount */
+  discount?: number;
   subtotal: number;
   isNoAplica?: boolean;
 }
@@ -69,12 +77,15 @@ export interface CartItem {
 export type PaymentMethod = 'cash' | 'card' | 'transfer';
 
 export interface SaleItemPayload {
-  type: 'product' | 'service';
+  type: 'product' | 'service' | 'external';
   productId?: string;
   serviceId?: string;
   name?: string;
   quantity: number;
   unitPrice?: number;  // if provided, overrides catalog price
+  costPrice?: number;
+  supplier?: string;
+  notes?: string;
   discount?: number;
 }
 
@@ -162,6 +173,8 @@ export interface ItemTypeStat {
   itemsCount: number;
   salesCount: number;
   revenuePercentage: number;
+  cost?: number;
+  profit?: number;
 }
 
 export interface SalesStats {
@@ -177,5 +190,6 @@ export interface SalesStats {
   itemTypesBreakdown: {
     services: ItemTypeStat;
     products: ItemTypeStat;
+    external?: ItemTypeStat;
   };
 }

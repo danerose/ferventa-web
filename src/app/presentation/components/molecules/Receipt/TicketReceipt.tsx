@@ -13,7 +13,7 @@ interface ParsedTicketItem {
   id: string;
   cartId?: string;
   parentCartId?: string;
-  type: 'product' | 'service';
+  type: 'product' | 'service' | 'external';
   name: string;
   sku?: string;
   quantity: number;
@@ -97,7 +97,7 @@ function parseSaleItemsForTicket(items: unknown[]): ParsedTicketItem[] {
       id: itemId,
       cartId: item.cartId,
       parentCartId: parentId,
-      type: (isService ? 'service' : 'product') as 'product' | 'service',
+      type: (item.type === 'external' ? 'external' : (isService ? 'service' : 'product')) as 'product' | 'service' | 'external',
       name,
       sku,
       quantity,

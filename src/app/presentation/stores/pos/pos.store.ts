@@ -86,6 +86,15 @@ interface POSState {
   // Cart actions (operate on active cart)
   addProductToCart: (product: Product, quantity?: number) => void;
   addServiceToCart: (service: PredefinedService) => void;
+  addExternalProductToCart: (payload: {
+    name: string;
+    quantity: number;
+    unitPrice: number;
+    costPrice?: number;
+    supplier?: string;
+    notes?: string;
+    discount?: number;
+  }) => void;
   addTemporaryServiceToCart: (
     name: string,
     unitPrice: number,
@@ -383,6 +392,36 @@ export const usePOSStore = create<POSState>((set, get) => ({
     });
 
     const newItems = [...activeCart.items, serviceItem, ...supplyItems];
+    const newCarts = updateActiveCart(get(), cart => ({ ...cart, items: newItems }));
+    set(syncFromActiveCart(newCarts, activeCartId));
+  },
+
+  addExternalProductToCart: (payload) => {
+    const { activeCartId } = get();
+    const activeCart = getActiveCart(get());
+    const isCommission = Boolean(activeCart.applyCommission);
+    const basePrice = Math.max(0, payload.unitPrice);
+    const calculatedPrice = isCommission
+      ? Math.round(basePrice * 1.04 * 100) / 100
+      : basePrice;
+    const qty = Math.max(1, payload.quantity || 1);
+
+    const newItem: CartItem = {
+      cartId: makeCartId(),
+      type: 'external',
+      name: payload.name.trim(),
+      quantity: qty,
+      unitPrice: calculatedPrice,
+      originalPrice: basePrice,
+      costPrice: payload.costPrice,
+      supplier: payload.supplier?.trim() || undefined,
+      notes: payload.notes?.trim() || undefined,
+      discount: payload.discount ?? 0,
+      subtotal: qty * calculatedPrice,
+      isNoAplica: false,
+    };
+
+    const newItems = [...activeCart.items, newItem];
     const newCarts = updateActiveCart(get(), cart => ({ ...cart, items: newItems }));
     set(syncFromActiveCart(newCarts, activeCartId));
   },

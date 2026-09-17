@@ -15,6 +15,7 @@ import {
   ServiceInvoiceCustomerModal,
   QuotationReceipt,
   ProductDetailModal,
+  CreateExternalProductModal,
 } from '@/app/presentation/components';
 import type { ServiceInvoiceCustomerData } from '@/app/presentation/components/organisms/Modals/ServiceInvoiceCustomerModal';
 
@@ -144,6 +145,11 @@ const CartItemRow: React.FC<CartItemRowProps> = ({
               Servicio
             </span>
           )}
+          {cartItem.type === 'external' && (
+            <span className="text-[10px] bg-secondary/10 text-secondary px-1.5 py-0.5 rounded font-bold border border-secondary/20 shrink-0">
+              Rápido
+            </span>
+          )}
           {cartItem.parentCartId && (
             <span className="text-[10px] bg-info/10 text-info px-1.5 py-0.5 rounded font-bold border border-info/20 shrink-0">
               Consumible
@@ -168,6 +174,15 @@ const CartItemRow: React.FC<CartItemRowProps> = ({
         </div>
         {cartItem.sku && (
           <div className="text-[11px] text-base-content/50 mt-0.5">SKU: {cartItem.sku}</div>
+        )}
+        {cartItem.type === 'external' && (cartItem.costPrice !== undefined || cartItem.supplier || cartItem.notes) && (
+          <div className="text-[11px] text-base-content/50 mt-0.5">
+            (Interno) {cartItem.costPrice !== undefined ? `Costo: $${cartItem.costPrice.toLocaleString('es-MX', { minimumFractionDigits: 2 })}` : ''}
+            {cartItem.costPrice !== undefined && cartItem.supplier ? ' · ' : ''}
+            {cartItem.supplier ? `Prov: ${cartItem.supplier}` : ''}
+            {(cartItem.costPrice !== undefined || cartItem.supplier) && cartItem.notes ? ' · ' : ''}
+            {cartItem.notes ? cartItem.notes : ''}
+          </div>
         )}
 
         <div className="mt-1.5">
@@ -222,6 +237,7 @@ export const POSPage: React.FC = () => {
 
   const [activeTab, setActiveTab] = useState<'products' | 'services'>('products');
   const [isTempServiceModalOpen, setIsTempServiceModalOpen] = useState(false);
+  const [isExternalProductModalOpen, setIsExternalProductModalOpen] = useState(false);
   const [isCustomerInvoiceModalOpen, setIsCustomerInvoiceModalOpen] = useState(false);
   const [selectedCustomerInvoiceData, setSelectedCustomerInvoiceData] = useState<ServiceInvoiceCustomerData | null>(null);
   const [lastCompletedSale, setLastCompletedSale] = useState<Sale | null>(null);
@@ -244,6 +260,7 @@ export const POSPage: React.FC = () => {
     setServiceSearchValue,
     addProductToCart,
     addServiceToCart,
+    addExternalProductToCart,
     addTemporaryServiceToCart,
     removeFromCart,
     updateQuantity,
@@ -286,6 +303,7 @@ export const POSPage: React.FC = () => {
       setServiceSearchValue: s.setServiceSearchValue,
       addProductToCart: s.addProductToCart,
       addServiceToCart: s.addServiceToCart,
+      addExternalProductToCart: s.addExternalProductToCart,
       addTemporaryServiceToCart: s.addTemporaryServiceToCart,
       removeFromCart: s.removeFromCart,
       updateQuantity: s.updateQuantity,
@@ -456,6 +474,11 @@ export const POSPage: React.FC = () => {
         e.preventDefault();
         setIsTempServiceModalOpen(true);
       }
+      // Alt+E or F7 -> Open External Product modal
+      else if ((e.altKey && (e.key === 'e' || e.key === 'E')) || e.key === 'F7') {
+        e.preventDefault();
+        setIsExternalProductModalOpen(true);
+      }
       // Alt+C or F8 -> Checkout / Cobrar
       else if ((e.altKey && (e.key === 'c' || e.key === 'C')) || e.key === 'F8') {
         e.preventDefault();
@@ -519,8 +542,8 @@ export const POSPage: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [
     cart.length, clearCart, activeTab, searchResults, serviceResults,
-    selectedIndex, activeModal, isTempServiceModalOpen, addProductToCart,
-    addServiceToCart, setSearchValue, createCart, switchCart, carts,
+    selectedIndex, activeModal, isTempServiceModalOpen, isExternalProductModalOpen, addProductToCart,
+    addServiceToCart, addExternalProductToCart, setSearchValue, createCart, switchCart, carts,
   ]);
 
   const activeBranch = branches.find(b => b.id === activeBranchId);
@@ -552,7 +575,7 @@ export const POSPage: React.FC = () => {
             unitPrice: price,
             discount: 0,
           };
-        } else {
+        } else if (item.type === 'service') {
           const sId = item.service?.id || (item.service as any)?._id;
           return {
             type: 'service' as const,
@@ -561,6 +584,17 @@ export const POSPage: React.FC = () => {
             quantity: item.quantity,
             unitPrice: price,
             discount: 0,
+          };
+        } else {
+          return {
+            type: 'external' as const,
+            name: displayName,
+            quantity: item.quantity,
+            unitPrice: price,
+            costPrice: item.costPrice ?? 0,
+            ...(item.supplier ? { supplier: item.supplier } : {}),
+            ...(item.notes ? { notes: item.notes } : {}),
+            discount: item.discount ?? 0,
           };
         }
       });
@@ -745,16 +779,27 @@ export const POSPage: React.FC = () => {
             {activeTab === 'products' && (
               <>
                 <div className="flex flex-col gap-2">
-                  <div className="relative">
-                    <TextInput
-                      id="pos-search-input"
-                      placeholder="Buscar producto por nombre o SKU... (o usa el lector de código de barras)"
-                      value={searchValue}
-                      onChange={(e) => setSearchValue(e.target.value)}
-                    />
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
-                      <KbdBadge keys="Alt+F" />
+                  <div className="flex gap-3 items-center">
+                    <div className="flex-1 relative">
+                      <TextInput
+                        id="pos-search-input"
+                        placeholder="Buscar producto por nombre o SKU... (o usa el lector de código de barras)"
+                        value={searchValue}
+                        onChange={(e) => setSearchValue(e.target.value)}
+                      />
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                        <KbdBadge keys="Alt+F" />
+                      </div>
                     </div>
+                    <PrimaryButton
+                      onClick={() => setIsExternalProductModalOpen(true)}
+                      color="secondary"
+                      className="whitespace-nowrap"
+                    >
+                      <Icon name="PlusCircle" size="sm" className="mr-1" />
+                      Producto Rápido
+                      <KbdBadge keys="Alt+E" className="ml-1.5" />
+                    </PrimaryButton>
                   </div>
                   <div className="flex items-center gap-2 text-xs text-base-content/70 bg-base-100 p-2 px-3 rounded-lg border border-base-300 w-fit">
                     <Icon name="Keyboard" size="xs" className="text-primary" />
@@ -1323,6 +1368,13 @@ export const POSPage: React.FC = () => {
         onClose={() => setSelectedDetailProduct(null)}
         product={selectedDetailProduct}
         onAddToCart={(prod: Product) => addProductToCart(prod, 1)}
+      />
+
+      {/* Create External Product Modal */}
+      <CreateExternalProductModal
+        isOpen={isExternalProductModalOpen}
+        onClose={() => setIsExternalProductModalOpen(false)}
+        onAddExternalProduct={(payload) => addExternalProductToCart(payload)}
       />
     </div>
   );
