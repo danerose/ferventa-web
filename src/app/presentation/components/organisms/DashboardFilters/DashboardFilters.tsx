@@ -73,11 +73,10 @@ export const DashboardFilters: React.FC<DashboardFiltersProps> = ({
           <button
             type="button"
             onClick={() => onViewTypeChange('list')}
-            className={`px-3 py-1.5 rounded-DEFAULT text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
-              viewType === 'list'
-                ? 'bg-base-100 text-base-content shadow-xs font-bold'
-                : 'text-base-content/60 hover:text-base-content'
-            }`}
+            className={`px-3 py-1.5 rounded-DEFAULT text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${viewType === 'list'
+              ? 'bg-base-100 text-base-content shadow-xs font-bold'
+              : 'text-base-content/60 hover:text-base-content'
+              }`}
           >
             <Icon name="List" size="xs" />
             Lista
@@ -85,11 +84,10 @@ export const DashboardFilters: React.FC<DashboardFiltersProps> = ({
           <button
             type="button"
             onClick={() => onViewTypeChange('calendar')}
-            className={`px-3 py-1.5 rounded-DEFAULT text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
-              viewType === 'calendar'
-                ? 'bg-base-100 text-base-content shadow-xs font-bold'
-                : 'text-base-content/60 hover:text-base-content'
-            }`}
+            className={`px-3 py-1.5 rounded-DEFAULT text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${viewType === 'calendar'
+              ? 'bg-base-100 text-base-content shadow-xs font-bold'
+              : 'text-base-content/60 hover:text-base-content'
+              }`}
           >
             <Icon name="Calendar" size="xs" />
             Calendario
@@ -113,7 +111,7 @@ export const DashboardFilters: React.FC<DashboardFiltersProps> = ({
             title="Registrar recepción directa en taller (Walk-in) [Alt+W]"
           >
             <Icon name="Wrench" size="xs" />
-            <span>+ Recibir Auto</span>
+            <span>Recibir sin cita</span>
             <KbdBadge keys="Alt+W" className="ml-1 opacity-80" />
           </PrimaryButton>
         )}
