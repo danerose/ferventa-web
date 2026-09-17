@@ -132,23 +132,22 @@ export function generateSaleTicketHtml({
       <div style="font-size: 8px; overflow: hidden; white-space: nowrap;">${sepDash}</div>
 
       ${items
-        .map(
-          (item) => `
+      .map(
+        (item) => `
           <div style="margin-bottom: 3px;">
             <div style="display: flex; justify-content: space-between; align-items: flex-start;">
               <span style="font-weight: bold; min-width: 22px;">${item.qty}</span>
               <span style="flex: 1; padding: 0 4px; word-break: break-word; font-weight: bold;">${item.name}</span>
               <span style="font-weight: bold; white-space: nowrap;">$${item.subtotal.toFixed(2)}</span>
             </div>
-            ${
-              item.qty > 1 || Math.abs(item.price - item.subtotal / item.qty) > 0.01
-                ? `<div style="font-size: 0.8em; color: #222; padding-left: 22px;">${item.qty} x $${item.price.toFixed(2)}</div>`
-                : ''
-            }
+            ${item.qty > 1 || Math.abs(item.price - item.subtotal / item.qty) > 0.01
+            ? `<div style="font-size: 0.8em; color: #222; padding-left: 22px;">${item.qty} x $${item.price.toFixed(2)}</div>`
+            : ''
+          }
           </div>
         `
-        )
-        .join('')}
+      )
+      .join('')}
 
       <div style="font-size: 8px; overflow: hidden; white-space: nowrap;">${sepDash}</div>
 
@@ -157,14 +156,13 @@ export function generateSaleTicketHtml({
           <span>SUBTOTAL:</span>
           <span style="font-weight: bold;">$${subtotal.toFixed(2)}</span>
         </div>
-        ${
-          discount > 0
-            ? `<div style="display: flex; justify-content: space-between;">
+        ${discount > 0
+      ? `<div style="display: flex; justify-content: space-between;">
                 <span>DESCUENTO:</span>
                 <span style="font-weight: bold;">-$${discount.toFixed(2)}</span>
               </div>`
-            : ''
-        }
+      : ''
+    }
         <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 1.15em; border-top: 1px solid #000; padding-top: 2px; margin-top: 3px;">
           <span>TOTAL:</span>
           <span>$${total.toFixed(2)} MXN</span>
@@ -175,32 +173,29 @@ export function generateSaleTicketHtml({
         </div>
       </div>
 
-      ${
-        settings.showPolicies && settings.policiesText
-          ? `
+      ${settings.showPolicies && settings.policiesText
+      ? `
           <div style="font-size: 8px; font-weight: bold; overflow: hidden; white-space: nowrap; margin-top: 4px;">${sepDouble}</div>
           <div style="text-align: center; font-weight: bold; font-size: 0.9em; margin-bottom: 2px;">${settings.policiesTitle || 'IMPORTANTE'}</div>
           <div style="font-size: 0.78em; line-height: 1.25;">
             ${policiesLines}
           </div>
         `
-          : ''
-      }
+      : ''
+    }
 
       <div style="text-align: center; margin-top: 6px; border-top: 1px solid #000; padding-top: 4px;">
         <div style="font-weight: bold; font-size: 0.9em;">${settings.footerMessage || '¡GRACIAS POR SU PREFERENCIA!'}</div>
         ${settings.footerSubtext ? `<div style="font-weight: bold; font-size: 0.8em; margin-top: 1px;">${settings.footerSubtext}</div>` : ''}
       </div>
 
-      ${
-        settings.showCutLine
-          ? `
+      ${settings.showCutLine
+      ? `
           <div style="text-align: center; margin-top: 8px; font-size: 0.75em;">
-            - - - - CORTE DE TICKET - - - -
           </div>
         `
-          : ''
-      }
+      : ''
+    }
     </div>
   `;
 }

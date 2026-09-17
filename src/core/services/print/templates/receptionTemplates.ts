@@ -307,7 +307,6 @@ export function generateReceptionTicketHtml(
 
       ${settings.showCutLine ? `
         <div style="text-align: center; margin-top: 8px; font-size: 0.75em;">
-          - - - - CORTE DE TICKET - - - -
         </div>
       ` : ''}
     </div>

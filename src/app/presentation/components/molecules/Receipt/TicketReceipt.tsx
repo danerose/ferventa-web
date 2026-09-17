@@ -377,7 +377,6 @@ export const TicketReceipt: React.FC<TicketReceiptProps> = ({
 
       {settings.showCutLine && (
         <div style={{ fontSize: '9px', letterSpacing: '0.3px', marginTop: '6px', textAlign: 'center', color: '#000000' }}>
-          - - - - CORTE DE TICKET - - - -
         </div>
       )}
     </div>

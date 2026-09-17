@@ -32,13 +32,13 @@ export function generateSpecialOrderTicketHtml({
     ? settings.fontSize === 'compact'
       ? '8.5px'
       : settings.fontSize === 'large'
-      ? '11px'
-      : '9.5px'
+        ? '11px'
+        : '9.5px'
     : settings.fontSize === 'compact'
-    ? '10px'
-    : settings.fontSize === 'large'
-    ? '13px'
-    : '11.5px';
+      ? '10px'
+      : settings.fontSize === 'large'
+        ? '13px'
+        : '11.5px';
 
   const now = order.createdAt ? new Date(order.createdAt) : new Date();
   const dateStr = now.toLocaleDateString('es-MX', {
@@ -175,7 +175,6 @@ export function generateSpecialOrderTicketHtml({
 
       ${settings.showCutLine ? `
         <div style="text-align: center; margin-top: 8px; font-size: 0.75em;">
-          - - - - CORTE DE TICKET - - - -
         </div>
       ` : ''}
     </div>

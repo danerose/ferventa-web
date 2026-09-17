@@ -343,6 +343,8 @@ export const OperationsDashboardPage: React.FC = () => {
   const [activeWorkorders, setActiveWorkorders] = useState(0);
   const [lowStockItems, setLowStockItems] = useState(0);
   const [dashLoading, setDashLoading] = useState(true);
+  const [todaySalesPage, setTodaySalesPage] = useState(1);
+  const [todaySalesLimit, setTodaySalesLimit] = useState(10);
 
   // ── Quick Detail Drawer State ─────────────────────────────────────────────
   const [activeDrawer, setActiveDrawer] = useState<DashboardDrawerType>(null);
@@ -361,6 +363,8 @@ export const OperationsDashboardPage: React.FC = () => {
   const [salesStats, setSalesStats] = useState<SalesStats | null>(null);
   const [salesLoading, setSalesLoading] = useState(false);
   const [salesError, setSalesError] = useState<string | null>(null);
+  const [periodSalesPage, setPeriodSalesPage] = useState(1);
+  const [periodSalesLimit, setPeriodSalesLimit] = useState(25);
 
   // ── Sidepanel Drawer state ────────────────────────────────────────────────
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
@@ -667,6 +671,29 @@ export const OperationsDashboardPage: React.FC = () => {
       : salesData.filter(s => s.paymentMethod === salesPaymentMethodFilter);
   }, [salesData, salesPaymentMethodFilter]);
 
+  // ── Today Sales Pagination ────────────────────────────────────────────────
+  const todayTotalCount = todaySales.length;
+  const todayTotalPages = todaySalesLimit === 0 ? 1 : Math.max(1, Math.ceil(todayTotalCount / todaySalesLimit));
+  const paginatedTodaySales = useMemo(() => {
+    if (todaySalesLimit === 0) return todaySales;
+    const start = (todaySalesPage - 1) * todaySalesLimit;
+    return todaySales.slice(start, start + todaySalesLimit);
+  }, [todaySales, todaySalesPage, todaySalesLimit]);
+
+  // ── Period Sales Pagination ───────────────────────────────────────────────
+  const periodTotalCount = displayedSalesTable.length;
+  const periodTotalPages = periodSalesLimit === 0 ? 1 : Math.max(1, Math.ceil(periodTotalCount / periodSalesLimit));
+  const paginatedPeriodSales = useMemo(() => {
+    if (periodSalesLimit === 0) return displayedSalesTable;
+    const start = (periodSalesPage - 1) * periodSalesLimit;
+    return displayedSalesTable.slice(start, start + periodSalesLimit);
+  }, [displayedSalesTable, periodSalesPage, periodSalesLimit]);
+
+  // Reset period page on filters change
+  useEffect(() => {
+    setPeriodSalesPage(1);
+  }, [salesPeriod, salesBranchFilter, salesPaymentMethodFilter, customStartDate, customEndDate]);
+
   const barChartData = useMemo(() => {
     if (salesStats?.dailyRevenue && salesStats.dailyRevenue.length > 0) {
       return salesStats.dailyRevenue.map(d => ({
@@ -947,7 +974,7 @@ export const OperationsDashboardPage: React.FC = () => {
                         </Box>
                       </Box>
                       <Box as="tbody">
-                        {todaySales.slice(0, 10).map(s => (
+                        {paginatedTodaySales.map(s => (
                           <Box
                             as="tr"
                             key={s.id}
@@ -981,6 +1008,63 @@ export const OperationsDashboardPage: React.FC = () => {
                       </Box>
                     </Box>
                   </Box>
+
+                  {/* Controles de paginación para Ventas de Hoy */}
+                  {todayTotalCount > 0 && (
+                    <Flex justify="between" align="center" wrap="wrap" gap="sm" className="p-3.5 px-5 border-t border-base-300 bg-base-200/40">
+                      <Flex align="center" gap="md">
+                        <Text size="xs" color="muted">
+                          Mostrando <Text as="strong" weight="bold" className="text-base-content">
+                            {todaySalesLimit === 0 ? 1 : (todaySalesPage - 1) * todaySalesLimit + 1}
+                          </Text> - <Text as="strong" weight="bold" className="text-base-content">
+                            {todaySalesLimit === 0 ? todayTotalCount : Math.min(todaySalesPage * todaySalesLimit, todayTotalCount)}
+                          </Text> de <Text as="strong" weight="bold" className="text-base-content">{todayTotalCount}</Text> ventas de hoy
+                        </Text>
+                        <Flex align="center" gap="xs">
+                          <Text size="xs" color="muted">Mostrar:</Text>
+                          <Select
+                            size="xs"
+                            fullWidth={false}
+                            value={todaySalesLimit}
+                            onChange={(e) => {
+                              setTodaySalesLimit(Number(e.target.value));
+                              setTodaySalesPage(1);
+                            }}
+                            options={[
+                              { value: 10, label: '10 ventas' },
+                              { value: 25, label: '25 ventas' },
+                              { value: 50, label: '50 ventas' },
+                              { value: 0, label: 'Todas' },
+                            ]}
+                          />
+                        </Flex>
+                      </Flex>
+
+                      {todayTotalPages > 1 && todaySalesLimit > 0 && (
+                        <Flex align="center" gap="xs">
+                          <SecondaryButton
+                            size="xs"
+                            onClick={() => setTodaySalesPage(p => Math.max(1, p - 1))}
+                            disabled={todaySalesPage <= 1}
+                            iconStart={<Icon name="ChevronLeft" size="xs" />}
+                          >
+                            Anterior
+                          </SecondaryButton>
+                          <Text size="xs" weight="semibold" className="px-2">
+                            Pág. {todaySalesPage} de {todayTotalPages}
+                          </Text>
+                          <SecondaryButton
+                            size="xs"
+                            onClick={() => setTodaySalesPage(p => Math.min(todayTotalPages, p + 1))}
+                            disabled={todaySalesPage >= todayTotalPages}
+                            iconEnd={<Icon name="ChevronRight" size="xs" />}
+                          >
+                            Siguiente
+                          </SecondaryButton>
+                        </Flex>
+                      )}
+                    </Flex>
+                  )}
                 </Box>
               )}
             </Stack>
@@ -1353,56 +1437,116 @@ export const OperationsDashboardPage: React.FC = () => {
                     </Text>
                   </Box>
                 ) : (
-                  <Box className="overflow-x-auto">
-                    <Box as="table" className="table w-full border-collapse">
-                      <Box as="thead" className="bg-base-200/50 border-b border-base-300">
-                        <Box as="tr">
-                          <Box as="th" className="py-2.5 px-4 text-left text-xs font-semibold text-base-content/60 uppercase">Folio</Box>
-                          <Box as="th" className="py-2.5 px-4 text-left text-xs font-semibold text-base-content/60 uppercase">Fecha</Box>
-                          <Box as="th" className="py-2.5 px-4 text-left text-xs font-semibold text-base-content/60 uppercase">Cliente</Box>
-                          <Box as="th" className="py-2.5 px-4 text-left text-xs font-semibold text-base-content/60 uppercase">Método</Box>
-                          <Box as="th" className="py-2.5 px-4 text-center text-xs font-semibold text-base-content/60 uppercase">Estatus</Box>
-                          <Box as="th" className="py-2.5 px-4 text-right text-xs font-semibold text-base-content/60 uppercase">Total</Box>
+                  <>
+                    <Box className="overflow-x-auto">
+                      <Box as="table" className="table w-full border-collapse">
+                        <Box as="thead" className="bg-base-200/50 border-b border-base-300">
+                          <Box as="tr">
+                            <Box as="th" className="py-2.5 px-4 text-left text-xs font-semibold text-base-content/60 uppercase">Folio</Box>
+                            <Box as="th" className="py-2.5 px-4 text-left text-xs font-semibold text-base-content/60 uppercase">Fecha</Box>
+                            <Box as="th" className="py-2.5 px-4 text-left text-xs font-semibold text-base-content/60 uppercase">Cliente</Box>
+                            <Box as="th" className="py-2.5 px-4 text-left text-xs font-semibold text-base-content/60 uppercase">Método</Box>
+                            <Box as="th" className="py-2.5 px-4 text-center text-xs font-semibold text-base-content/60 uppercase">Estatus</Box>
+                            <Box as="th" className="py-2.5 px-4 text-right text-xs font-semibold text-base-content/60 uppercase">Total</Box>
+                          </Box>
+                        </Box>
+                        <Box as="tbody">
+                          {paginatedPeriodSales.map(s => (
+                            <Box
+                              as="tr"
+                              key={s.id}
+                              onClick={() => handleSelectSale(s)}
+                              className="border-b border-base-200 hover:bg-base-200/40 cursor-pointer transition-colors"
+                            >
+                              <Box as="td" className="py-3 px-4 font-mono text-sm font-semibold text-warning">
+                                {s.folio || s.id.slice(-8)}
+                              </Box>
+                              <Box as="td" className="py-3 px-4 text-sm text-base-content/70">
+                                {new Date(s.createdAt).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })}
+                              </Box>
+                              <Box as="td" className="py-3 px-4 text-sm text-base-content/80">
+                                {s.customer?.name || 'Cliente General'}
+                              </Box>
+                              <Box as="td" className="py-3 px-4">
+                                <Badge
+                                  variant={s.paymentMethod === 'cash' ? 'success' : s.paymentMethod === 'card' ? 'info' : 'warning'}
+                                  size="sm"
+                                >
+                                  {s.paymentMethod === 'cash' ? 'Efectivo' : s.paymentMethod === 'card' ? 'Tarjeta' : 'Transferencia'}
+                                </Badge>
+                              </Box>
+                              <Box as="td" className="py-3 px-4 text-center">
+                                <Badge variant={s.isCancelled ? 'error' : 'success'} size="sm">
+                                  {s.isCancelled ? 'Cancelada' : 'Completada'}
+                                </Badge>
+                              </Box>
+                              <Box as="td" className="py-3 px-4 text-sm font-bold text-right font-mono">
+                                ${s.total.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </Box>
+                            </Box>
+                          ))}
                         </Box>
                       </Box>
-                      <Box as="tbody">
-                        {displayedSalesTable.slice(0, 50).map(s => (
-                          <Box
-                            as="tr"
-                            key={s.id}
-                            onClick={() => handleSelectSale(s)}
-                            className="border-b border-base-200 hover:bg-base-200/40 cursor-pointer transition-colors"
-                          >
-                            <Box as="td" className="py-3 px-4 font-mono text-sm font-semibold text-warning">
-                              {s.folio || s.id.slice(-8)}
-                            </Box>
-                            <Box as="td" className="py-3 px-4 text-sm text-base-content/70">
-                              {new Date(s.createdAt).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })}
-                            </Box>
-                            <Box as="td" className="py-3 px-4 text-sm text-base-content/80">
-                              {s.customer?.name || 'Cliente General'}
-                            </Box>
-                            <Box as="td" className="py-3 px-4">
-                              <Badge
-                                variant={s.paymentMethod === 'cash' ? 'success' : s.paymentMethod === 'card' ? 'info' : 'warning'}
-                                size="sm"
-                              >
-                                {s.paymentMethod === 'cash' ? 'Efectivo' : s.paymentMethod === 'card' ? 'Tarjeta' : 'Transferencia'}
-                              </Badge>
-                            </Box>
-                            <Box as="td" className="py-3 px-4 text-center">
-                              <Badge variant={s.isCancelled ? 'error' : 'success'} size="sm">
-                                {s.isCancelled ? 'Cancelada' : 'Completada'}
-                              </Badge>
-                            </Box>
-                            <Box as="td" className="py-3 px-4 text-sm font-bold text-right font-mono">
-                              ${s.total.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                            </Box>
-                          </Box>
-                        ))}
-                      </Box>
                     </Box>
-                  </Box>
+
+                    {/* Controles de paginación para Ventas del Período */}
+                    {periodTotalCount > 0 && (
+                      <Flex justify="between" align="center" wrap="wrap" gap="sm" className="p-3.5 px-5 border-t border-base-300 bg-base-200/40">
+                        <Flex align="center" gap="md">
+                          <Text size="xs" color="muted">
+                            Mostrando <Text as="strong" weight="bold" className="text-base-content">
+                              {periodSalesLimit === 0 ? 1 : (periodSalesPage - 1) * periodSalesLimit + 1}
+                            </Text> - <Text as="strong" weight="bold" className="text-base-content">
+                              {periodSalesLimit === 0 ? periodTotalCount : Math.min(periodSalesPage * periodSalesLimit, periodTotalCount)}
+                            </Text> de <Text as="strong" weight="bold" className="text-base-content">{periodTotalCount}</Text> ventas registradas
+                          </Text>
+                          <Flex align="center" gap="xs">
+                            <Text size="xs" color="muted">Mostrar:</Text>
+                            <Select
+                              size="xs"
+                              fullWidth={false}
+                              value={periodSalesLimit}
+                              onChange={(e) => {
+                                setPeriodSalesLimit(Number(e.target.value));
+                                setPeriodSalesPage(1);
+                              }}
+                              options={[
+                                { value: 10, label: '10 por pág.' },
+                                { value: 25, label: '25 por pág.' },
+                                { value: 50, label: '50 por pág.' },
+                                { value: 100, label: '100 por pág.' },
+                                { value: 0, label: 'Todas' },
+                              ]}
+                            />
+                          </Flex>
+                        </Flex>
+
+                        {periodTotalPages > 1 && periodSalesLimit > 0 && (
+                          <Flex align="center" gap="xs">
+                            <SecondaryButton
+                              size="xs"
+                              onClick={() => setPeriodSalesPage(p => Math.max(1, p - 1))}
+                              disabled={periodSalesPage <= 1}
+                              iconStart={<Icon name="ChevronLeft" size="xs" />}
+                            >
+                              Anterior
+                            </SecondaryButton>
+                            <Text size="xs" weight="semibold" className="px-2">
+                              Pág. {periodSalesPage} de {periodTotalPages}
+                            </Text>
+                            <SecondaryButton
+                              size="xs"
+                              onClick={() => setPeriodSalesPage(p => Math.min(periodTotalPages, p + 1))}
+                              disabled={periodSalesPage >= periodTotalPages}
+                              iconEnd={<Icon name="ChevronRight" size="xs" />}
+                            >
+                              Siguiente
+                            </SecondaryButton>
+                          </Flex>
+                        )}
+                      </Flex>
+                    )}
+                  </>
                 )}
               </Box>
             </Stack>
