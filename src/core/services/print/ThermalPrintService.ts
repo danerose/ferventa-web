@@ -1,4 +1,4 @@
-import type { AdminMaintenanceOrder, Appointment } from '@/app/domain';
+import type { AdminMaintenanceOrder, Appointment, SpecialOrder } from '@/app/domain';
 import type { PrinterSettings } from '@/core/types';
 import { printEngine } from './PrintEngine';
 import {
@@ -8,6 +8,7 @@ import {
 } from './templates/saleTicketTemplate';
 import { generateReceptionTicketHtml } from './templates/receptionTemplates';
 import { generateAppointmentTicketHtml } from './templates/appointmentTemplates';
+import { generateSpecialOrderTicketHtml } from './templates/specialOrderTemplates';
 
 export type { PrintTicketOptions, PrintItem };
 
@@ -82,4 +83,28 @@ export const thermalPrintService = {
       title: `Ticket Cita #${folio}`,
     });
   },
+
+  /**
+   * Imprime ticket térmico de pedido especial / encargo (58mm / 80mm).
+   */
+  printSpecialOrderTicket(
+    order: SpecialOrder,
+    settings: PrinterSettings,
+    branchName?: string,
+    sellerName?: string
+  ): void {
+    const html = generateSpecialOrderTicketHtml({
+      order,
+      settings,
+      branchName,
+      sellerName,
+    });
+    const folio = order.folio || order.id?.slice(-6).toUpperCase() || 'PED-001';
+
+    printEngine.printThermal(html, {
+      width: settings.paperWidth || '58mm',
+      title: `Ticket Pedido #${folio}`,
+    });
+  },
 };
+

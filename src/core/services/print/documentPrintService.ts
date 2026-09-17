@@ -5,10 +5,11 @@
  * Uses PrintEngine for isolated cross-platform spooling without mutating or hiding the SPA DOM.
  */
 
-import type { Appointment, AdminMaintenanceOrder } from '@/app/domain';
+import type { Appointment, AdminMaintenanceOrder, SpecialOrder } from '@/app/domain';
 import { printEngine } from './PrintEngine';
 import { generateAppointmentDocumentHtml } from './templates/appointmentTemplates';
 import { generateReceptionDocumentHtml } from './templates/receptionTemplates';
+import { generateSpecialOrderDocumentHtml } from './templates/specialOrderTemplates';
 
 export interface PrintDocumentOptions {
   title?: string;
@@ -82,6 +83,23 @@ export class DocumentPrintService {
   }
 
   /**
+   * Imprime la factura / comprobante formal tamaño Carta/A4 de un Pedido Especial.
+   */
+  public printSpecialOrderInvoice(
+    order: SpecialOrder,
+    branchName?: string,
+    sellerName?: string,
+    businessName?: string
+  ): void {
+    const folio = order.folio || order.id?.slice(-6).toUpperCase() || 'PED-001';
+    const html = generateSpecialOrderDocumentHtml(order, branchName, sellerName, businessName);
+    printEngine.printDocument(html, {
+      title: `Pedido Especial #${folio}`,
+      margin: '14mm 16mm',
+    });
+  }
+
+  /**
    * Imprime la hoja de servicio / remisión de cobro del taller.
    */
   public printServiceInvoice(): void {
@@ -149,3 +167,4 @@ export class DocumentPrintService {
 }
 
 export const documentPrintService = new DocumentPrintService();
+

@@ -17,8 +17,10 @@ import {
   SPECIAL_ORDER_STATUS_COLORS,
 } from '@/core/enums';
 import type { SpecialOrder } from '@/app/domain';
-import { formatCurrency, formatDate, buildSpecialOrderWhatsAppUrl } from '@/core/utils';
+import { formatCurrency, formatDate, buildSpecialOrderWhatsAppUrl, formatBranchWorkshopName } from '@/core/utils';
 import { useActiveBranch } from '@/app/presentation/hooks';
+import { useAuthStore, usePrinterSettingsStore } from '@/app/presentation/stores';
+import { documentPrintService, thermalPrintService } from '@/core/services';
 
 export interface SpecialOrderDetailDrawerProps {
   isOpen: boolean;
@@ -38,6 +40,8 @@ export const SpecialOrderDetailDrawer: React.FC<SpecialOrderDetailDrawerProps> =
   onOpenCancelModal,
 }) => {
   const [copiedFolio, setCopiedFolio] = useState(false);
+  const user = useAuthStore((s) => s.user);
+  const { activeBranchName } = useActiveBranch();
 
   useEffect(() => {
     if (!isOpen || !order) return;
@@ -50,14 +54,23 @@ export const SpecialOrderDetailDrawer: React.FC<SpecialOrderDetailDrawerProps> =
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, order, onClose]);
 
-  const { activeBranchName } = useActiveBranch();
-
   if (!isOpen || !order) return null;
 
   const handleCopyFolio = () => {
     navigator.clipboard.writeText(order.folio);
     setCopiedFolio(true);
     setTimeout(() => setCopiedFolio(false), 2000);
+  };
+
+  const handlePrintTicket = () => {
+    const settings = usePrinterSettingsStore.getState();
+    const branch = formatBranchWorkshopName(activeBranchName);
+    thermalPrintService.printSpecialOrderTicket(order, settings, branch, user?.name);
+  };
+
+  const handlePrintInvoice = () => {
+    const branch = formatBranchWorkshopName(activeBranchName);
+    documentPrintService.printSpecialOrderInvoice(order, branch, user?.name);
   };
 
   // WhatsApp link preparation
@@ -137,6 +150,44 @@ export const SpecialOrderDetailDrawer: React.FC<SpecialOrderDetailDrawerProps> =
               </Flex>
             </Flex>
           </Box>
+
+          {/* PRINT TOOLBAR & QUICK ACTIONS */}
+          <Box className="px-6 py-2.5 bg-slate-100 dark:bg-slate-800/90 border-b border-slate-200 dark:border-slate-700/60 flex items-center justify-between gap-2 flex-wrap">
+            <Flex align="center" gap="xs">
+              <SecondaryButton
+                size="xs"
+                onClick={handlePrintTicket}
+                className="bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 text-xs flex items-center gap-1.5 shadow-xs hover:bg-slate-50 dark:hover:bg-slate-800"
+                title="Imprimir ticket térmico para rollo 58mm / 80mm"
+              >
+                <Icon name="Printer" size="xs" className="text-indigo-600 dark:text-indigo-400" />
+                Imprimir Ticket
+              </SecondaryButton>
+              <SecondaryButton
+                size="xs"
+                onClick={handlePrintInvoice}
+                className="bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 text-xs flex items-center gap-1.5 shadow-xs hover:bg-slate-50 dark:hover:bg-slate-800"
+                title="Imprimir comprobante / factura formal en hoja Carta / A4"
+              >
+                <Icon name="FileText" size="xs" className="text-indigo-600 dark:text-indigo-400" />
+                Factura / Hoja Carta
+              </SecondaryButton>
+            </Flex>
+
+            {waUrl && (
+              <a
+                href={waUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow-xs transition-colors ml-auto"
+                title="Enviar notificación vía WhatsApp al cliente"
+              >
+                <Icon name="MessageCircle" size="xs" />
+                Avisar WhatsApp
+              </a>
+            )}
+          </Box>
+
 
           {/* SCROLLABLE BODY */}
           <Box className="flex-1 overflow-y-auto p-6 space-y-6">

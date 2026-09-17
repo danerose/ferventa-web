@@ -20,7 +20,7 @@ import {
   CancelSpecialOrderModal,
   SpecialOrderDetailDrawer,
 } from '@/app/presentation/components';
-import { useAuthStore, useSpecialOrdersStore } from '@/app/presentation/stores';
+import { useAuthStore, useSpecialOrdersStore, usePrinterSettingsStore } from '@/app/presentation/stores';
 import {
   SpecialOrderStatus,
   SPECIAL_ORDER_STATUS_LABELS,
@@ -28,12 +28,14 @@ import {
 } from '@/core/enums';
 import { MODULE_THEMES } from '@/core/constants/moduleTheme';
 import type {
+  SpecialOrder,
   CreateSpecialOrderPayload,
   AddSpecialOrderPaymentPayload,
   UpdateSpecialOrderStatusPayload,
   CancelSpecialOrderPayload,
 } from '@/app/domain';
-import { formatCurrency, formatDate, buildSpecialOrderWhatsAppUrl } from '@/core/utils';
+import { formatCurrency, formatDate, buildSpecialOrderWhatsAppUrl, formatBranchWorkshopName } from '@/core/utils';
+import { documentPrintService, thermalPrintService } from '@/core/services';
 
 import { useShallow } from 'zustand/react/shallow';
 
@@ -151,6 +153,17 @@ export const SpecialOrdersPage: React.FC = () => {
     navigator.clipboard.writeText(folio);
     setCopiedFolioId(id);
     setTimeout(() => setCopiedFolioId(null), 2000);
+  };
+
+  const handlePrintTicket = (order: SpecialOrder) => {
+    const settings = usePrinterSettingsStore.getState();
+    const branch = formatBranchWorkshopName(activeBranchName);
+    thermalPrintService.printSpecialOrderTicket(order, settings, branch, user?.name);
+  };
+
+  const handlePrintInvoice = (order: SpecialOrder) => {
+    const branch = formatBranchWorkshopName(activeBranchName);
+    documentPrintService.printSpecialOrderInvoice(order, branch, user?.name);
   };
 
   // Status categories for quick filters
@@ -477,6 +490,24 @@ export const SpecialOrdersPage: React.FC = () => {
 
                     {/* Right Header: Actions */}
                     <Flex align="center" gap="xs">
+                      <SecondaryButton
+                        size="xs"
+                        onClick={() => handlePrintTicket(order)}
+                        title="Imprimir ticket térmico (58mm / 80mm)"
+                        className="px-2"
+                      >
+                        <Icon name="Printer" size="xs" />
+                      </SecondaryButton>
+
+                      <SecondaryButton
+                        size="xs"
+                        onClick={() => handlePrintInvoice(order)}
+                        title="Imprimir comprobante / factura formal (Carta/A4)"
+                        className="px-2"
+                      >
+                        <Icon name="FileText" size="xs" />
+                      </SecondaryButton>
+
                       <SecondaryButton
                         size="xs"
                         onClick={() => {
