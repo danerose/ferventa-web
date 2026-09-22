@@ -300,9 +300,14 @@ export const MaintenanceDetailDrawer: React.FC<MaintenanceDetailDrawerProps> = (
               <Heading level={3} className="text-base sm:text-lg font-black text-base-content tracking-tight truncate">
                 {order.vehicle.brand} {order.vehicle.model} {order.vehicle.year ? `(${order.vehicle.year})` : ''}
               </Heading>
-              <Text size="xs" variant="muted" className="truncate">
-                Serie: <span className="font-mono font-bold text-base-content">{order.vehicle.serialNumberLastFour}</span>
-                {order.vehicle.licensePlate && ` • Placas: ${order.vehicle.licensePlate}`}
+              <Text size="xs" variant="muted" className="truncate flex items-center gap-1.5 flex-wrap">
+                <span>Serie: <span className="font-mono font-bold text-base-content">{order.vehicle.serialNumberLastFour}</span></span>
+                {order.vehicle.color && (
+                  <span>• Color: <span className="font-bold text-base-content capitalize">{order.vehicle.color}</span></span>
+                )}
+                {order.vehicle.licensePlate && (
+                  <span>• Placas: <span className="font-bold text-base-content">{order.vehicle.licensePlate}</span></span>
+                )}
               </Text>
             </Stack>
 
@@ -430,8 +435,67 @@ export const MaintenanceDetailDrawer: React.FC<MaintenanceDetailDrawerProps> = (
               </Grid>
             </Box>
 
-            {/* CUSTOMER & VEHICLE INFO */}
+            {/* VEHICLE & CUSTOMER INFO */}
             <Grid cols={{ base: 1, sm: 2 }} gap="md">
+              {/* Vehicle */}
+              <Box bg="base-200" rounded="DEFAULT" className="p-4 border border-base-300 flex flex-col justify-between">
+                <div>
+                  <Flex align="center" gap="xs" className="mb-2 text-primary">
+                    <Icon name="Car" size="sm" />
+                    <Text size="xs" weight="bold" className="uppercase tracking-wider text-base-content">
+                      Vehículo / Unidad
+                    </Text>
+                  </Flex>
+
+                  <Text size="sm" weight="bold" className="text-base-content">
+                    {order.vehicle.brand} {order.vehicle.model} {order.vehicle.year ? `(${order.vehicle.year})` : ''}
+                  </Text>
+
+                  <Grid cols={{ base: 2 }} gap="xs" className="mt-2.5 pt-2 border-t border-base-300/60 text-xs">
+                    <div>
+                      <Text size="xs" variant="muted" className="text-[10px] uppercase font-bold">
+                        Color
+                      </Text>
+                      <Text size="xs" weight="bold" className="text-base-content capitalize flex items-center gap-1">
+                        <span className="w-2 h-2 rounded-full bg-primary/70 shrink-0 inline-block" />
+                        {order.vehicle.color || 'No especificado'}
+                      </Text>
+                    </div>
+
+                    <div>
+                      <Text size="xs" variant="muted" className="text-[10px] uppercase font-bold">
+                        Serie (4 dígitos)
+                      </Text>
+                      <Text size="xs" weight="bold" className="font-mono text-base-content">
+                        {order.vehicle.serialNumberLastFour || 'N/A'}
+                      </Text>
+                    </div>
+
+                    {order.vehicle.licensePlate && (
+                      <div className="mt-1">
+                        <Text size="xs" variant="muted" className="text-[10px] uppercase font-bold">
+                          Placas
+                        </Text>
+                        <Text size="xs" weight="bold" className="text-base-content">
+                          {order.vehicle.licensePlate}
+                        </Text>
+                      </div>
+                    )}
+
+                    {(order.initialMileage !== undefined && order.initialMileage !== null) && (
+                      <div className="mt-1">
+                        <Text size="xs" variant="muted" className="text-[10px] uppercase font-bold">
+                          Kilometraje
+                        </Text>
+                        <Text size="xs" weight="bold" className="font-mono text-base-content">
+                          {order.initialMileage.toLocaleString()} km
+                        </Text>
+                      </div>
+                    )}
+                  </Grid>
+                </div>
+              </Box>
+
               {/* Customer */}
               <Box bg="base-200" rounded="DEFAULT" className="p-4 border border-base-300 flex flex-col justify-between">
                 <div>
@@ -497,82 +561,82 @@ export const MaintenanceDetailDrawer: React.FC<MaintenanceDetailDrawerProps> = (
                   </Box>
                 )}
               </Box>
+            </Grid>
 
-              {/* Service & Labor Cost */}
-              <Box bg="base-200" rounded="DEFAULT" className="p-4 border border-base-300">
-                <Flex align="center" gap="xs" className="mb-2 text-warning">
-                  <Icon name="Wrench" size="sm" />
-                  <Text size="xs" weight="bold" className="uppercase tracking-wider text-base-content">
-                    Servicio Solicitado
-                  </Text>
-                </Flex>
-                <Text size="sm" weight="medium" className="text-base-content">
-                  {order.serviceRequested || 'Mantenimiento General'}
+            {/* Service & Labor Cost */}
+            <Box bg="base-200" rounded="DEFAULT" className="p-4 border border-base-300">
+              <Flex align="center" gap="xs" className="mb-2 text-warning">
+                <Icon name="Wrench" size="sm" />
+                <Text size="xs" weight="bold" className="uppercase tracking-wider text-base-content">
+                  Servicio Solicitado
                 </Text>
-                
-                <Box className="mt-2 pt-2 border-t border-base-300/60">
-                  <Flex justify="between" align="center" className="mb-1">
-                    <Text size="xs" variant="muted" weight="semibold">
-                      Mano de Obra
-                    </Text>
-                    {!isMechanic && !editingLaborCost && onUpdateLaborCost && (
+              </Flex>
+              <Text size="sm" weight="medium" className="text-base-content">
+                {order.serviceRequested || 'Mantenimiento General'}
+              </Text>
+              
+              <Box className="mt-2 pt-2 border-t border-base-300/60">
+                <Flex justify="between" align="center" className="mb-1">
+                  <Text size="xs" variant="muted" weight="semibold">
+                    Mano de Obra
+                  </Text>
+                  {!isMechanic && !editingLaborCost && onUpdateLaborCost && (
+                    <TertiaryButton
+                      size="xs"
+                      className="h-6 min-h-6 px-1.5 text-primary gap-1"
+                      onClick={() => {
+                        setLaborCostValue(order.laborCost ?? order.laborPrice ?? 0);
+                        setEditingLaborCost(true);
+                      }}
+                    >
+                      <Icon name="Edit3" size="xs" />
+                      <span className="text-[10px]">Editar</span>
+                    </TertiaryButton>
+                  )}
+                </Flex>
+
+                {editingLaborCost ? (
+                  <Box className="space-y-2">
+                    <TextInput
+                      type="number"
+                      min="0"
+                      step="10"
+                      size="sm"
+                      value={laborCostValue}
+                      onChange={(e) => setLaborCostValue(e.target.value)}
+                      placeholder="0.00"
+                      autoFocus
+                    />
+                    <Flex justify="end" gap="xs">
                       <TertiaryButton
                         size="xs"
-                        className="h-6 min-h-6 px-1.5 text-primary gap-1"
+                        className="h-6 min-h-6 px-2 text-[10px]"
+                        disabled={savingLaborCost}
                         onClick={() => {
                           setLaborCostValue(order.laborCost ?? order.laborPrice ?? 0);
-                          setEditingLaborCost(true);
+                          setEditingLaborCost(false);
                         }}
                       >
-                        <Icon name="Edit3" size="xs" />
-                        <span className="text-[10px]">Editar</span>
+                        Cancelar
                       </TertiaryButton>
-                    )}
-                  </Flex>
-
-                  {editingLaborCost ? (
-                    <Box className="space-y-2">
-                      <TextInput
-                        type="number"
-                        min="0"
-                        step="10"
-                        size="sm"
-                        value={laborCostValue}
-                        onChange={(e) => setLaborCostValue(e.target.value)}
-                        placeholder="0.00"
-                        autoFocus
-                      />
-                      <Flex justify="end" gap="xs">
-                        <TertiaryButton
-                          size="xs"
-                          className="h-6 min-h-6 px-2 text-[10px]"
-                          disabled={savingLaborCost}
-                          onClick={() => {
-                            setLaborCostValue(order.laborCost ?? order.laborPrice ?? 0);
-                            setEditingLaborCost(false);
-                          }}
-                        >
-                          Cancelar
-                        </TertiaryButton>
-                        <PrimaryButton
-                          size="xs"
-                          color="primary"
-                          className="h-6 min-h-6 px-2 text-[10px]"
-                          loading={savingLaborCost}
-                          onClick={handleSaveLaborCost}
-                        >
-                          Guardar
-                        </PrimaryButton>
-                      </Flex>
-                    </Box>
-                  ) : (
-                    <Text size="xs" className="font-bold text-base-content">
-                      {order.laborCost || order.laborPrice ? formatCurrency(order.laborCost || order.laborPrice || 0) : 'Por cotizar'}
-                    </Text>
-                  )}
-                </Box>
+                      <PrimaryButton
+                        size="xs"
+                        color="primary"
+                        className="h-6 min-h-6 px-2 text-[10px]"
+                        loading={savingLaborCost}
+                        onClick={handleSaveLaborCost}
+                      >
+                        Guardar
+                      </PrimaryButton>
+                    </Flex>
+                  </Box>
+                ) : (
+                  <Text size="xs" className="font-bold text-base-content">
+                    {order.laborCost || order.laborPrice ? formatCurrency(order.laborCost || order.laborPrice || 0) : 'Por cotizar'}
+                  </Text>
+                )}
               </Box>
-            </Grid>
+            </Box>
 
             {/* SEPARATED NOTES SECTION */}
             <Stack spacing="sm">

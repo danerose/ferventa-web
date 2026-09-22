@@ -118,9 +118,12 @@ export const StatusResults: React.FC = () => {
                   <Icon name="Wrench" size="sm" className="text-secondary" />
                   {maintenanceTrack.vehicle.brand} {maintenanceTrack.vehicle.model} {maintenanceTrack.vehicle.year}
                 </h3>
-                <p className="font-data-mono text-base-content/70 text-sm mt-1">
-                  Orden: #{maintenanceTrack.orderNumber} | Serie (4 dígitos):{' '}
-                  <span className="font-semibold text-primary">{maintenanceTrack.vehicle.serialNumberLastFour}</span>
+                <p className="font-data-mono text-base-content/70 text-sm mt-1 flex items-center gap-1.5 flex-wrap">
+                  <span>Orden: #{maintenanceTrack.orderNumber}</span>
+                  <span>| Serie (4 dígitos): <span className="font-semibold text-primary">{maintenanceTrack.vehicle.serialNumberLastFour}</span></span>
+                  {maintenanceTrack.vehicle.color && (
+                    <span>| Color: <span className="font-semibold text-base-content capitalize">{maintenanceTrack.vehicle.color}</span></span>
+                  )}
                 </p>
               </div>
               <div className="bg-base-300/70 px-3 py-1.5 rounded-full border border-base-300 flex items-center gap-1.5">

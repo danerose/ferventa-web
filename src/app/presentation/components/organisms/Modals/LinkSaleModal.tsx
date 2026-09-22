@@ -104,10 +104,13 @@ export const LinkSaleModal: React.FC<LinkSaleModalProps> = ({
           <Flex justify="between" align="center" className="flex-wrap gap-2 text-xs">
             <Box>
               <Text size="xs" weight="bold" className="text-base-content">
-                {order.vehicle.brand} {order.vehicle.model} ({order.vehicle.year})
+                {order.vehicle.brand} {order.vehicle.model} {order.vehicle.year ? `(${order.vehicle.year})` : ''}
               </Text>
               <Text size="xs" variant="muted">
                 Cliente: <span className="font-semibold text-base-content/90">{order.customer.name}</span>
+                {order.vehicle.color && (
+                  <> • Color: <span className="font-medium text-base-content capitalize">{order.vehicle.color}</span></>
+                )}
               </Text>
             </Box>
             <Badge variant="soft" color="warning" size="xs">

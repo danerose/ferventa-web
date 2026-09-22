@@ -40,7 +40,8 @@ export const NotifyMaintenanceModal: React.FC<NotifyMaintenanceModalProps> = ({
         : 'Por definir en caja';
 
       const workshopUpper = workshopName.toUpperCase();
-      const defaultMsg = `*VEHÍCULO LISTO PARA ENTREGA - ${workshopUpper}* 🚗✨\n\nHola *${order.customer.name}*, le saludamos del *${workshopName}*. Le informamos que el servicio de *${order.serviceRequested || 'Mantenimiento General'}* para su vehículo *${order.vehicle.brand} ${order.vehicle.model}* (Serie: *${order.vehicle.serialNumberLastFour}*) ha concluido con éxito.\n\n💰 *Mano de obra estimada:* ${laborFormatted}\n📍 *Estatus:* Listo para ser entregado en sucursal.\n\n¡Ya puede pasar a recogerlo en nuestro horario de atención!`;
+      const colorPart = order.vehicle.color ? ` color *${order.vehicle.color}*` : '';
+      const defaultMsg = `*VEHÍCULO LISTO PARA ENTREGA - ${workshopUpper}* 🚗✨\n\nHola *${order.customer.name}*, le saludamos del *${workshopName}*. Le informamos que el servicio de *${order.serviceRequested || 'Mantenimiento General'}* para su vehículo *${order.vehicle.brand} ${order.vehicle.model}*${colorPart} (Serie: *${order.vehicle.serialNumberLastFour}*) ha concluido con éxito.\n\n💰 *Mano de obra estimada:* ${laborFormatted}\n📍 *Estatus:* Listo para ser entregado en sucursal.\n\n¡Ya puede pasar a recogerlo en nuestro horario de atención!`;
       setMessage(defaultMsg);
     }
   }, [order, isEdited, workshopName]);
@@ -129,10 +130,11 @@ export const NotifyMaintenanceModal: React.FC<NotifyMaintenanceModalProps> = ({
                 Vehículo
               </Text>
               <Text size="sm" weight="bold" className="text-base-content mt-0.5">
-                {order.vehicle.brand} {order.vehicle.model}
+                {order.vehicle.brand} {order.vehicle.model} {order.vehicle.year ? `(${order.vehicle.year})` : ''}
               </Text>
               <Text size="xs" variant="muted" className="font-mono">
                 Serie: {order.vehicle.serialNumberLastFour}
+                {order.vehicle.color && ` • Color: ${order.vehicle.color}`}
               </Text>
             </div>
           </Flex>

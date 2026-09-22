@@ -73,9 +73,10 @@ export const DashboardQuickDetailDrawer: React.FC<DashboardQuickDetailDrawerProp
     const q = searchTerm.toLowerCase();
     return activeWorkorders.filter(
       o =>
-        o.customer?.name.toLowerCase().includes(q) ||
-        o.vehicle?.model.toLowerCase().includes(q) ||
-        o.vehicle?.brand.toLowerCase().includes(q) ||
+        o.customer?.name?.toLowerCase().includes(q) ||
+        o.vehicle?.model?.toLowerCase().includes(q) ||
+        o.vehicle?.brand?.toLowerCase().includes(q) ||
+        o.vehicle?.color?.toLowerCase().includes(q) ||
         o.vehicle?.serialNumberLastFour?.toLowerCase().includes(q)
     );
   }, [activeWorkorders, searchTerm]);
@@ -370,8 +371,11 @@ export const DashboardQuickDetailDrawer: React.FC<DashboardQuickDetailDrawerProp
                         </div>
                         <div className="text-xs text-base-content/80 mt-0.5">
                           {o.vehicle ? `${o.vehicle.brand} ${o.vehicle.model} (${o.vehicle.year})` : 'Vehículo no especificado'}
+                          {o.vehicle?.color && (
+                            <span className="text-base-content/70 ml-1">· Color: <strong className="capitalize text-base-content">{o.vehicle.color}</strong></span>
+                          )}
                           {o.vehicle?.serialNumberLastFour && (
-                            <span className="text-base-content/50 ml-1">· Placas/Serie: {o.vehicle.serialNumberLastFour}</span>
+                            <span className="text-base-content/50 ml-1">· Serie: {o.vehicle.serialNumberLastFour}</span>
                           )}
                         </div>
                       </div>

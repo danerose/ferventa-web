@@ -1152,10 +1152,19 @@ export const MaintenanceManagementPage: React.FC = () => {
                       </Text>
                     </Flex>
 
-                    {/* Vehicle Header */}
+                    {/* Vehicle Header & Specs */}
                     <Heading level={3} className="text-lg font-bold mb-1">
-                      {order.vehicle.brand} {order.vehicle.model}
+                      {order.vehicle.brand} {order.vehicle.model} {order.vehicle.year ? `(${order.vehicle.year})` : ''}
                     </Heading>
+
+                    {order.vehicle.color && (
+                      <Flex align="center" gap="xs" className="mb-1">
+                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-semibold bg-base-200 text-base-content/80 border border-base-300">
+                          <span className="w-1.5 h-1.5 rounded-full bg-primary/70 shrink-0 inline-block" />
+                          Color: <span className="font-bold text-base-content capitalize">{order.vehicle.color}</span>
+                        </span>
+                      </Flex>
+                    )}
 
                     {/* Customer & Date info */}
                     <Stack spacing="xs" className="my-3">
