@@ -20,7 +20,12 @@ import {
 import type { ServiceInvoiceCustomerData } from '@/app/presentation/components/organisms/Modals/ServiceInvoiceCustomerModal';
 
 import { useAuthStore, usePOSStore, usePrinterSettingsStore } from '@/app/presentation/stores';
-import { thermalPrintService, documentPrintService } from '@/core/services';
+import {
+  thermalPrintService,
+  documentPrintService,
+  webBluetoothPrinterService,
+  directUsbPrinterService,
+} from '@/core/services';
 import { useBarcodeScanner } from '@/core/hooks';
 import type { Sale, CartItem, Product } from '@/app/domain';
 
@@ -234,6 +239,17 @@ export const POSPage: React.FC = () => {
   const activeBranchId = useAuthStore((s) => s.activeBranchId);
   const clearAuth = useAuthStore((s) => s.clearAuth);
   const autoPrintOnSale = usePrinterSettingsStore((s) => s.autoPrintOnSale);
+  const printMode = usePrinterSettingsStore((s) => s.printMode);
+  const paperWidth = usePrinterSettingsStore((s) => s.paperWidth);
+  const [btConnected, setBtConnected] = useState(() => webBluetoothPrinterService.isConnected());
+  const [usbPaired, setUsbPaired] = useState(false);
+
+  useEffect(() => {
+    setBtConnected(webBluetoothPrinterService.isConnected());
+    if (directUsbPrinterService.isSupported()) {
+      directUsbPrinterService.isPortPaired().then(setUsbPaired);
+    }
+  }, []);
 
   const [activeTab, setActiveTab] = useState<'products' | 'services'>('products');
   const [isTempServiceModalOpen, setIsTempServiceModalOpen] = useState(false);
@@ -744,6 +760,40 @@ export const POSPage: React.FC = () => {
                 <p className="text-xs text-base-content/60 mt-0.5">
                   Sucursal: <strong className="text-base-content">{activeBranchName}</strong>
                 </p>
+              </div>
+
+              {/* Status de Impresora SUZWIP */}
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => navigate('/admin/settings')}
+                  title="Configurar conexión de impresora de tickets"
+                  className="flex items-center gap-2 px-3 py-1.5 bg-base-100 hover:bg-base-300/60 border border-base-300 rounded-lg text-xs transition-colors cursor-pointer shadow-2xs"
+                >
+                  <Icon
+                    name={printMode === 'bluetooth' ? 'Bluetooth' : printMode === 'usb_serial' ? 'Usb' : 'Printer'}
+                    size="xs"
+                    className={
+                      printMode === 'bluetooth' && btConnected
+                        ? 'text-success'
+                        : printMode === 'usb_serial' && usbPaired
+                        ? 'text-success'
+                        : 'text-warning'
+                    }
+                  />
+                  <span className="font-semibold text-base-content">
+                    {printMode === 'local_agent'
+                      ? 'Impresión Silenciosa (Agente)'
+                      : printMode === 'bluetooth'
+                      ? (btConnected ? 'SUZWIP Bluetooth Conectada' : 'SUZWIP Bluetooth (Desconectada)')
+                      : printMode === 'usb_serial'
+                      ? (usbPaired ? 'SUZWIP USB Conectada' : 'SUZWIP USB')
+                      : 'Tickets: Vista Previa'}
+                  </span>
+                  <span className="text-[10px] px-1 py-0.5 bg-base-200 rounded text-base-content/70 font-mono font-bold">
+                    {paperWidth}
+                  </span>
+                </button>
               </div>
             </div>
 

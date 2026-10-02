@@ -13,7 +13,11 @@ const STORAGE_KEY = 'ferventa_printer_settings';
 
 const DEFAULT_SETTINGS: PrinterSettings = {
   printerName: 'SUZWIP 58MM Thermal',
+  ticketPrinter: '',
+  documentPrinter: '',
+  qrPrinter: '',
   paperWidth: '58mm',
+  printMode: 'local_agent',
   autoPrintOnSale: true,
   fontSize: 'normal',
   showFolio: true,
@@ -50,7 +54,11 @@ export const usePrinterSettingsStore = create<PrinterSettingsState>((set, get) =
   saveSettings: (newSettings: Partial<PrinterSettings>) => {
     const updated: PrinterSettings = {
       printerName: newSettings.printerName ?? get().printerName,
+      ticketPrinter: newSettings.ticketPrinter ?? get().ticketPrinter,
+      documentPrinter: newSettings.documentPrinter ?? get().documentPrinter,
+      qrPrinter: newSettings.qrPrinter ?? get().qrPrinter,
       paperWidth: newSettings.paperWidth ?? get().paperWidth,
+      printMode: newSettings.printMode ?? get().printMode,
       autoPrintOnSale: newSettings.autoPrintOnSale ?? get().autoPrintOnSale,
       fontSize: newSettings.fontSize ?? get().fontSize,
       showFolio: newSettings.showFolio ?? get().showFolio,

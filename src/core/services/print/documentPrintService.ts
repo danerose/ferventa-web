@@ -2,7 +2,8 @@
  * Document Print Service
  * 
  * Single Responsibility: High-level document printing coordinator.
- * Uses PrintEngine for isolated cross-platform spooling without mutating or hiding the SPA DOM.
+ * Uses PrintEngine for high-fidelity cross-platform preview & printing
+ * maintaining all original colors, styling, logos, and letter/A4 proportions.
  */
 
 import type { Appointment, AdminMaintenanceOrder, SpecialOrder } from '@/app/domain';
@@ -29,7 +30,20 @@ export interface PrintLabelOptions {
 
 export class DocumentPrintService {
   /**
-   * Imprime el comprobante formal de cita (tamaño Carta/A4 con membrete).
+   * Abre el documento HTML en una nueva pestaña del navegador para visualizarlo completo en pantalla.
+   */
+  public openInNewTab(html: string, title?: string): void {
+    const win = window.open('', '_blank');
+    if (win) {
+      win.document.open();
+      win.document.write(html);
+      win.document.close();
+      if (title) win.document.title = title;
+    }
+  }
+
+  /**
+   * Imprime el comprobante formal de cita (tamaño Carta/A4 con membrete, colores y vista previa).
    * Puede recibir el objeto Appointment directamente (generador puro) o extraerlo del DOM como fallback.
    */
   public printAppointmentVoucher(appt?: Appointment | null, branchName?: string): void {
@@ -54,7 +68,7 @@ export class DocumentPrintService {
 
   /**
    * Imprime el comprobante formal de recepción de vehículo (con checklist de inventario,
-   * cláusulas legales NOM-174 y firmas de entrega/recepción).
+   * cláusulas legales NOM-174 y firmas de entrega/recepción, con vista previa).
    * Puede recibir la orden directamente o extraer del DOM como fallback.
    */
   public printServiceReception(
@@ -83,7 +97,7 @@ export class DocumentPrintService {
   }
 
   /**
-   * Imprime la factura / comprobante formal tamaño Carta/A4 de un Pedido Especial.
+   * Imprime la factura / comprobante formal tamaño Carta/A4 de un Pedido Especial con vista previa y diseño original.
    */
   public printSpecialOrderInvoice(
     order: SpecialOrder,
@@ -100,7 +114,7 @@ export class DocumentPrintService {
   }
 
   /**
-   * Imprime la hoja de servicio / remisión de cobro del taller.
+   * Imprime la hoja de servicio / remisión de cobro del taller con vista previa y diseño original.
    */
   public printServiceInvoice(): void {
     const el = document.getElementById('service-invoice-receipt');
@@ -116,7 +130,8 @@ export class DocumentPrintService {
   }
 
   /**
-   * Imprime cotización formal en hoja Carta/A4.
+   * Imprime cotización formal en hoja Carta/A4 manteniendo todo el formato gráfico original,
+   * colores, desglose de servicios y previsualización.
    */
   public printQuotation(): void {
     const el = document.getElementById('quotation-receipt');
@@ -142,8 +157,8 @@ export class DocumentPrintService {
   }
 
   /**
-   * Imprime etiquetas adhesivas individuales (QR / Códigos de barra) con medidas exactas en milímetros,
-   * evitando que las impresoras de stickers alimenten una página Carta completa.
+   * Imprime etiquetas adhesivas individuales (QR / Códigos de barra) con medidas exactas en milímetros
+   * y previsualización gráfica.
    */
   public printLabelContent(htmlContent: string, options?: PrintLabelOptions): void {
     printEngine.printLabel(htmlContent, {
@@ -154,7 +169,6 @@ export class DocumentPrintService {
   }
 
   public printTicket(): void {
-    // Redirige al ticket en el DOM si existe
     const el = document.getElementById('ticket-receipt');
     if (el) {
       this.printThermalContent(el.innerHTML, { paperWidth: '80mm', title: 'Ticket' });
@@ -167,4 +181,3 @@ export class DocumentPrintService {
 }
 
 export const documentPrintService = new DocumentPrintService();
-

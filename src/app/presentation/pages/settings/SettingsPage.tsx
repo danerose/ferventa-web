@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Box,
   Flex,
@@ -14,16 +14,24 @@ import {
   Checkbox,
   TextInput,
   Textarea,
+  Select,
   Icon,
   PageLayout,
 } from '@/app/presentation/components';
 import { useAuthStore } from '@/app/presentation/stores';
 import { useThemeStore } from '@/app/presentation/stores';
 import { usePrinterSettingsStore } from '@/app/presentation/stores';
-import { thermalPrintService } from '@/core/services';
+import {
+  thermalPrintService,
+  webBluetoothPrinterService,
+  directUsbPrinterService,
+  localAgentPrinterService,
+  printEngine,
+} from '@/core/services';
 import { branchUseCases } from '@/core/di/container';
 import { ThemeMode } from '@/core/enums/methods/ThemeMode';
 import type { Branch } from '@/app/domain';
+import type { ThermalPrintMode } from '@/core/types';
 
 type ActiveSettingsTab = 'system' | 'business' | 'printer';
 
@@ -40,7 +48,11 @@ export const SettingsPage: React.FC = () => {
 
   // Estado local para configuración de impresora inicializado perezosamente desde el store
   const [printerName, setPrinterName] = useState(() => usePrinterSettingsStore.getState().printerName);
+  const [ticketPrinter, setTicketPrinter] = useState(() => usePrinterSettingsStore.getState().ticketPrinter || '');
+  const [documentPrinter, setDocumentPrinter] = useState(() => usePrinterSettingsStore.getState().documentPrinter || '');
+  const [qrPrinter, setQrPrinter] = useState(() => usePrinterSettingsStore.getState().qrPrinter || '');
   const [paperWidth, setPaperWidth] = useState<'58mm' | '80mm'>(() => usePrinterSettingsStore.getState().paperWidth);
+  const [printMode, setPrintMode] = useState<ThermalPrintMode>(() => usePrinterSettingsStore.getState().printMode || 'local_agent');
   const [autoPrintOnSale, setAutoPrintOnSale] = useState(() => usePrinterSettingsStore.getState().autoPrintOnSale);
   const [fontSize, setFontSize] = useState<'compact' | 'normal' | 'large'>(() => usePrinterSettingsStore.getState().fontSize);
   const [showFolio, setShowFolio] = useState(() => usePrinterSettingsStore.getState().showFolio);
@@ -49,6 +61,18 @@ export const SettingsPage: React.FC = () => {
   const [showPolicies, setShowPolicies] = useState(() => usePrinterSettingsStore.getState().showPolicies);
   const [showPhone, setShowPhone] = useState(() => usePrinterSettingsStore.getState().showPhone);
   const [showAddress, setShowAddress] = useState(() => usePrinterSettingsStore.getState().showAddress);
+
+  // Estados de conexión en tiempo real para Agente Windows, Bluetooth y USB
+  const [agentRunning, setAgentRunning] = useState(false);
+  const [agentPrinters, setAgentPrinters] = useState<string[]>([]);
+  const [checkingAgent, setCheckingAgent] = useState(false);
+  const [btConnected, setBtConnected] = useState(false);
+  const [btDeviceName, setBtDeviceName] = useState<string | null>(null);
+  const [btLoading, setBtLoading] = useState(false);
+  const [usbPaired, setUsbPaired] = useState(false);
+  const [usbDeviceName, setUsbDeviceName] = useState<string | null>(null);
+  const [usbLoading, setUsbLoading] = useState(false);
+  const [testPrintFeedback, setTestPrintFeedback] = useState<string | null>(null);
 
   // Textos y políticas personalizables por el Admin
   const [businessName, setBusinessName] = useState(() => usePrinterSettingsStore.getState().businessName);
@@ -66,6 +90,39 @@ export const SettingsPage: React.FC = () => {
   const [showSafariHelp, setShowSafariHelp] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
 
+  // Consulta el agente local de Windows y carga todas las impresoras reales
+  const checkAgentAndLoadPrinters = useCallback(async () => {
+    setCheckingAgent(true);
+    try {
+      const running = await localAgentPrinterService.isAgentRunning();
+      setAgentRunning(running);
+      if (running) {
+        const list = await localAgentPrinterService.getInstalledPrinters();
+        setAgentPrinters(list);
+        if (list.length > 0) {
+          setTicketPrinter((prev) => {
+            if (prev && list.includes(prev)) return prev;
+            const matched = list.find((p) => p.toLowerCase().includes('58') || p.toLowerCase().includes('pos') || p.toLowerCase().includes('suzwip')) || list[0];
+            return matched;
+          });
+          setDocumentPrinter((prev) => {
+            if (prev && list.includes(prev)) return prev;
+            const matchedDoc = list.find((p) => !p.toLowerCase().includes('58') && !p.toLowerCase().includes('pos')) || list[0];
+            return matchedDoc;
+          });
+          setQrPrinter((prev) => {
+            if (prev && list.includes(prev)) return prev;
+            return list[0];
+          });
+        }
+      }
+    } catch (err) {
+      console.warn('Error al verificar agente local:', err);
+    } finally {
+      setCheckingAgent(false);
+    }
+  }, []);
+
   useEffect(() => {
     const loadBranches = async () => {
       try {
@@ -78,7 +135,89 @@ export const SettingsPage: React.FC = () => {
       }
     };
     loadBranches();
-  }, []);
+
+    // Comprobar estado de agente local
+    checkAgentAndLoadPrinters();
+
+    // Comprobar estado de conexiones de hardware alternativas
+    setBtConnected(webBluetoothPrinterService.isConnected());
+    setBtDeviceName(webBluetoothPrinterService.getDeviceName());
+
+    if (directUsbPrinterService.isSupported()) {
+      directUsbPrinterService.isPortPaired().then((paired) => {
+        setUsbPaired(paired);
+        if (paired) {
+          directUsbPrinterService.getPairedDeviceName().then(setUsbDeviceName);
+        }
+      });
+    }
+
+    // Intervalo de sondeo suave para detectar si el usuario acaba de abrir el .exe
+    const interval = setInterval(() => {
+      localAgentPrinterService.isAgentRunning().then((running) => {
+        setAgentRunning((prev) => {
+          if (!prev && running) {
+            checkAgentAndLoadPrinters();
+          }
+          return running;
+        });
+      });
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [checkAgentAndLoadPrinters]);
+
+  const handlePairBluetooth = async () => {
+    setBtLoading(true);
+    try {
+      const success = await webBluetoothPrinterService.requestAndPairDevice();
+      if (success) {
+        setBtConnected(true);
+        const name = webBluetoothPrinterService.getDeviceName();
+        setBtDeviceName(name);
+        if (name) setPrinterName(name);
+        setPrintMode('bluetooth');
+        saveSettings({ printMode: 'bluetooth', ...(name ? { printerName: name } : {}) });
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      alert('Aviso de conexión Bluetooth: ' + msg);
+    } finally {
+      setBtLoading(false);
+    }
+  };
+
+  const handleDisconnectBluetooth = () => {
+    webBluetoothPrinterService.disconnect();
+    setBtConnected(false);
+    setBtDeviceName(null);
+  };
+
+  const handlePairUsb = async () => {
+    setUsbLoading(true);
+    try {
+      const success = await directUsbPrinterService.requestAndPairPort();
+      if (success) {
+        setUsbPaired(true);
+        const name = await directUsbPrinterService.getPairedDeviceName();
+        setUsbDeviceName(name);
+        if (name) setPrinterName(name);
+        setPrintMode('usb_serial');
+        saveSettings({ printMode: 'usb_serial', ...(name ? { printerName: name } : {}) });
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      alert('Aviso de conexión USB: ' + msg);
+    } finally {
+      setUsbLoading(false);
+    }
+  };
+
+  const handleDisconnectUsb = () => {
+    directUsbPrinterService.forgetPort();
+    setUsbPaired(false);
+    setUsbDeviceName(null);
+  };
 
   const activeBranch = useMemo(() => {
     if (!branches || branches.length === 0) return null;
@@ -90,7 +229,11 @@ export const SettingsPage: React.FC = () => {
   const handleSaveAllSettings = () => {
     saveSettings({
       printerName,
+      ticketPrinter,
+      documentPrinter,
+      qrPrinter,
       paperWidth,
+      printMode,
       autoPrintOnSale,
       fontSize,
       showFolio,
@@ -115,7 +258,11 @@ export const SettingsPage: React.FC = () => {
   const handleResetDefaults = () => {
     resetDefaults();
     setPrinterName('SUZWIP 58MM Thermal');
+    setTicketPrinter('');
+    setDocumentPrinter('');
+    setQrPrinter('');
     setPaperWidth('58mm');
+    setPrintMode('local_agent');
     setAutoPrintOnSale(true);
     setFontSize('normal');
     setShowFolio(true);
@@ -138,11 +285,17 @@ export const SettingsPage: React.FC = () => {
     setTimeout(() => setSavedSuccess(false), 3000);
   };
 
-  const handlePrintTestTicket = () => {
-    thermalPrintService.printTestTicket(
+  const handlePrintTestTicket = async (targetOverride?: string) => {
+    const target = targetOverride || ticketPrinter || printerName || 'SUZWIP';
+    setTestPrintFeedback(`Enviando ticket a ${target}...`);
+    const printedSilently = await thermalPrintService.printTestTicket(
       {
-        printerName,
+        printerName: target,
+        ticketPrinter: target,
+        documentPrinter,
+        qrPrinter,
         paperWidth,
+        printMode,
         autoPrintOnSale,
         fontSize,
         showFolio,
@@ -163,6 +316,85 @@ export const SettingsPage: React.FC = () => {
       activeBranchName,
       user?.name || 'Cajero'
     );
+
+    if (printedSilently) {
+      setTestPrintFeedback(`¡Ticket impreso en silencio en: ${target}!`);
+    } else {
+      setTestPrintFeedback('Ticket enviado a imprimir mediante el navegador.');
+    }
+    setTimeout(() => setTestPrintFeedback(null), 5000);
+  };
+
+  const handlePrintTestDocument = () => {
+    // Genera la muestra formal de Cotización idéntica al PDF original con todos los colores y diseño
+    const sampleHtml = `
+      <!DOCTYPE html><html><head><meta charset="utf-8"><title>Cotización - Vista Previa</title>
+      <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; padding: 40px; color: #1e293b; line-height: 1.5; background: #fff; }
+        .header { text-align: center; border-bottom: 2px solid #0f172a; padding-bottom: 16px; margin-bottom: 24px; }
+        .biz-title { font-size: 24px; font-weight: 800; color: #0f172a; text-transform: uppercase; letter-spacing: 0.5px; }
+        .doc-type { font-size: 16px; font-weight: 600; color: #475569; margin-top: 4px; }
+        .meta-info { font-size: 12px; color: #64748b; margin-top: 6px; }
+        .table { width: 100%; border-collapse: collapse; margin-top: 24px; font-size: 13px; }
+        .table th { border-bottom: 2px solid #cbd5e1; padding: 10px 8px; text-align: left; font-weight: 700; color: #334155; }
+        .table td { padding: 12px 8px; border-bottom: 1px solid #f1f5f9; }
+        .tag-service { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; background: #fef3c7; color: #d97706; margin-top: 2px; }
+        .tag-supply { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; background: #e0f2fe; color: #0284c7; margin-top: 2px; }
+        .totals-table { margin-left: auto; width: 280px; margin-top: 24px; font-size: 14px; }
+        .totals-table td { padding: 6px 0; }
+        .total-row { font-size: 18px; font-weight: 800; color: #0f172a; border-top: 2px solid #0f172a; padding-top: 8px; }
+        .footer { text-align: center; margin-top: 48px; font-size: 11px; color: #94a3b8; }
+      </style></head><body>
+        <div class="header">
+          <div class="biz-title">${businessName || 'Moto Servicio Nova FV'}</div>
+          <div class="doc-type">Cotización</div>
+          <div class="meta-info">Fecha: ${new Date().toLocaleDateString('es-MX')} ${new Date().toLocaleTimeString('es-MX')}</div>
+          <div class="meta-info">Sucursal: ${activeBranchName}</div>
+        </div>
+        <table class="table">
+          <thead><tr><th>Cant.</th><th>Descripción</th><th style="text-align: right;">P. Unitario</th><th style="text-align: right;">Importe</th></tr></thead>
+          <tbody>
+            <tr><td>2</td><td><strong>Agua De Batería</strong><br><span style="font-size: 11px; color: #64748b;">SKU: 180605</span></td><td style="text-align: right;">$75.00</td><td style="text-align: right;">$150.00</td></tr>
+            <tr><td>2</td><td><strong>Aceite Repsol 4T semisintético 10W 30</strong><br><span style="font-size: 11px; color: #64748b;">SKU: 614625</span></td><td style="text-align: right;">$224.00</td><td style="text-align: right;">$448.00</td></tr>
+            <tr><td>1</td><td><strong>Servicio CFMOTO 250 SR FUN</strong><br><span class="tag-service">Servicio de taller</span></td><td style="text-align: right;">$2,300.00</td><td style="text-align: right;">$2,300.00</td></tr>
+            <tr><td>1</td><td><span style="padding-left: 12px; color: #64748b;">• Aceite Motul 5000 20W50</span><br><span style="padding-left: 12px;" class="tag-supply">Consumible</span></td><td style="text-align: right; color: #94a3b8;">$198.00</td><td style="text-align: right; color: #94a3b8;">$198.00</td></tr>
+            <tr><td>1</td><td><span style="padding-left: 12px; color: #64748b;">• Bujía CR8E</span><br><span style="padding-left: 12px;" class="tag-supply">Consumible</span></td><td style="text-align: right; color: #94a3b8;">$120.00</td><td style="text-align: right; color: #94a3b8;">$120.00</td></tr>
+          </tbody>
+        </table>
+        <table class="totals-table">
+          <tr><td>Subtotal:</td><td style="text-align: right;">$3,216.00</td></tr>
+          <tr><td>IVA (No aplicable):</td><td style="text-align: right;">$0.00</td></tr>
+          <tr class="total-row"><td>Total:</td><td style="text-align: right;">$3,216.00</td></tr>
+        </table>
+        <div class="footer">
+          <p>Precios y disponibilidad sujetos a cambio sin previo aviso.</p>
+          <p>¡Gracias por su preferencia!</p>
+        </div>
+      </body></html>
+    `;
+    printEngine.printDocument(sampleHtml, { title: 'Cotización - Previsualización' });
+  };
+
+  const handlePrintTestQr = () => {
+    const sampleHtml = `
+      <!DOCTYPE html><html><head><meta charset="utf-8"><title>Etiqueta QR</title>
+      <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 14px; text-align: center; color: #000; background: #fff; }
+        .box { border: 2px dashed #000; padding: 14px; display: inline-block; border-radius: 8px; }
+        .title { font-size: 12px; font-weight: bold; margin-bottom: 6px; letter-spacing: 0.5px; }
+        .code { font-size: 26px; font-weight: bold; margin: 10px 0; letter-spacing: 2px; }
+        .info { font-size: 11px; margin-top: 4px; font-weight: 600; }
+        .date { font-size: 9px; color: #666; margin-top: 2px; }
+      </style></head><body>
+        <div class="box">
+          <div class="title">${businessName || 'FERVENTA MOTO SERVICIO'}</div>
+          <div class="code">[ ■■■ QR ■■■ ]</div>
+          <div class="info">ID: REF-00429</div>
+          <div class="date">${new Date().toLocaleDateString('es-MX')}</div>
+        </div>
+      </body></html>
+    `;
+    printEngine.printLabel(sampleHtml, { widthMm: 70, heightMm: 50, title: 'Etiqueta QR' });
   };
 
   const liveFontSizePx = fontSize === 'compact' ? '9px' : fontSize === 'large' ? '12px' : '10px';
@@ -246,37 +478,488 @@ export const SettingsPage: React.FC = () => {
             {/* Columna Izquierda: Configuración de Impresora y Personalización de Textos */}
             <Box className="lg:col-span-7">
               <Stack gap="md">
-                {/* Tarjeta 1: Parámetros del Hardware */}
-                <Card variant="elevated" padding="md">
+                {/* Tarjeta 1: Enrutador de 3 Impresoras y Agente Local Windows */}
+                <Card variant="elevated" padding="md" className="border-2 border-primary/20 shadow-xs">
                   <Stack gap="md">
-                    <Flex align="center" gap="sm">
-                      <Box className="p-2 bg-primary/10 text-primary rounded-lg">
-                        <Icon name="Printer" size="sm" />
-                      </Box>
-                      <Stack gap="none">
-                        <Heading level={2} className="text-base font-bold text-base-content">
-                          Configuración de Impresora Térmica
-                        </Heading>
-                        <Text variant="caption" size="xs" className="text-base-content/60">
-                          Ajustes para impresión por Bluetooth / USB en Safari y macOS.
-                        </Text>
-                      </Stack>
+                    {/* Encabezado Principal del Agente */}
+                    <Flex justify="between" align="start" className="flex-wrap gap-4">
+                      <Flex align="center" gap="sm">
+                        <Box className="p-2.5 bg-primary/10 text-primary rounded-xl">
+                          <Icon name="Printer" size="md" />
+                        </Box>
+                        <Stack gap="none">
+                          <Flex align="center" gap="xs">
+                            <Heading level={2} className="text-base font-bold text-base-content">
+                              Enrutador de Impresión Silenciosa (3 Impresoras)
+                            </Heading>
+                            {agentRunning ? (
+                              <Badge variant="success" size="sm" className="gap-1 font-semibold">
+                                <Icon name="CheckCircle2" size="xs" /> Agente En Línea
+                              </Badge>
+                            ) : (
+                              <Badge variant="warning" size="sm" className="gap-1 font-semibold">
+                                <Icon name="AlertTriangle" size="xs" /> Agente no detectado
+                              </Badge>
+                            )}
+                          </Flex>
+                          <Text variant="caption" size="xs" className="text-base-content/60">
+                            Imprime tickets de 58mm, cotizaciones en hoja Carta y etiquetas QR directamente a cada impresora sin ventanas de vista previa.
+                          </Text>
+                        </Stack>
+                      </Flex>
+
+                      {/* Botones de Acción: Descarga del .exe y Detección de Impresoras */}
+                      <Flex gap="xs" align="center" className="flex-wrap">
+                        <a
+                          href="/downloads/FerventaPrintAgent.exe"
+                          download="FerventaPrintAgent.exe"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-primary text-primary-content hover:bg-primary/90 transition-all shadow-xs"
+                          title="Descargar Ferventa Print Agent para Windows"
+                        >
+                          <Icon name="Download" size="xs" />
+                          Descargar Agente (.exe)
+                        </a>
+                        <SecondaryButton
+                          size="sm"
+                          onClick={checkAgentAndLoadPrinters}
+                          disabled={checkingAgent}
+                          iconStart={<Icon name="RefreshCw" size="xs" className={checkingAgent ? 'animate-spin' : ''} />}
+                        >
+                          {checkingAgent ? 'Buscando...' : 'Detectar Impresoras'}
+                        </SecondaryButton>
+                      </Flex>
                     </Flex>
 
-                    {/* Nombre de la Impresora */}
-                    <Stack gap="xs">
-                      <Text as="label" variant="label" size="xs" className="text-base-content">
-                        Nombre de la Impresora Asignada (Estación de trabajo)
+                    {/* Feedback en vivo de impresiones de prueba */}
+                    {testPrintFeedback && (
+                      <Box className="p-3 bg-primary/10 border border-primary/30 rounded-xl">
+                        <Flex align="center" gap="xs">
+                          <Icon name="Info" size="sm" className="text-primary shrink-0" />
+                          <Text size="xs" weight="medium" className="text-primary font-semibold">
+                            {testPrintFeedback}
+                          </Text>
+                        </Flex>
+                      </Box>
+                    )}
+
+                    {/* Guía rápida si el agente aún no está en ejecución */}
+                    {!agentRunning && (
+                      <Box className="p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-xl">
+                        <Flex gap="sm" align="start">
+                          <Icon name="AlertCircle" size="sm" className="text-amber-500 shrink-0 mt-0.5" />
+                          <Stack gap="xs">
+                            <Text weight="bold" size="xs" className="text-amber-600 dark:text-amber-400">
+                              ¿Cómo activar la impresión automática en las 3 impresoras?
+                            </Text>
+                            <Text size="xs" className="text-base-content/80 leading-relaxed">
+                              1. Haz clic en el botón azul <strong>Descargar Agente (.exe)</strong> arriba.<br />
+                              2. Ejecútalo una sola vez en esta computadora con Windows (se iniciará en segundo plano junto al reloj y arrancará solo cada vez que prendas la PC).<br />
+                              3. Haz clic en <strong>Detectar Impresoras</strong> para asignar cada tarea a su impresora correspondiente.
+                            </Text>
+                          </Stack>
+                        </Flex>
+                      </Box>
+                    )}
+
+                    {/* ═══════ LOS 3 SELECTORES INTELIGENTES ═══════ */}
+                    <Stack gap="sm">
+                      <Text as="label" variant="label" size="xs" className="text-base-content font-bold uppercase tracking-wider text-base-content/70">
+                        Asignación de Dispositivos por Tarea
                       </Text>
-                      <TextInput
-                        value={printerName}
-                        onChange={(e) => setPrinterName(e.target.value)}
-                        placeholder="Ej. SUZWIP 58MM Thermal"
-                      />
-                      <Text variant="caption" size="xs" className="text-base-content/60">
-                        Identificador de la impresora conectada vía USB o Bluetooth en esta caja.
-                      </Text>
+
+                      <Grid cols={{ base: 1, md: 3 }} gap="md">
+                        {/* Selector 1: Tickets de Venta */}
+                        <Box className="p-3.5 bg-base-200/80 border border-base-300 rounded-xl flex flex-col justify-between gap-3">
+                          <Stack gap="xs">
+                            <Flex justify="between" align="center">
+                              <Flex align="center" gap="xs">
+                                <Icon name="Receipt" size="sm" className="text-primary" />
+                                <Text weight="bold" size="xs" className="text-base-content">
+                                  1. Tickets de Venta
+                                </Text>
+                              </Flex>
+                              <Badge variant="primary" size="xs">58mm</Badge>
+                            </Flex>
+                            <Text variant="caption" size="xs" className="text-base-content/60">
+                              Impresora térmica SUZWIP 58MM u otra mini-térmica.
+                            </Text>
+
+                            {agentPrinters.length > 0 ? (
+                              <Select
+                                size="sm"
+                                value={ticketPrinter}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setTicketPrinter(val);
+                                  setPrinterName(val);
+                                  saveSettings({ ticketPrinter: val, printerName: val });
+                                }}
+                              >
+                                <option value="">-- Seleccionar Impresora --</option>
+                                {agentPrinters.map((p) => (
+                                  <option key={p} value={p}>{p}</option>
+                                ))}
+                              </Select>
+                            ) : (
+                              <TextInput
+                                value={ticketPrinter || printerName}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setTicketPrinter(val);
+                                  setPrinterName(val);
+                                  saveSettings({ ticketPrinter: val, printerName: val });
+                                }}
+                                placeholder="Ej. POS-58 o SUZWIP"
+                              />
+                            )}
+                          </Stack>
+
+                          <SecondaryButton
+                            size="xs"
+                            onClick={() => handlePrintTestTicket(ticketPrinter)}
+                            iconStart={<Icon name="Printer" size="xs" />}
+                            className="w-full font-semibold"
+                          >
+                            Imprimir Ticket Silencioso (58mm)
+                          </SecondaryButton>
+                        </Box>
+
+                        {/* Selector 2: Cotizaciones y Citas */}
+                        <Box className="p-3.5 bg-base-200/80 border border-base-300 rounded-xl flex flex-col justify-between gap-3">
+                          <Stack gap="xs">
+                            <Flex justify="between" align="center">
+                              <Flex align="center" gap="xs">
+                                <Icon name="FileText" size="sm" className="text-info" />
+                                <Text weight="bold" size="xs" className="text-base-content">
+                                  2. Cotizaciones y Citas
+                                </Text>
+                              </Flex>
+                              <Badge variant="info" size="xs">PDF Carta</Badge>
+                            </Flex>
+                            <Text variant="caption" size="xs" className="text-base-content/60">
+                              Abre vista previa a color para revisar, guardar en PDF o imprimir en hoja Carta.
+                            </Text>
+
+                            {agentPrinters.length > 0 ? (
+                              <Select
+                                size="sm"
+                                value={documentPrinter}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setDocumentPrinter(val);
+                                  saveSettings({ documentPrinter: val });
+                                }}
+                              >
+                                <option value="">-- Seleccionar Impresora Predeterminada --</option>
+                                {agentPrinters.map((p) => (
+                                  <option key={p} value={p}>{p}</option>
+                                ))}
+                              </Select>
+                            ) : (
+                              <TextInput
+                                value={documentPrinter}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setDocumentPrinter(val);
+                                  saveSettings({ documentPrinter: val });
+                                }}
+                                placeholder="Ej. Brother DCP-T430W o HP LaserJet"
+                              />
+                            )}
+                          </Stack>
+
+                          <SecondaryButton
+                            size="xs"
+                            onClick={() => handlePrintTestDocument()}
+                            iconStart={<Icon name="Eye" size="xs" />}
+                            className="w-full font-semibold"
+                          >
+                            Previsualizar Cotización PDF
+                          </SecondaryButton>
+                        </Box>
+
+                        {/* Selector 3: QR y Etiquetas */}
+                        <Box className="p-3.5 bg-base-200/80 border border-base-300 rounded-xl flex flex-col justify-between gap-3">
+                          <Stack gap="xs">
+                            <Flex justify="between" align="center">
+                              <Flex align="center" gap="xs">
+                                <Icon name="QrCode" size="sm" className="text-accent" />
+                                <Text weight="bold" size="xs" className="text-base-content">
+                                  3. QR y Etiquetas
+                                </Text>
+                              </Flex>
+                              <Badge variant="accent" size="xs">Etiquetas</Badge>
+                            </Flex>
+                            <Text variant="caption" size="xs" className="text-base-content/60">
+                              Abre vista previa del código QR con medidas para sticker adhesivo.
+                            </Text>
+
+                            {agentPrinters.length > 0 ? (
+                              <Select
+                                size="sm"
+                                value={qrPrinter}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setQrPrinter(val);
+                                  saveSettings({ qrPrinter: val });
+                                }}
+                              >
+                                <option value="">-- Seleccionar Impresora --</option>
+                                {agentPrinters.map((p) => (
+                                  <option key={p} value={p}>{p}</option>
+                                ))}
+                              </Select>
+                            ) : (
+                              <TextInput
+                                value={qrPrinter}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setQrPrinter(val);
+                                  saveSettings({ qrPrinter: val });
+                                }}
+                                placeholder="Ej. Zebra, Xprinter o SUZWIP"
+                              />
+                            )}
+                          </Stack>
+
+                          <SecondaryButton
+                            size="xs"
+                            onClick={() => handlePrintTestQr()}
+                            iconStart={<Icon name="Eye" size="xs" />}
+                            className="w-full font-semibold"
+                          >
+                            Previsualizar Etiqueta QR
+                          </SecondaryButton>
+                        </Box>
+                      </Grid>
                     </Stack>
+
+                    {/* Métodos Alternativos Directos en Navegador (Bluetooth / Cable USB / Vista Previa) */}
+                    <Stack gap="xs" className="pt-2 border-t border-base-300/60">
+                      <Text as="label" variant="label" size="xs" className="text-base-content/70 font-semibold">
+                        Método de Comunicación para Tickets (Hardware Alternativo)
+                      </Text>
+                      <Grid cols={{ base: 1, md: 4 }} gap="sm">
+                        {/* Opción 1: Agente Local Windows */}
+                        <Box
+                          onClick={() => {
+                            setPrintMode('local_agent');
+                            saveSettings({ printMode: 'local_agent' });
+                          }}
+                          className={`p-3 rounded-xl border-2 cursor-pointer transition-all ${
+                            printMode === 'local_agent' ? 'border-primary bg-primary/10 shadow-xs' : 'border-base-300 bg-base-200 hover:bg-base-300/40'
+                          }`}
+                        >
+                          <Flex justify="between" align="start">
+                            <Stack gap="xs">
+                              <Flex align="center" gap="xs">
+                                <Icon name="Cpu" size="xs" className="text-primary" />
+                                <Text weight="bold" size="xs" className="text-base-content">
+                                  Agente Windows
+                                </Text>
+                              </Flex>
+                              <Text variant="caption" size="xs" className="text-base-content/60">
+                                Recomendado. Silencioso en las 3 impresoras.
+                              </Text>
+                            </Stack>
+                            {printMode === 'local_agent' && (
+                              <Box className="p-1 bg-primary text-primary-content rounded-full">
+                                <Icon name="Check" size="xs" />
+                              </Box>
+                            )}
+                          </Flex>
+                        </Box>
+
+                        {/* Opción 2: Bluetooth */}
+                        <Box
+                          onClick={() => {
+                            setPrintMode('bluetooth');
+                            saveSettings({ printMode: 'bluetooth' });
+                          }}
+                          className={`p-3 rounded-xl border-2 cursor-pointer transition-all ${
+                            printMode === 'bluetooth' ? 'border-primary bg-primary/10 shadow-xs' : 'border-base-300 bg-base-200 hover:bg-base-300/40'
+                          }`}
+                        >
+                          <Flex justify="between" align="start">
+                            <Stack gap="xs">
+                              <Flex align="center" gap="xs">
+                                <Icon name="Bluetooth" size="xs" className="text-primary" />
+                                <Text weight="bold" size="xs" className="text-base-content">
+                                  Bluetooth Directo
+                                </Text>
+                              </Flex>
+                              <Text variant="caption" size="xs" className="text-base-content/60">
+                                Inalámbrico en Chrome para tickets sin instalar nada.
+                              </Text>
+                            </Stack>
+                            {printMode === 'bluetooth' && (
+                              <Box className="p-1 bg-primary text-primary-content rounded-full">
+                                <Icon name="Check" size="xs" />
+                              </Box>
+                            )}
+                          </Flex>
+                        </Box>
+
+                        {/* Opción 3: USB / Serie */}
+                        <Box
+                          onClick={() => {
+                            setPrintMode('usb_serial');
+                            saveSettings({ printMode: 'usb_serial' });
+                          }}
+                          className={`p-3 rounded-xl border-2 cursor-pointer transition-all ${
+                            printMode === 'usb_serial' ? 'border-primary bg-primary/10 shadow-xs' : 'border-base-300 bg-base-200 hover:bg-base-300/40'
+                          }`}
+                        >
+                          <Flex justify="between" align="start">
+                            <Stack gap="xs">
+                              <Flex align="center" gap="xs">
+                                <Icon name="Usb" size="xs" className="text-primary" />
+                                <Text weight="bold" size="xs" className="text-base-content">
+                                  Cable USB / COM
+                                </Text>
+                              </Flex>
+                              <Text variant="caption" size="xs" className="text-base-content/60">
+                                Directo por puerto USB en el navegador.
+                              </Text>
+                            </Stack>
+                            {printMode === 'usb_serial' && (
+                              <Box className="p-1 bg-primary text-primary-content rounded-full">
+                                <Icon name="Check" size="xs" />
+                              </Box>
+                            )}
+                          </Flex>
+                        </Box>
+
+                        {/* Opción 4: Vista Previa */}
+                        <Box
+                          onClick={() => {
+                            setPrintMode('browser_preview');
+                            saveSettings({ printMode: 'browser_preview' });
+                          }}
+                          className={`p-3 rounded-xl border-2 cursor-pointer transition-all ${
+                            printMode === 'browser_preview' ? 'border-primary bg-primary/10 shadow-xs' : 'border-base-300 bg-base-200 hover:bg-base-300/40'
+                          }`}
+                        >
+                          <Flex justify="between" align="start">
+                            <Stack gap="xs">
+                              <Flex align="center" gap="xs">
+                                <Icon name="FileText" size="xs" className="text-base-content/70" />
+                                <Text weight="bold" size="xs" className="text-base-content">
+                                  Vista Previa
+                                </Text>
+                              </Flex>
+                              <Text variant="caption" size="xs" className="text-base-content/60">
+                                Ventana estándar de Chrome (respaldo).
+                              </Text>
+                            </Stack>
+                            {printMode === 'browser_preview' && (
+                              <Box className="p-1 bg-primary text-primary-content rounded-full">
+                                <Icon name="Check" size="xs" />
+                              </Box>
+                            )}
+                          </Flex>
+                        </Box>
+                      </Grid>
+                    </Stack>
+
+                    {/* Paneles de Configuración Adicional si se selecciona Bluetooth o USB */}
+                    {printMode === 'bluetooth' && (
+                      <Box className="p-3.5 bg-base-200/70 border border-base-300 rounded-xl">
+                        <Flex justify="between" align="center" className="flex-wrap gap-3">
+                          <Stack gap="xs">
+                            <Flex align="center" gap="sm">
+                              <Text weight="bold" size="xs" className="text-base-content">
+                                Estado Bluetooth Directo:
+                              </Text>
+                              {btConnected ? (
+                                <Badge variant="success" size="sm" className="gap-1">
+                                  <Icon name="CheckCircle" size="xs" />
+                                  Conectada: {btDeviceName || ticketPrinter || printerName}
+                                </Badge>
+                              ) : (
+                                <Badge variant="warning" size="sm" className="gap-1">
+                                  <Icon name="AlertCircle" size="xs" />
+                                  No conectada
+                                </Badge>
+                              )}
+                            </Flex>
+                            <Text variant="caption" size="xs" className="text-base-content/70">
+                              Enciende la mini-impresora. Haz clic en conectar y selecciónala en el diálogo de Chrome (PIN: 1234 o 0000).
+                            </Text>
+                          </Stack>
+
+                          <Flex gap="xs">
+                            {btConnected ? (
+                              <SecondaryButton
+                                size="sm"
+                                onClick={handleDisconnectBluetooth}
+                                iconStart={<Icon name="Unplug" size="xs" />}
+                              >
+                                Desconectar
+                              </SecondaryButton>
+                            ) : (
+                              <PrimaryButton
+                                size="sm"
+                                onClick={handlePairBluetooth}
+                                disabled={btLoading}
+                                iconStart={<Icon name="Bluetooth" size="xs" />}
+                              >
+                                {btLoading ? 'Buscando...' : 'Vincular Bluetooth'}
+                              </PrimaryButton>
+                            )}
+                          </Flex>
+                        </Flex>
+                      </Box>
+                    )}
+
+                    {printMode === 'usb_serial' && (
+                      <Box className="p-3.5 bg-base-200/70 border border-base-300 rounded-xl">
+                        <Flex justify="between" align="center" className="flex-wrap gap-3">
+                          <Stack gap="xs">
+                            <Flex align="center" gap="sm">
+                              <Text weight="bold" size="xs" className="text-base-content">
+                                Estado Cable USB Directo:
+                              </Text>
+                              {usbPaired ? (
+                                <Badge variant="success" size="sm" className="gap-1">
+                                  <Icon name="CheckCircle" size="xs" />
+                                  Puerto Vinculado: {usbDeviceName || ticketPrinter || printerName}
+                                </Badge>
+                              ) : (
+                                <Badge variant="warning" size="sm" className="gap-1">
+                                  <Icon name="AlertCircle" size="xs" />
+                                  No vinculado
+                                </Badge>
+                              )}
+                            </Flex>
+                            <Text variant="caption" size="xs" className="text-base-content/70">
+                              Conecta el cable USB de la impresora a este equipo y selecciona el puerto en la ventana emergente.
+                            </Text>
+                          </Stack>
+
+                          <Flex gap="xs">
+                            {usbPaired ? (
+                              <SecondaryButton
+                                size="sm"
+                                onClick={handleDisconnectUsb}
+                                iconStart={<Icon name="Unplug" size="xs" />}
+                              >
+                                Cambiar Puerto
+                              </SecondaryButton>
+                            ) : (
+                              <PrimaryButton
+                                size="sm"
+                                onClick={handlePairUsb}
+                                disabled={usbLoading}
+                                iconStart={<Icon name="Usb" size="xs" />}
+                              >
+                                {usbLoading ? 'Vinculando...' : 'Vincular Puerto USB'}
+                              </PrimaryButton>
+                            )}
+                          </Flex>
+                        </Flex>
+                      </Box>
+                    )}
 
                     {/* Ancho de Papel / Rollo */}
                     <Stack gap="xs">
@@ -712,17 +1395,25 @@ export const SettingsPage: React.FC = () => {
                     </Box>
                   </Box>
 
-                  {/* Botón Imprimir Ticket de Prueba */}
+                  {/* Botón Imprimir Ticket de Prueba y Feedback */}
                   <Box className="w-full mt-4">
+                    {testPrintFeedback && (
+                      <Box className="mb-2 p-2.5 bg-primary/10 border border-primary/30 rounded-xl text-center">
+                        <Text size="xs" weight="bold" className="text-primary animate-fade-in flex items-center justify-center gap-1.5">
+                          <Icon name="CheckCircle" size="xs" />
+                          {testPrintFeedback}
+                        </Text>
+                      </Box>
+                    )}
                     <PrimaryButton
                       className="w-full justify-center"
-                      onClick={handlePrintTestTicket}
+                      onClick={() => handlePrintTestTicket()}
                     >
                       <Icon name="Printer" size="sm" className="mr-2" />
-                      Imprimir Ticket de Prueba
+                      Imprimir Ticket de Prueba ({paperWidth} - {printMode === 'bluetooth' ? 'Bluetooth' : printMode === 'usb_serial' ? 'USB' : 'Vista Previa'})
                     </PrimaryButton>
                     <Text variant="caption" size="xs" className="text-center text-base-content/60 mt-2 block">
-                      Envía este ticket a tu impresora SUZWIP para verificar alineación y corte.
+                      Envía este ticket a tu impresora SUZWIP para verificar alineación y corte sin diálogo del navegador.
                     </Text>
                   </Box>
                 </Card>
