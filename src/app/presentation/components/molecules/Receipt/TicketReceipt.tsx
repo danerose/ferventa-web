@@ -9,7 +9,7 @@ interface TicketReceiptProps {
   sellerName?: string;
 }
 
-import { parseTicketItems, type ParsedTicketItem } from '@/core/services/print/templates/ticketItemUtils';
+import { parseTicketItems } from '@/core/services/print/templates/ticketItemUtils';
 
 const FONT_FAMILY = "'Courier New', Courier, monospace";
 const SEPARATOR_DOUBLE = '══════════════════════════';
@@ -55,135 +55,135 @@ export const TicketReceipt: React.FC<TicketReceiptProps> = ({
   const rawSaleId = '_id' in sale && typeof (sale as { _id?: unknown })._id === 'string' ? (sale as { _id: string })._id : '';
   const folioStr = sale.folio || `NV-${String(rawSaleId.slice(-6) || '000001').padStart(6, '0')}`;
 
-      const rootItems = parseTicketItems(sale.items ?? []);
+  const rootItems = parseTicketItems(sale.items ?? []);
 
-      const paymentLabel =
-        sale.paymentMethod === 'cash' ? 'EFECTIVO'
-          : sale.paymentMethod === 'card' ? 'TARJETA'
-            : sale.paymentMethod === 'transfer' ? 'TRANSFERENCIA'
-              : 'EFECTIVO';
+  const paymentLabel =
+    sale.paymentMethod === 'cash' ? 'EFECTIVO'
+      : sale.paymentMethod === 'card' ? 'TARJETA'
+        : sale.paymentMethod === 'transfer' ? 'TRANSFERENCIA'
+          : 'EFECTIVO';
 
-      const ticketWidth = settings.paperWidth === '58mm' ? '58mm' : '80mm';
-      const fontSize = settings.fontSize === 'compact' ? '8.5px' : settings.fontSize === 'large' ? '12px' : '10px';
+  const ticketWidth = settings.paperWidth === '58mm' ? '58mm' : '80mm';
+  const fontSize = settings.fontSize === 'compact' ? '8.5px' : settings.fontSize === 'large' ? '12px' : '10px';
 
-      const policiesLines = (settings.policiesText || '').split('\n').filter((l) => l.trim().length > 0);
+  const policiesLines = (settings.policiesText || '').split('\n').filter((l) => l.trim().length > 0);
 
-      return (
-        <div
-          id="ticket-receipt"
-          className="hidden print:block"
-          style={{
-            width: ticketWidth,
-            margin: '0 auto',
-            padding: '6px 4px',
-            fontFamily: FONT_FAMILY,
-            fontSize,
-            color: '#000000',
-            background: '#ffffff',
-            lineHeight: 1.3,
-          }}
-        >
-          {/* ══ Store Header ══ */}
-          <div style={{ textAlign: 'center', marginBottom: '4px' }}>
-            <div style={{ fontSize: '9px', letterSpacing: '0.3px' }}>{SEPARATOR_DOUBLE}</div>
-            <h1 style={{
-              fontSize: '13px', fontWeight: '900', margin: '4px 0 1px 0',
-              textTransform: 'uppercase', letterSpacing: '0.5px',
-            }}>
-              {settings.businessName}
-            </h1>
-            <p style={{ margin: '0 0 3px 0', fontSize: '9px', fontWeight: '600', letterSpacing: '0.3px' }}>
-              {settings.businessTagline}
-            </p>
-            <p style={{ margin: '0 0 1px 0', fontSize: '9px', fontWeight: 'bold' }}>
-              SUCURSAL: {branchName || sale.branch?.name || settings.businessName}
-            </p>
-            {settings.showPhone && settings.phone && (
-              <p style={{ margin: '0 0 1px 0', fontSize: '9px' }}>
-                Tel./WhatsApp: {settings.phone}
-              </p>
-            )}
-            {settings.showAddress && settings.address && (
-              <p style={{ margin: '0', fontSize: '8px', color: '#000000' }}>
-                {settings.address}
-              </p>
-            )}
-            <div style={{ fontSize: '9px', letterSpacing: '0.3px', marginTop: '3px' }}>{SEPARATOR_DOUBLE}</div>
+  return (
+    <div
+      id="ticket-receipt"
+      className="hidden print:block"
+      style={{
+        width: ticketWidth,
+        margin: '0 auto',
+        padding: '6px 4px',
+        fontFamily: FONT_FAMILY,
+        fontSize,
+        color: '#000000',
+        background: '#ffffff',
+        lineHeight: 1.3,
+      }}
+    >
+      {/* ══ Store Header ══ */}
+      <div style={{ textAlign: 'center', marginBottom: '4px' }}>
+        <div style={{ fontSize: '9px', letterSpacing: '0.3px' }}>{SEPARATOR_DOUBLE}</div>
+        <h1 style={{
+          fontSize: '13px', fontWeight: '900', margin: '4px 0 1px 0',
+          textTransform: 'uppercase', letterSpacing: '0.5px',
+        }}>
+          {settings.businessName}
+        </h1>
+        <p style={{ margin: '0 0 3px 0', fontSize: '9px', fontWeight: '600', letterSpacing: '0.3px' }}>
+          {settings.businessTagline}
+        </p>
+        <p style={{ margin: '0 0 1px 0', fontSize: '9px', fontWeight: 'bold' }}>
+          SUCURSAL: {branchName || sale.branch?.name || settings.businessName}
+        </p>
+        {settings.showPhone && settings.phone && (
+          <p style={{ margin: '0 0 1px 0', fontSize: '9px' }}>
+            Tel./WhatsApp: {settings.phone}
+          </p>
+        )}
+        {settings.showAddress && settings.address && (
+          <p style={{ margin: '0', fontSize: '8px', color: '#000000' }}>
+            {settings.address}
+          </p>
+        )}
+        <div style={{ fontSize: '9px', letterSpacing: '0.3px', marginTop: '3px' }}>{SEPARATOR_DOUBLE}</div>
+      </div>
+
+      {/* ── Ticket Metadata ── */}
+      <div style={{ fontSize: '9px', marginBottom: '4px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+          <span>FECHA: <strong>{datePart}</strong></span>
+          <span>HORA: <strong>{timePart}</strong></span>
+        </div>
+        {settings.showFolio && (
+          <div style={{ marginTop: '1px' }}>
+            FOLIO: <strong>#{folioStr}</strong>
           </div>
-
-          {/* ── Ticket Metadata ── */}
-          <div style={{ fontSize: '9px', marginBottom: '4px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span>FECHA: <strong>{datePart}</strong></span>
-              <span>HORA: <strong>{timePart}</strong></span>
-            </div>
-            {settings.showFolio && (
-              <div style={{ marginTop: '1px' }}>
-                FOLIO: <strong>#{folioStr}</strong>
-              </div>
-            )}
-            {settings.showCashier && (
-              <div style={{ marginTop: '1px' }}>
-                ATENDIÓ: <strong>{sName}</strong>
-              </div>
-            )}
-            {sale.isCancelled && (
-              <div style={{
-                textAlign: 'center', fontWeight: 'bold',
-                border: '2px solid #000', padding: '3px', marginTop: '4px', fontSize: '10px',
-              }}>
-                *** VENTA CANCELADA ***
-              </div>
-            )}
+        )}
+        {settings.showCashier && (
+          <div style={{ marginTop: '1px' }}>
+            ATENDIÓ: <strong>{sName}</strong>
           </div>
-
-          {/* ── Items ── */}
-          <div style={{ fontSize: '9px', letterSpacing: '0.3px', margin: '2px 0' }}>{SEPARATOR_DASH}</div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', fontWeight: 'bold', padding: '1px 0' }}>
-            <span>CANT</span>
-            <span style={{ flex: 1, paddingLeft: '6px' }}>CONCEPTO</span>
-            <span>IMPORTE</span>
+        )}
+        {sale.isCancelled && (
+          <div style={{
+            textAlign: 'center', fontWeight: 'bold',
+            border: '2px solid #000', padding: '3px', marginTop: '4px', fontSize: '10px',
+          }}>
+            *** VENTA CANCELADA ***
           </div>
-          <div style={{ fontSize: '9px', letterSpacing: '0.3px', margin: '2px 0' }}>{SEPARATOR_DASH}</div>
+        )}
+      </div>
 
-          {rootItems.map((item) => {
-            const isService = item.type === 'service';
-            return (
-              <React.Fragment key={item.id}>
-                {/* Main item */}
-                <div style={{ marginBottom: '3px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px' }}>
-                    <span style={{ fontWeight: 'bold', minWidth: '28px' }}>{item.qty}</span>
-                    <span style={{ flex: 1, paddingLeft: '4px', fontWeight: 'bold', wordBreak: 'break-word' }}>
-                      {isService ? `[SERV] ${item.name}` : item.name}
-                    </span>
-                    <span style={{ fontWeight: 'bold', whiteSpace: 'nowrap', paddingLeft: '4px' }}>
-                      ${item.subtotal.toFixed(2)}
-                    </span>
-                  </div>
-                  {item.price !== item.subtotal / item.qty || item.qty > 1 ? (
-                    <div style={{ fontSize: '8px', color: '#000000', paddingLeft: '32px' }}>
-                      {item.qty} x ${item.price.toFixed(2)}
-                    </div>
-                  ) : null}
+      {/* ── Items ── */}
+      <div style={{ fontSize: '9px', letterSpacing: '0.3px', margin: '2px 0' }}>{SEPARATOR_DASH}</div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', fontWeight: 'bold', padding: '1px 0' }}>
+        <span>CANT</span>
+        <span style={{ flex: 1, paddingLeft: '6px' }}>CONCEPTO</span>
+        <span>IMPORTE</span>
+      </div>
+      <div style={{ fontSize: '9px', letterSpacing: '0.3px', margin: '2px 0' }}>{SEPARATOR_DASH}</div>
+
+      {rootItems.map((item) => {
+        const isService = item.type === 'service';
+        return (
+          <React.Fragment key={item.id}>
+            {/* Main item */}
+            <div style={{ marginBottom: '3px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px' }}>
+                <span style={{ fontWeight: 'bold', minWidth: '28px' }}>{item.qty}</span>
+                <span style={{ flex: 1, paddingLeft: '4px', fontWeight: 'bold', wordBreak: 'break-word' }}>
+                  {isService ? `[SERV] ${item.name}` : item.name}
+                </span>
+                <span style={{ fontWeight: 'bold', whiteSpace: 'nowrap', paddingLeft: '4px' }}>
+                  ${item.subtotal.toFixed(2)}
+                </span>
+              </div>
+              {item.price !== item.subtotal / item.qty || item.qty > 1 ? (
+                <div style={{ fontSize: '8px', color: '#000000', paddingLeft: '32px' }}>
+                  {item.qty} x ${item.price.toFixed(2)}
                 </div>
+              ) : null}
+            </div>
 
-                {/* Child items (supplies) */}
-                {item.supplies && item.supplies.length > 0 && (
-                  <div style={{ paddingLeft: '22px', marginTop: '2px', marginBottom: '3px', fontSize: '8px', color: '#333' }}>
-                    {item.supplies.map((child, cIdx) => (
-                      <div key={`sup-${item.id}-${cIdx}`} style={{ marginTop: '1.5px', wordBreak: 'break-word', lineHeight: 1.2 }}>
-                        • <span style={{ fontStyle: 'italic' }}>{child.qty > 1 ? `${child.qty}x ` : ''}{child.name}</span>{' '}
-                        <span style={{ fontSize: '7.5px', color: '#666', marginLeft: '3px' }}>
-                          {child.subtotal > 0 ? `(+$${child.subtotal.toFixed(2)})` : '(Incluido)'}
-                        </span>
-                      </div>
-                    ))}
+            {/* Child items (supplies) */}
+            {item.supplies && item.supplies.length > 0 && (
+              <div style={{ paddingLeft: '22px', marginTop: '2px', marginBottom: '3px', fontSize: '8px', color: '#333' }}>
+                {item.supplies.map((child, cIdx) => (
+                  <div key={`sup-${item.id}-${cIdx}`} style={{ marginTop: '1.5px', wordBreak: 'break-word', lineHeight: 1.2 }}>
+                    • <span style={{ fontStyle: 'italic' }}>{child.qty > 1 ? `${child.qty}x ` : ''}{child.name}</span>{' '}
+                    <span style={{ fontSize: '7.5px', color: '#666', marginLeft: '3px' }}>
+                      {child.subtotal > 0 ? `(+$${child.subtotal.toFixed(2)})` : '(Incluido)'}
+                    </span>
                   </div>
-                )}
-              </React.Fragment>
-            );
-          })}
+                ))}
+              </div>
+            )}
+          </React.Fragment>
+        );
+      })}
 
       <div style={{ fontSize: '9px', letterSpacing: '0.3px', margin: '4px 0 2px' }}>{SEPARATOR_DASH}</div>
 
