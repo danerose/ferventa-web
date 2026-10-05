@@ -1,6 +1,7 @@
 import type { AdminMaintenanceOrder, Appointment, Sale, SpecialOrder } from '@/app/domain';
 import type { PrinterSettings } from '@/core/types';
 import { EscPosEncoder } from './escPosEncoder';
+import { parseTicketItems } from '../templates/ticketItemUtils';
 
 export interface EscPosTicketOptions {
   sale?: Sale | null;
@@ -36,45 +37,9 @@ export function generateSaleTicketEscPos(options: EscPosTicketOptions): Uint8Arr
     hour12: false,
   });
 
-  const items = isTest
-    ? [
-        { qty: 1, name: 'Aceite Sintetico 10W-40 4T', price: 220.0, subtotal: 220.0 },
-        { qty: 1, name: '(SERV) Servicio de Afinacion Mayor', price: 300.0, subtotal: 300.0 },
-      ]
-    : (sale?.items || []).map((raw) => {
-      const i = (typeof raw === 'object' && raw !== null) ? (raw as Record<string, unknown>) : {};
-      const qty = typeof i.quantity === 'number' && i.quantity > 0 ? i.quantity : Number(i.quantity) || 1;
-      const productObj = typeof i.product === 'object' && i.product !== null ? (i.product as Record<string, unknown>) : null;
-      const serviceObj = typeof i.service === 'object' && i.service !== null ? (i.service as Record<string, unknown>) : null;
+  const items = parseTicketItems(sale?.items, isTest);
 
-      let name =
-        (typeof i.productNameSnapshot === 'string' && i.productNameSnapshot.trim().length > 0 ? i.productNameSnapshot : null) ||
-        (typeof (productObj?.name) === 'string' && (productObj.name as string).trim().length > 0 ? (productObj.name as string) : null) ||
-        (typeof i.serviceNameSnapshot === 'string' && i.serviceNameSnapshot.trim().length > 0 ? i.serviceNameSnapshot : null) ||
-        (typeof (serviceObj?.name) === 'string' && (serviceObj.name as string).trim().length > 0 ? (serviceObj.name as string) : null) ||
-        'Concepto General';
-
-      if (i.isServicePackageConsumable) {
-        name = `-- ${name}`;
-      }
-      const isNoAplica = Boolean(i.isNoAplica);
-      const rawPrice = typeof i.unitPrice === 'number'
-        ? i.unitPrice
-        : typeof i.priceSnapshot === 'number'
-          ? i.priceSnapshot
-          : Number(productObj?.sellingPrice ?? serviceObj?.basePrice ?? 0);
-      const unitPrice = isNoAplica ? 0 : rawPrice;
-      const subtotal = typeof i.subtotal === 'number' ? (isNoAplica ? 0 : i.subtotal) : unitPrice * qty;
-
-      return {
-        qty,
-        name,
-        price: unitPrice,
-        subtotal,
-      };
-    });
-
-  const subtotal = isTest ? 520.0 : (sale?.subtotal ?? items.reduce((a, b) => a + b.subtotal, 0));
+  const subtotal = isTest ? 520.0 : (sale?.subtotal ?? items.reduce((a, b) => a + b.subtotal + (b.supplies?.reduce((sa, sb) => sa + sb.subtotal, 0) || 0), 0));
   const discount = isTest ? 0.0 : (sale?.discount ?? 0);
   const total = isTest ? 520.0 : (sale?.total ?? subtotal);
   const paymentMethodLabel = isTest
@@ -114,15 +79,22 @@ export function generateSaleTicketEscPos(options: EscPosTicketOptions): Uint8Arr
   // 3. Items Header
   encoder.separator('-');
   encoder.bold(true);
-  encoder.itemRow(1, 'CONCEPTO', 'IMPORTE');
+  encoder.itemHeader('CANT', 'CONCEPTO', 'IMPORTE');
   encoder.bold(false);
   encoder.separator('-');
 
   // 4. Item Rows
   items.forEach((item) => {
-    encoder.itemRow(item.qty, item.name, `$${item.subtotal.toFixed(2)}`);
+    const prefix = item.isService && !item.name.toUpperCase().includes('SERV') ? '[SERV] ' : '';
+    encoder.itemRow(item.qty, `${prefix}${item.name}`, `$${item.subtotal.toFixed(2)}`);
     if (item.qty > 1 || Math.abs(item.price - item.subtotal / item.qty) > 0.01) {
-      encoder.line(`   ${item.qty} x $${item.price.toFixed(2)}`);
+      encoder.line(`    ${item.qty} x $${item.price.toFixed(2)}`);
+    }
+    if (item.supplies && item.supplies.length > 0) {
+      item.supplies.forEach((sup) => {
+        const tag = sup.subtotal > 0 ? `(+$${sup.subtotal.toFixed(2)})` : '(Incluido)';
+        encoder.supplyRow(sup.qty, sup.name, tag);
+      });
     }
   });
 

@@ -1,4 +1,5 @@
 import type { AuthUser } from '@/app/domain';
+import { isJwtExpired } from '@/core/auth/authExpiration';
 
 export interface StoredAuthSession {
   user: AuthUser | null;
@@ -15,7 +16,12 @@ export class AuthLocalDataSource {
     try {
       const raw = localStorage.getItem(this.storageKey);
       if (!raw) return { user: null, accessToken: null, refreshToken: null };
-      return JSON.parse(raw);
+      const parsed = JSON.parse(raw);
+      if (parsed?.accessToken && isJwtExpired(parsed.accessToken)) {
+        this.clearSession();
+        return { user: null, accessToken: null, refreshToken: null };
+      }
+      return parsed;
     } catch {
       return { user: null, accessToken: null, refreshToken: null };
     }

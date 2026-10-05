@@ -278,7 +278,7 @@ export const DashboardQuickDetailDrawer: React.FC<DashboardQuickDetailDrawerProp
                     <div className="flex justify-between items-start gap-2">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <span className="font-bold text-sm text-base-content truncate group-hover:text-primary transition-colors">
+                          <span className="font-bold text-sm text-base-content break-words leading-snug group-hover:text-primary transition-colors">
                             {p.name}
                           </span>
                         </div>
@@ -365,11 +365,11 @@ export const DashboardQuickDetailDrawer: React.FC<DashboardQuickDetailDrawerProp
                     <div className="flex justify-between items-start gap-2">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <span className="font-bold text-sm text-base-content truncate group-hover:text-primary transition-colors">
+                          <span className="font-bold text-sm text-base-content break-words leading-snug group-hover:text-primary transition-colors">
                             {o.customer?.name || 'Cliente sin nombre'}
                           </span>
                         </div>
-                        <div className="text-xs text-base-content/80 mt-0.5">
+                        <div className="text-xs text-base-content/80 mt-0.5 break-words">
                           {o.vehicle ? `${o.vehicle.brand} ${o.vehicle.model} (${o.vehicle.year})` : 'Vehículo no especificado'}
                           {o.vehicle?.color && (
                             <span className="text-base-content/70 ml-1">· Color: <strong className="capitalize text-base-content">{o.vehicle.color}</strong></span>
@@ -422,10 +422,10 @@ export const DashboardQuickDetailDrawer: React.FC<DashboardQuickDetailDrawerProp
                   >
                     <div className="flex justify-between items-start gap-2">
                       <div className="flex-1 min-w-0">
-                        <span className="font-bold text-sm text-base-content truncate group-hover:text-primary transition-colors block">
+                        <span className="font-bold text-sm text-base-content break-words leading-snug group-hover:text-primary transition-colors block">
                           {a.customerName}
                         </span>
-                        <span className="text-xs text-base-content/70 mt-0.5 block font-medium">
+                        <span className="text-xs text-base-content/70 mt-0.5 block font-medium break-words leading-snug">
                           {a.serviceRequested || 'Servicio General'}
                         </span>
                         {a.vehicle && (

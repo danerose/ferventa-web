@@ -108,11 +108,61 @@ export class EscPosEncoder {
   }
 
   /**
-   * Print a line of text (with newline)
+   * Splits text into lines that fit within maxLen characters, breaking on word boundaries where possible.
+   */
+  public wrapText(text: string, maxLen: number): string[] {
+    const clean = this.sanitize(text).trim();
+    if (!clean) return [];
+    if (clean.length <= maxLen) return [clean];
+
+    const words = clean.split(/\s+/);
+    const lines: string[] = [];
+    let currentLine = '';
+
+    for (const word of words) {
+      if (word.length > maxLen) {
+        if (currentLine) {
+          lines.push(currentLine);
+          currentLine = '';
+        }
+        let remaining = word;
+        while (remaining.length > maxLen) {
+          lines.push(remaining.slice(0, maxLen));
+          remaining = remaining.slice(maxLen);
+        }
+        currentLine = remaining;
+      } else if (currentLine.length + 1 + word.length <= maxLen) {
+        currentLine = currentLine ? `${currentLine} ${word}` : word;
+      } else {
+        if (currentLine) lines.push(currentLine);
+        currentLine = word;
+      }
+    }
+
+    if (currentLine) {
+      lines.push(currentLine);
+    }
+
+    return lines;
+  }
+
+  /**
+   * Print a line of text (with newline). Automatically wraps on word boundaries if longer than maxChars.
    */
   public line(str: string = ''): this {
     if (str.length > 0) {
-      this.text(str);
+      const clean = this.sanitize(str);
+      if (clean.length > this.maxChars && !clean.startsWith('=') && !clean.startsWith('-') && !clean.startsWith('*')) {
+        const wrapped = this.wrapText(clean, this.maxChars);
+        wrapped.forEach((l) => {
+          for (let i = 0; i < l.length; i++) {
+            this.buffer.push(l.charCodeAt(i) & 0xff);
+          }
+          this.buffer.push(0x0a);
+        });
+        return this;
+      }
+      this.text(clean);
     }
     this.buffer.push(0x0a); // LF
     return this;
@@ -133,64 +183,140 @@ export class EscPosEncoder {
    */
   public separator(char: string = '-'): this {
     const lineStr = char.charAt(0).repeat(this.maxChars);
-    return this.line(lineStr);
-  }
-
-  /**
-   * Formats a row with two columns (left-aligned label, right-aligned value)
-   */
-  public rowTwoColumns(left: string, right: string, boldLeft: boolean = false, boldRight: boolean = false): this {
-    const cleanLeft = this.sanitize(left);
-    const cleanRight = this.sanitize(right);
-    const available = this.maxChars - cleanRight.length;
-
-    if (available <= 0) {
-      this.line(cleanLeft);
-      this.line(cleanRight.padStart(this.maxChars, ' '));
-      return this;
-    }
-
-    const truncatedLeft = cleanLeft.slice(0, available);
-    const spaces = ' '.repeat(Math.max(1, this.maxChars - truncatedLeft.length - cleanRight.length));
-
-    if (boldLeft === boldRight) {
-      this.bold(boldLeft);
-      this.line(truncatedLeft + spaces + cleanRight);
-      this.bold(false);
-    } else {
-      this.bold(boldLeft);
-      this.text(truncatedLeft + spaces);
-      this.bold(boldRight);
-      this.line(cleanRight);
-      this.bold(false);
-    }
+    this.text(lineStr);
+    this.buffer.push(0x0a);
     return this;
   }
 
   /**
-   * Formats an item row: Quantity (col 1), Concept/Name (col 2), Amount (col 3)
+   * Formats a row with two columns (left-aligned label, right-aligned value).
+   * If left label exceeds available space, wraps cleanly across 2, 3 or N lines without truncating.
+   */
+  public rowTwoColumns(left: string, right: string, boldLeft: boolean = false, boldRight: boolean = false): this {
+    const cleanRight = this.sanitize(right).trim();
+    const available = Math.max(8, this.maxChars - cleanRight.length - 1);
+    const leftLines = this.wrapText(left, available);
+
+    if (leftLines.length === 0) {
+      this.bold(boldRight);
+      this.line(cleanRight.padStart(this.maxChars, ' '));
+      this.bold(false);
+      return this;
+    }
+
+    // First line with right value aligned to the right margin
+    const firstLeft = leftLines[0];
+    const spaces = ' '.repeat(Math.max(1, this.maxChars - firstLeft.length - cleanRight.length));
+
+    if (boldLeft === boldRight) {
+      this.bold(boldLeft);
+      this.text(firstLeft + spaces + cleanRight);
+      this.buffer.push(0x0a);
+      this.bold(false);
+    } else {
+      this.bold(boldLeft);
+      this.text(firstLeft + spaces);
+      this.bold(boldRight);
+      this.text(cleanRight);
+      this.buffer.push(0x0a);
+      this.bold(false);
+    }
+
+    // Subsequent lines for left text (2, 3 or N lines)
+    for (let i = 1; i < leftLines.length; i++) {
+      this.bold(boldLeft);
+      this.text(`  ${leftLines[i]}`);
+      this.buffer.push(0x0a);
+      this.bold(false);
+    }
+
+    return this;
+  }
+
+  /**
+   * Formats table header: CANT, CONCEPTO, IMPORTE
+   */
+  public itemHeader(cantLabel: string = 'CANT', conceptLabel: string = 'CONCEPTO', amtLabel: string = 'IMPORTE'): this {
+    const qtyColLen = 4;
+    const cleanAmt = this.sanitize(amtLabel).trim();
+    const amtStr = cleanAmt.padStart(8, ' ');
+    const nameMaxLen = Math.max(8, this.maxChars - qtyColLen - amtStr.length);
+    const firstLineName = this.sanitize(conceptLabel).padEnd(nameMaxLen, ' ');
+    this.text(`${cantLabel.padEnd(qtyColLen, ' ')}${firstLineName}${amtStr}`);
+    this.buffer.push(0x0a);
+    return this;
+  }
+
+  /**
+   * Formats an item row: Quantity (col 1), Concept/Name (col 2), Amount (col 3).
+   * If concept exceeds available line length, wraps cleanly across 2, 3 or N lines.
    */
   public itemRow(qty: number, name: string, amount: string): this {
-    const qtyStr = String(qty).padEnd(3, ' ');
-    const amtStr = amount.padStart(8, ' ');
-    const nameMaxLen = this.maxChars - qtyStr.length - amtStr.length;
+    const qtyColLen = 4;
+    const qtyStr = String(qty).padEnd(qtyColLen, ' ');
+    const cleanAmt = this.sanitize(amount).trim();
+    const amtStr = cleanAmt.padStart(8, ' ');
+    const nameMaxLen = Math.max(8, this.maxChars - qtyColLen - amtStr.length);
 
-    const cleanName = this.sanitize(name);
+    const nameLines = this.wrapText(name, nameMaxLen);
 
-    if (cleanName.length <= nameMaxLen) {
-      const paddedName = cleanName.padEnd(nameMaxLen, ' ');
-      this.line(`${qtyStr}${paddedName}${amtStr}`);
-    } else {
-      const firstLineName = cleanName.slice(0, nameMaxLen).padEnd(nameMaxLen, ' ');
-      this.line(`${qtyStr}${firstLineName}${amtStr}`);
+    if (nameLines.length === 0) {
+      this.text(`${qtyStr}${' '.repeat(nameMaxLen)}${amtStr}`);
+      this.buffer.push(0x0a);
+      return this;
+    }
 
-      let remaining = cleanName.slice(nameMaxLen);
-      while (remaining.length > 0) {
-        const chunk = remaining.slice(0, nameMaxLen);
-        this.line(`   ${chunk}`);
-        remaining = remaining.slice(nameMaxLen);
+    // First line: Qty + First part of Name + Amount
+    const firstLineName = nameLines[0].padEnd(nameMaxLen, ' ');
+    this.text(`${qtyStr}${firstLineName}${amtStr}`);
+    this.buffer.push(0x0a);
+
+    // Subsequent lines (2, 3 or N lines): indented under the Name column
+    const indent = ' '.repeat(qtyColLen);
+    for (let i = 1; i < nameLines.length; i++) {
+      this.text(`${indent}${nameLines[i]}`);
+      this.buffer.push(0x0a);
+    }
+
+    return this;
+  }
+
+  /**
+   * Formats an indented supply row under a service:
+   * e.g. "  - 4x Balatas (Incluido)" or
+   * "  - 9x Balatas\n    (+$150.00)"
+   */
+  public supplyRow(qty: number, name: string, tag: string): this {
+    const qtyPrefix = qty > 1 ? `${qty}x ` : '';
+    const cleanName = this.sanitize(name).trim();
+    const cleanTag = this.sanitize(tag).trim();
+    const prefix = `  - ${qtyPrefix}`;
+    const oneLine = `${prefix}${cleanName} ${cleanTag}`;
+
+    if (oneLine.length <= this.maxChars) {
+      this.text(oneLine);
+      this.buffer.push(0x0a);
+      return this;
+    }
+
+    // Wrap name with prefix
+    const subIndent = '    ';
+    const nameMaxLen = Math.max(8, this.maxChars - prefix.length);
+    const wrapped = this.wrapText(cleanName, nameMaxLen);
+
+    if (wrapped.length > 0) {
+      this.text(`${prefix}${wrapped[0]}`);
+      this.buffer.push(0x0a);
+      for (let i = 1; i < wrapped.length; i++) {
+        this.text(`${subIndent}${wrapped[i]}`);
+        this.buffer.push(0x0a);
       }
     }
+
+    // Indented tag on its line
+    this.text(`${subIndent}${cleanTag}`);
+    this.buffer.push(0x0a);
+
     return this;
   }
 

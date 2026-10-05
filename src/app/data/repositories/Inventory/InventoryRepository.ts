@@ -11,6 +11,7 @@ import type {
   CreateDraftReceptionDto,
   OpenBoxResult,
 } from '@/app/domain';
+import { handleAuthExpiration } from '@/core/auth/authExpiration';
 
 
 export interface PaginatedResult<T> {
@@ -44,10 +45,15 @@ export class APIInventoryRepository {
       headers.set('x-branch-id', activeBranchId || '000000000000000000000000');
     }
 
-    return fetch(url, {
+    const res = await fetch(url, {
       ...options,
       headers,
     });
+    if (res.status === 401) {
+      handleAuthExpiration();
+      throw new Error('UNAUTHORIZED');
+    }
+    return res;
   }
 
   private normalizePaginatedResponse<T, R = Record<string, unknown>>(

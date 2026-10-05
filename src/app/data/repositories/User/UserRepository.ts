@@ -1,4 +1,5 @@
 import type { User, Role, CreateUserDto, UpdateUserDto, CreateUserResponse, CheckUsernameResponse, ResetPasswordResponse } from '@/app/domain';
+import { handleAuthExpiration } from '@/core/auth/authExpiration';
 
 export class APIUserRepository {
   private baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
@@ -23,10 +24,15 @@ export class APIUserRepository {
       headers.set('x-branch-id', activeBranchId || '000000000000000000000000');
     }
 
-    return fetch(url, {
+    const res = await fetch(url, {
       ...options,
       headers,
     });
+    if (res.status === 401) {
+      handleAuthExpiration();
+      throw new Error('UNAUTHORIZED');
+    }
+    return res;
   }
 
   async getRoles(token: string): Promise<Role[]> {

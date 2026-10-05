@@ -8,6 +8,7 @@ import type {
   UpdateSpecialOrderStatusPayload,
   CancelSpecialOrderPayload,
 } from '@/app/domain';
+import { handleAuthExpiration } from '@/core/auth/authExpiration';
 
 export class APISpecialOrdersRepository implements ISpecialOrdersRepository {
   private baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
@@ -46,10 +47,15 @@ export class APISpecialOrdersRepository implements ISpecialOrdersRepository {
       headers.set('x-branch-id', resolvedBranchId);
     }
 
-    return fetch(url, {
+    const res = await fetch(url, {
       ...options,
       headers,
     });
+    if (res.status === 401) {
+      handleAuthExpiration();
+      throw new Error('UNAUTHORIZED');
+    }
+    return res;
   }
 
   private mapOrder(item: Record<string, unknown>): SpecialOrder {

@@ -1,3 +1,5 @@
+import { handleAuthExpiration } from '@/core/auth/authExpiration';
+
 export interface RequestOptions extends RequestInit {
   params?: Record<string, string | number | boolean | undefined>;
 }
@@ -78,7 +80,8 @@ export class NetworkService {
         message = errorText || `Error HTTP ${response.status}: ${response.statusText}`;
       }
 
-      if (response.status === 401 && (message === 'Unauthorized' || !message)) {
+      if (response.status === 401) {
+        handleAuthExpiration();
         throw new Error('UNAUTHORIZED');
       }
 

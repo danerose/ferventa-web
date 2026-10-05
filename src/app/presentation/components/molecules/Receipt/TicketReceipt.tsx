@@ -9,137 +9,7 @@ interface TicketReceiptProps {
   sellerName?: string;
 }
 
-interface ParsedTicketItem {
-  id: string;
-  cartId?: string;
-  parentCartId?: string;
-  type: 'product' | 'service' | 'external';
-  name: string;
-  sku?: string;
-  quantity: number;
-  unitPrice: number;
-  subtotal: number;
-  childItems: ParsedTicketItem[];
-}
-
-interface RawTicketItem {
-  id?: string;
-  _id?: string;
-  cartId?: string;
-  parentCartId?: string;
-  parentId?: string;
-  parentServiceId?: string;
-  type?: string;
-  name?: string;
-  sku?: string;
-  quantity?: number;
-  unitPrice?: number;
-  priceSnapshot?: number;
-  subtotal?: number;
-  product?: { name?: string; sku?: string; sellingPrice?: number };
-  service?: { name?: string; supplies?: RawTicketItem[] };
-  serviceId?: { name?: string; sku?: string; basePrice?: number; supplies?: RawTicketItem[] };
-  supplies?: RawTicketItem[];
-  suppliesConsumed?: RawTicketItem[];
-}
-
-function parseSaleItemsForTicket(items: unknown[]): ParsedTicketItem[] {
-  if (!Array.isArray(items)) return [];
-
-  const rawList = items as RawTicketItem[];
-  const normalized = rawList.map((item, index) => {
-    const isService = item.type === 'service' || Boolean(item.serviceId) || Boolean(item.service);
-    const name =
-      item.name ||
-      item.product?.name ||
-      item.service?.name ||
-      item.serviceId?.name ||
-      (isService ? 'Servicio' : 'Artículo');
-    const sku = item.sku || item.product?.sku || item.serviceId?.sku || '';
-    const quantity = item.quantity || 1;
-    const unitPrice =
-      item.unitPrice ??
-      item.priceSnapshot ??
-      item.product?.sellingPrice ??
-      item.serviceId?.basePrice ??
-      0;
-    const subtotal = item.subtotal ?? unitPrice * quantity;
-    const itemId = String(item.cartId || item.id || item._id || `item-${index}`);
-    const parentId = item.parentCartId || item.parentId || item.parentServiceId;
-
-    const nestedRaw =
-      item.suppliesConsumed ||
-      item.supplies ||
-      item.serviceId?.supplies ||
-      item.service?.supplies ||
-      [];
-    const nestedChildren: ParsedTicketItem[] = Array.isArray(nestedRaw)
-      ? nestedRaw.map((sup: RawTicketItem, sIdx: number) => {
-        const supProd = sup.product && typeof sup.product === 'object' ? sup.product : null;
-        const supName = sup.name || supProd?.name || 'Insumo de servicio';
-        const supSku = sup.sku || supProd?.sku || '';
-        const supQty = sup.quantity || 1;
-        const supPrice = sup.unitPrice ?? sup.priceSnapshot ?? supProd?.sellingPrice ?? 0;
-        return {
-          id: `nested-${index}-${sIdx}`,
-          type: 'product',
-          name: supName,
-          sku: supSku,
-          quantity: supQty,
-          unitPrice: supPrice,
-          subtotal: sup.subtotal ?? supPrice * supQty,
-          childItems: [],
-        };
-      })
-      : [];
-
-    return {
-      id: itemId,
-      cartId: item.cartId,
-      parentCartId: parentId,
-      type: (item.type === 'external' ? 'external' : (isService ? 'service' : 'product')) as 'product' | 'service' | 'external',
-      name,
-      sku,
-      quantity,
-      unitPrice,
-      subtotal,
-      childItems: nestedChildren,
-    };
-  });
-
-  const rootItems: ParsedTicketItem[] = [];
-  const childrenMap = new Map<string, ParsedTicketItem[]>();
-
-  normalized.forEach((item) => {
-    if (item.parentCartId) {
-      if (!childrenMap.has(item.parentCartId)) {
-        childrenMap.set(item.parentCartId, []);
-      }
-      childrenMap.get(item.parentCartId)!.push({
-        id: item.id,
-        type: item.type,
-        name: item.name,
-        sku: item.sku,
-        quantity: item.quantity,
-        unitPrice: item.unitPrice,
-        subtotal: item.subtotal,
-        childItems: item.childItems,
-      });
-    }
-  });
-
-  normalized.forEach((item) => {
-    if (!item.parentCartId) {
-      const explicitChildren = childrenMap.get(item.cartId || item.id) || [];
-      rootItems.push({
-        ...item,
-        childItems: [...item.childItems, ...explicitChildren],
-      });
-    }
-  });
-
-  return rootItems;
-}
+import { parseTicketItems, type ParsedTicketItem } from '@/core/services/print/templates/ticketItemUtils';
 
 const FONT_FAMILY = "'Courier New', Courier, monospace";
 const SEPARATOR_DOUBLE = '══════════════════════════';
@@ -185,136 +55,135 @@ export const TicketReceipt: React.FC<TicketReceiptProps> = ({
   const rawSaleId = '_id' in sale && typeof (sale as { _id?: unknown })._id === 'string' ? (sale as { _id: string })._id : '';
   const folioStr = sale.folio || `NV-${String(rawSaleId.slice(-6) || '000001').padStart(6, '0')}`;
 
-  const rootItems = parseSaleItemsForTicket(sale.items ?? []);
+      const rootItems = parseTicketItems(sale.items ?? []);
 
-  const paymentLabel =
-    sale.paymentMethod === 'cash' ? 'EFECTIVO'
-      : sale.paymentMethod === 'card' ? 'TARJETA'
-        : sale.paymentMethod === 'transfer' ? 'TRANSFERENCIA'
-          : 'EFECTIVO';
+      const paymentLabel =
+        sale.paymentMethod === 'cash' ? 'EFECTIVO'
+          : sale.paymentMethod === 'card' ? 'TARJETA'
+            : sale.paymentMethod === 'transfer' ? 'TRANSFERENCIA'
+              : 'EFECTIVO';
 
-  const ticketWidth = settings.paperWidth === '58mm' ? '58mm' : '80mm';
-  const fontSize = settings.fontSize === 'compact' ? '8.5px' : settings.fontSize === 'large' ? '12px' : '10px';
+      const ticketWidth = settings.paperWidth === '58mm' ? '58mm' : '80mm';
+      const fontSize = settings.fontSize === 'compact' ? '8.5px' : settings.fontSize === 'large' ? '12px' : '10px';
 
-  const policiesLines = (settings.policiesText || '').split('\n').filter((l) => l.trim().length > 0);
+      const policiesLines = (settings.policiesText || '').split('\n').filter((l) => l.trim().length > 0);
 
-  return (
-    <div
-      id="ticket-receipt"
-      className="hidden print:block"
-      style={{
-        width: ticketWidth,
-        margin: '0 auto',
-        padding: '6px 4px',
-        fontFamily: FONT_FAMILY,
-        fontSize,
-        color: '#000000',
-        background: '#ffffff',
-        lineHeight: 1.3,
-      }}
-    >
-      {/* ══ Store Header ══ */}
-      <div style={{ textAlign: 'center', marginBottom: '4px' }}>
-        <div style={{ fontSize: '9px', letterSpacing: '0.3px' }}>{SEPARATOR_DOUBLE}</div>
-        <h1 style={{
-          fontSize: '13px', fontWeight: '900', margin: '4px 0 1px 0',
-          textTransform: 'uppercase', letterSpacing: '0.5px',
-        }}>
-          {settings.businessName}
-        </h1>
-        <p style={{ margin: '0 0 3px 0', fontSize: '9px', fontWeight: '600', letterSpacing: '0.3px' }}>
-          {settings.businessTagline}
-        </p>
-        <p style={{ margin: '0 0 1px 0', fontSize: '9px', fontWeight: 'bold' }}>
-          SUCURSAL: {branchName || sale.branch?.name || settings.businessName}
-        </p>
-        {settings.showPhone && settings.phone && (
-          <p style={{ margin: '0 0 1px 0', fontSize: '9px' }}>
-            Tel./WhatsApp: {settings.phone}
-          </p>
-        )}
-        {settings.showAddress && settings.address && (
-          <p style={{ margin: '0', fontSize: '8px', color: '#000000' }}>
-            {settings.address}
-          </p>
-        )}
-        <div style={{ fontSize: '9px', letterSpacing: '0.3px', marginTop: '3px' }}>{SEPARATOR_DOUBLE}</div>
-      </div>
-
-      {/* ── Ticket Metadata ── */}
-      <div style={{ fontSize: '9px', marginBottom: '4px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-          <span>FECHA: <strong>{datePart}</strong></span>
-          <span>HORA: <strong>{timePart}</strong></span>
-        </div>
-        {settings.showFolio && (
-          <div style={{ marginTop: '1px' }}>
-            FOLIO: <strong>#{folioStr}</strong>
+      return (
+        <div
+          id="ticket-receipt"
+          className="hidden print:block"
+          style={{
+            width: ticketWidth,
+            margin: '0 auto',
+            padding: '6px 4px',
+            fontFamily: FONT_FAMILY,
+            fontSize,
+            color: '#000000',
+            background: '#ffffff',
+            lineHeight: 1.3,
+          }}
+        >
+          {/* ══ Store Header ══ */}
+          <div style={{ textAlign: 'center', marginBottom: '4px' }}>
+            <div style={{ fontSize: '9px', letterSpacing: '0.3px' }}>{SEPARATOR_DOUBLE}</div>
+            <h1 style={{
+              fontSize: '13px', fontWeight: '900', margin: '4px 0 1px 0',
+              textTransform: 'uppercase', letterSpacing: '0.5px',
+            }}>
+              {settings.businessName}
+            </h1>
+            <p style={{ margin: '0 0 3px 0', fontSize: '9px', fontWeight: '600', letterSpacing: '0.3px' }}>
+              {settings.businessTagline}
+            </p>
+            <p style={{ margin: '0 0 1px 0', fontSize: '9px', fontWeight: 'bold' }}>
+              SUCURSAL: {branchName || sale.branch?.name || settings.businessName}
+            </p>
+            {settings.showPhone && settings.phone && (
+              <p style={{ margin: '0 0 1px 0', fontSize: '9px' }}>
+                Tel./WhatsApp: {settings.phone}
+              </p>
+            )}
+            {settings.showAddress && settings.address && (
+              <p style={{ margin: '0', fontSize: '8px', color: '#000000' }}>
+                {settings.address}
+              </p>
+            )}
+            <div style={{ fontSize: '9px', letterSpacing: '0.3px', marginTop: '3px' }}>{SEPARATOR_DOUBLE}</div>
           </div>
-        )}
-        {settings.showCashier && (
-          <div style={{ marginTop: '1px' }}>
-            ATENDIÓ: <strong>{sName}</strong>
-          </div>
-        )}
-        {sale.isCancelled && (
-          <div style={{
-            textAlign: 'center', fontWeight: 'bold',
-            border: '2px solid #000', padding: '3px', marginTop: '4px', fontSize: '10px',
-          }}>
-            *** VENTA CANCELADA ***
-          </div>
-        )}
-      </div>
 
-      {/* ── Items ── */}
-      <div style={{ fontSize: '9px', letterSpacing: '0.3px', margin: '2px 0' }}>{SEPARATOR_DASH}</div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', fontWeight: 'bold', padding: '1px 0' }}>
-        <span>CANT</span>
-        <span style={{ flex: 1, paddingLeft: '6px' }}>CONCEPTO</span>
-        <span>IMPORTE</span>
-      </div>
-      <div style={{ fontSize: '9px', letterSpacing: '0.3px', margin: '2px 0' }}>{SEPARATOR_DASH}</div>
-
-      {rootItems.map((item) => {
-        const isService = item.type === 'service';
-        return (
-          <React.Fragment key={item.id}>
-            {/* Main item */}
-            <div style={{ marginBottom: '3px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px' }}>
-                <span style={{ fontWeight: 'bold', minWidth: '28px' }}>{item.quantity}</span>
-                <span style={{ flex: 1, paddingLeft: '4px', fontWeight: 'bold', wordBreak: 'break-word' }}>
-                  {isService ? `[SERV] ${item.name}` : item.name}
-                </span>
-                <span style={{ fontWeight: 'bold', whiteSpace: 'nowrap', paddingLeft: '4px' }}>
-                  ${item.subtotal.toFixed(2)}
-                </span>
-              </div>
-              {item.unitPrice !== item.subtotal / item.quantity || item.quantity > 1 ? (
-                <div style={{ fontSize: '8px', color: '#000000', paddingLeft: '32px' }}>
-                  {item.quantity} x ${item.unitPrice.toFixed(2)}
-                </div>
-              ) : null}
+          {/* ── Ticket Metadata ── */}
+          <div style={{ fontSize: '9px', marginBottom: '4px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span>FECHA: <strong>{datePart}</strong></span>
+              <span>HORA: <strong>{timePart}</strong></span>
             </div>
-
-            {/* Child items (supplies) */}
-            {item.childItems.map((child, cIdx) => (
-              <div key={child.id || `c-${cIdx}`} style={{ marginBottom: '2px', paddingLeft: '8px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '8px', color: '#000000' }}>
-                  <span style={{ minWidth: '24px' }}>{child.quantity}</span>
-                  <span style={{ flex: 1, paddingLeft: '2px' }}>
-                    └ {child.name}
-                  </span>
-                  <span style={{ whiteSpace: 'nowrap', paddingLeft: '4px' }}>
-                    ${child.subtotal.toFixed(2)}
-                  </span>
-                </div>
+            {settings.showFolio && (
+              <div style={{ marginTop: '1px' }}>
+                FOLIO: <strong>#{folioStr}</strong>
               </div>
-            ))}
-          </React.Fragment>
-        );
-      })}
+            )}
+            {settings.showCashier && (
+              <div style={{ marginTop: '1px' }}>
+                ATENDIÓ: <strong>{sName}</strong>
+              </div>
+            )}
+            {sale.isCancelled && (
+              <div style={{
+                textAlign: 'center', fontWeight: 'bold',
+                border: '2px solid #000', padding: '3px', marginTop: '4px', fontSize: '10px',
+              }}>
+                *** VENTA CANCELADA ***
+              </div>
+            )}
+          </div>
+
+          {/* ── Items ── */}
+          <div style={{ fontSize: '9px', letterSpacing: '0.3px', margin: '2px 0' }}>{SEPARATOR_DASH}</div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', fontWeight: 'bold', padding: '1px 0' }}>
+            <span>CANT</span>
+            <span style={{ flex: 1, paddingLeft: '6px' }}>CONCEPTO</span>
+            <span>IMPORTE</span>
+          </div>
+          <div style={{ fontSize: '9px', letterSpacing: '0.3px', margin: '2px 0' }}>{SEPARATOR_DASH}</div>
+
+          {rootItems.map((item) => {
+            const isService = item.type === 'service';
+            return (
+              <React.Fragment key={item.id}>
+                {/* Main item */}
+                <div style={{ marginBottom: '3px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px' }}>
+                    <span style={{ fontWeight: 'bold', minWidth: '28px' }}>{item.qty}</span>
+                    <span style={{ flex: 1, paddingLeft: '4px', fontWeight: 'bold', wordBreak: 'break-word' }}>
+                      {isService ? `[SERV] ${item.name}` : item.name}
+                    </span>
+                    <span style={{ fontWeight: 'bold', whiteSpace: 'nowrap', paddingLeft: '4px' }}>
+                      ${item.subtotal.toFixed(2)}
+                    </span>
+                  </div>
+                  {item.price !== item.subtotal / item.qty || item.qty > 1 ? (
+                    <div style={{ fontSize: '8px', color: '#000000', paddingLeft: '32px' }}>
+                      {item.qty} x ${item.price.toFixed(2)}
+                    </div>
+                  ) : null}
+                </div>
+
+                {/* Child items (supplies) */}
+                {item.supplies && item.supplies.length > 0 && (
+                  <div style={{ paddingLeft: '22px', marginTop: '2px', marginBottom: '3px', fontSize: '8px', color: '#333' }}>
+                    {item.supplies.map((child, cIdx) => (
+                      <div key={`sup-${item.id}-${cIdx}`} style={{ marginTop: '1.5px', wordBreak: 'break-word', lineHeight: 1.2 }}>
+                        • <span style={{ fontStyle: 'italic' }}>{child.qty > 1 ? `${child.qty}x ` : ''}{child.name}</span>{' '}
+                        <span style={{ fontSize: '7.5px', color: '#666', marginLeft: '3px' }}>
+                          {child.subtotal > 0 ? `(+$${child.subtotal.toFixed(2)})` : '(Incluido)'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </React.Fragment>
+            );
+          })}
 
       <div style={{ fontSize: '9px', letterSpacing: '0.3px', margin: '4px 0 2px' }}>{SEPARATOR_DASH}</div>
 

@@ -84,8 +84,23 @@ namespace FerventaPrintAgent
         private const string APP_NAME = "FerventaPrintAgent";
 
         [STAThread]
-        public static void Main()
+        public static void Main(string[] args)
         {
+            // Support CLI command line --uninstall or -u
+            if (args != null && args.Length > 0)
+            {
+                foreach (string arg in args)
+                {
+                    if (arg.Equals("--uninstall", StringComparison.OrdinalIgnoreCase) ||
+                        arg.Equals("/uninstall", StringComparison.OrdinalIgnoreCase) ||
+                        arg.Equals("-u", StringComparison.OrdinalIgnoreCase))
+                    {
+                        UninstallAgent(silent: false);
+                        return;
+                    }
+                }
+            }
+
             bool isNewInstance;
             using (Mutex mutex = new Mutex(true, "Global\\FerventaPrintAgentMutex", out isNewInstance))
             {
@@ -112,12 +127,13 @@ namespace FerventaPrintAgent
                 trayIcon.Icon = SystemIcons.Application;
 
                 ContextMenu contextMenu = new ContextMenu();
-                contextMenu.MenuItems.Add(new MenuItem("Ferventa Print Agent v1.1") { Enabled = false });
+                contextMenu.MenuItems.Add(new MenuItem("Ferventa Print Agent v1.2") { Enabled = false });
                 contextMenu.MenuItems.Add("-");
                 contextMenu.MenuItems.Add(new MenuItem("Ver Impresoras Detectadas", (s, e) => ShowPrinters()));
                 contextMenu.MenuItems.Add(new MenuItem("Iniciar con Windows", (s, e) => ToggleStartup(s)));
                 contextMenu.MenuItems[3].Checked = IsInStartup();
                 contextMenu.MenuItems.Add("-");
+                contextMenu.MenuItems.Add(new MenuItem("Desinstalar Agente de esta PC...", (s, e) => UninstallAgent(silent: false)));
                 contextMenu.MenuItems.Add(new MenuItem("Salir", (s, e) => ExitApplication()));
 
                 trayIcon.ContextMenu = contextMenu;
@@ -199,6 +215,42 @@ namespace FerventaPrintAgent
             {
                 Console.WriteLine("Error al configurar inicio automatico: " + ex.Message);
             }
+        }
+
+        private static void UninstallAgent(bool silent = false)
+        {
+            if (!silent)
+            {
+                DialogResult dr = MessageBox.Show(
+                    "¿Deseas desinstalar Ferventa Print Agent de esta computadora?\n\nEsto eliminará el agente del inicio automático de Windows y lo detendrá por completo.\n(No afectará tus archivos ni la plataforma web).",
+                    "Desinstalar Ferventa Print Agent",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Question
+                );
+
+                if (dr != DialogResult.Yes)
+                {
+                    return;
+                }
+            }
+
+            try
+            {
+                SetStartup(false);
+            }
+            catch { }
+
+            if (!silent)
+            {
+                MessageBox.Show(
+                    "Ferventa Print Agent ha sido desinstalado del inicio de Windows y se detendrá ahora.\n\nPuedes volver a descargarlo e iniciarlo desde Ferventa Web en Ajustes cuando lo requieras.",
+                    "Ferventa Print Agent Desinstalado",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information
+                );
+            }
+
+            ExitApplication();
         }
 
         private static void ExitApplication()

@@ -1,4 +1,5 @@
 import type { Sale, CreateSalePayload, SalesStats } from '@/app/domain';
+import { handleAuthExpiration } from '@/core/auth/authExpiration';
 
 export class APISalesRepository {
   private baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
@@ -24,7 +25,12 @@ export class APISalesRepository {
       headers.set('x-branch-id', activeBranchId || '000000000000000000000000');
     }
 
-    return fetch(url, { ...options, headers });
+    const res = await fetch(url, { ...options, headers });
+    if (res.status === 401) {
+      handleAuthExpiration();
+      throw new Error('UNAUTHORIZED');
+    }
+    return res;
   }
 
   /** GET /sales — list all sales with optional filters */

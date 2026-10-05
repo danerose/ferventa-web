@@ -60,6 +60,13 @@ export function App() {
   useEffect(() => {
     initializeTheme();
 
+    const onAuthExpired = () => {
+      clearAuth();
+      navigate(APP_ROUTES.LOGIN, { replace: true });
+    };
+
+    window.addEventListener('ferventa:auth-expired', onAuthExpired);
+
     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
     const keepAlivePing = () => {
       fetch(`${apiUrl}/health`, { method: 'GET', mode: 'cors' })
@@ -70,8 +77,11 @@ export function App() {
     keepAlivePing();
     const interval = setInterval(keepAlivePing, 4 * 60 * 1000);
 
-    return () => clearInterval(interval);
-  }, [initializeTheme]);
+    return () => {
+      window.removeEventListener('ferventa:auth-expired', onAuthExpired);
+      clearInterval(interval);
+    };
+  }, [initializeTheme, clearAuth, navigate]);
 
   const user = useAuthStore((s) => s.user);
 

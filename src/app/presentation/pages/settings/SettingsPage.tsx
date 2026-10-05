@@ -554,7 +554,10 @@ export const SettingsPage: React.FC = () => {
                             <Text size="xs" className="text-base-content/80 leading-relaxed">
                               1. Haz clic en el botón azul <strong>Descargar Agente (.exe)</strong> arriba.<br />
                               2. Ejecútalo una sola vez en esta computadora con Windows (se iniciará en segundo plano junto al reloj y arrancará solo cada vez que prendas la PC).<br />
-                              3. Haz clic en <strong>Detectar Impresoras</strong> para asignar cada tarea a su impresora correspondiente.
+                              3. Haz clic en <strong>Detectar Impresoras</strong> para asignar cada tarea a su impresora correspondiente.<br />
+                              <span className="text-base-content/60 text-[11px] mt-1 block">
+                                💡 <em>Para desinstalarlo en cualquier momento: clic derecho en el ícono junto al reloj de Windows → «Desinstalar Agente de esta PC» o ejecutando con <code className="text-xs bg-base-300 px-1 rounded">--uninstall</code>.</em>
+                              </span>
                             </Text>
                           </Stack>
                         </Flex>
