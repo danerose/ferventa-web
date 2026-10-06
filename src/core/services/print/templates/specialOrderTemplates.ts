@@ -1,6 +1,7 @@
 import type { SpecialOrder } from '@/app/domain';
 import type { PrinterSettings } from '@/core/types';
 import { formatCurrency, formatDate } from '@/core/utils';
+import { NOVA_FV_LOGO_BW_DATA_URI } from '../logoDataUri';
 
 export interface PrintSpecialOrderTicketOptions {
   order: SpecialOrder;
@@ -61,6 +62,9 @@ export function generateSpecialOrderTicketHtml({
   return `
     <div style="width: ${printableWidth}; max-width: ${printableWidth}; margin: 0 auto; padding: 4px 2px 6mm 2px; font-size: ${fontSize}; line-height: 1.25; color: #000000; font-family: 'Courier New', Courier, monospace;">
       <div style="text-align: center;">
+        <div style="margin-bottom: 5px; display: flex; justify-content: center;">
+          <img src="${NOVA_FV_LOGO_BW_DATA_URI}" alt="Moto Servicio Nova FV" style="height: 48px; width: auto; max-width: 100%; object-fit: contain;" />
+        </div>
         <div style="font-size: 8px; font-weight: bold; overflow: hidden; white-space: nowrap;">${sepDouble}</div>
         <div style="font-weight: 900; font-size: 1.15em; text-transform: uppercase;">${settings.businessName || 'MOTO SERVICIO NOVA FV'}</div>
         <div style="font-size: 0.85em; font-weight: bold;">${settings.businessTagline || 'Refacciones y Taller Especializado'}</div>
@@ -199,21 +203,24 @@ export function generateSpecialOrderDocumentHtml(
     <div style="font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #000000; padding: 18px 24px; max-width: 780px; margin: 0 auto; font-size: 11px; line-height: 1.38;">
       
       <!-- ── Encabezado Oficial ── -->
-      <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #0f172a; padding-bottom: 12px; margin-bottom: 14px;">
-        <div>
-          <h1 style="font-size: 20px; font-weight: 900; margin: 0; color: #0f172a; text-transform: uppercase; letter-spacing: -0.5px;">
-            ${businessName}
-          </h1>
-          <p style="margin: 2px 0 0 0; font-size: 13px; color: #475569; font-weight: 700;">
-            Comprobante Oficial de Pedido Especial / Encargo de Refacción
-          </p>
-          <p style="margin: 2px 0 0 0; font-size: 11px; color: #64748b;">
-            Sucursal: <strong style="color: #0f172a;">${branchName}</strong>
-          </p>
+      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #0f172a; padding-bottom: 12px; margin-bottom: 14px;">
+        <div style="display: flex; align-items: center; gap: 14px;">
+          <img src="${NOVA_FV_LOGO_BW_DATA_URI}" alt="Moto Servicio Nova FV" style="height: 60px; width: auto; object-fit: contain;" />
+          <div>
+            <h1 style="font-size: 19px; font-weight: 900; margin: 0; color: #0f172a; text-transform: uppercase; letter-spacing: -0.5px;">
+              ${businessName}
+            </h1>
+            <p style="margin: 2px 0 0 0; font-size: 12px; color: #475569; font-weight: 700;">
+              Comprobante Oficial de Pedido Especial / Encargo de Refacción
+            </p>
+            <p style="margin: 2px 0 0 0; font-size: 11px; color: #64748b;">
+              Sucursal: <strong style="color: #0f172a;">${branchName}</strong>
+            </p>
+          </div>
         </div>
 
         <div style="text-align: right;">
-          <div style="display: inline-block; background: #4f46e5; color: #ffffff; padding: 3px 10px; border-radius: 4px; font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">
+          <div style="display: inline-block; background: #4f46e5; color: #ffffff; padding: 4px 10px; border-radius: 4px; font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">
             PEDIDO SOBRE ENCARGO
           </div>
           <div style="margin-top: 4px; font-size: 15px; font-weight: 900; font-family: monospace; color: #0f172a;">

@@ -1,5 +1,6 @@
 import React from 'react';
 import type { CartItem } from '@/app/domain';
+import { NOVA_FV_LOGO_BW_DATA_URI } from '@/core/services/print/logoDataUri';
 
 interface QuotationReceiptProps {
   items: CartItem[];
@@ -47,11 +48,14 @@ export const QuotationReceipt: React.FC<QuotationReceiptProps> = ({
       }}
     >
       {/* Centered Header */}
-      <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-        <h1 style={{ fontSize: '24px', fontWeight: '800', color: '#111827', margin: 0 }}>
+      <div style={{ textAlign: 'center', marginBottom: '16px' }}>
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '8px' }}>
+          <img src={NOVA_FV_LOGO_BW_DATA_URI} alt="Moto Servicio Nova FV" style={{ height: '64px', width: 'auto', objectFit: 'contain' }} />
+        </div>
+        <h1 style={{ fontSize: '22px', fontWeight: '900', color: '#111827', margin: 0, textTransform: 'uppercase', letterSpacing: '-0.5px' }}>
           Moto Servicio Nova FV
         </h1>
-        <p style={{ fontSize: '15px', color: '#4b5563', fontWeight: '500', margin: '4px 0 0 0' }}>
+        <p style={{ fontSize: '15px', color: '#4b5563', fontWeight: '700', margin: '4px 0 0 0' }}>
           Cotización
         </p>
         <p style={{ fontSize: '13px', color: '#6b7280', margin: '6px 0 0 0' }}>

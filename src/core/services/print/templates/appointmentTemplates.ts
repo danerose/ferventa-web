@@ -1,5 +1,6 @@
 import type { Appointment } from '@/app/domain';
 import type { PrinterSettings } from '@/core/types';
+import { NOVA_FV_LOGO_BW_DATA_URI } from '../logoDataUri';
 
 function formatDateTime(isoString?: string): { date: string; time: string } {
   if (!isoString) return { date: 'Fecha no especificada', time: '' };
@@ -48,10 +49,13 @@ export function generateAppointmentDocumentHtml(
     <div style="font-family: 'Inter', system-ui, -apple-system, sans-serif; color: #0f172a; padding: 24px; max-width: 780px; margin: 0 auto;">
       <!-- Header -->
       <div style="text-align: center; border-bottom: 2px solid #0f172a; padding-bottom: 16px; margin-bottom: 20px;">
-        <h1 style="font-size: 22px; font-weight: 900; color: #0f172a; margin: 0; text-transform: uppercase; letter-spacing: -0.5px;">
+        <div style="display: flex; justify-content: center; margin-bottom: 8px;">
+          <img src="${NOVA_FV_LOGO_BW_DATA_URI}" alt="Moto Servicio Nova FV" style="height: 64px; width: auto; object-fit: contain;" />
+        </div>
+        <h1 style="font-size: 20px; font-weight: 900; color: #0f172a; margin: 0; text-transform: uppercase; letter-spacing: -0.5px;">
           Moto Servicio Nova FV
         </h1>
-        <p style="font-size: 14px; color: #475569; font-weight: 600; margin: 4px 0 0 0;">
+        <p style="font-size: 13px; color: #475569; font-weight: 700; margin: 3px 0 0 0;">
           Comprobante de Cita Programada
         </p>
         <div style="display: flex; justify-content: center; gap: 20px; font-size: 12px; color: #64748b; margin-top: 6px;">

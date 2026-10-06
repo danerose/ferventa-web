@@ -360,75 +360,77 @@ namespace FerventaPrintAgent
                     string printerName = ExtractJsonValue(body, "printerName");
                     string rawBase64 = ExtractJsonValue(body, "rawBase64");
                     string htmlContent = ExtractJsonValue(body, "html");
+                    string ticketText = ExtractJsonValue(body, "ticketText");
+                    string logoBase64 = ExtractJsonValue(body, "logoBase64");
+                    string paperWidth = ExtractJsonValue(body, "paperWidth");
 
-                    if (string.IsNullOrEmpty(printerName))
+                    string actualPrinter = ResolvePrinter(printerName);
+
+                    // A) TICKET PRINTING WITH GDI+ (Draw Graphic Logo + Crisp Text)
+                    if (!string.IsNullOrEmpty(ticketText))
                     {
-                        printerName = GetDefaultPrinter();
+                        bool ok = PrintTicketWithGdi(actualPrinter, ticketText, logoBase64, "Ticket Ferventa", paperWidth);
+                        if (!ok && !string.IsNullOrEmpty(rawBase64))
+                        {
+                            byte[] bytes = Convert.FromBase64String(rawBase64);
+                            ok = RawPrinterHelper.SendBytesToPrinter(actualPrinter, bytes);
+                        }
+
+                        if (ok)
+                        {
+                            ShowNotification("Ticket Impreso", "Ticket enviado correctamente a: " + actualPrinter);
+                            SendJsonResponse(response, 200, "{\"success\":true,\"printer\":\"" + actualPrinter.Replace("\"", "\\\"") + "\"}");
+                        }
+                        else
+                        {
+                            SendJsonResponse(response, 500, "{\"error\":\"No se pudo imprimir en la impresora " + actualPrinter.Replace("\"", "\\\"") + "\"}");
+                        }
+                        return;
                     }
 
-                    // A) TICKET PRINTING (Raw ESC/POS bytes)
+                    // B) RAW ESC/POS TICKET FALLBACK
                     if (!string.IsNullOrEmpty(rawBase64))
                     {
                         byte[] bytes = Convert.FromBase64String(rawBase64);
-                        bool isThermal = IsThermalPrinter(printerName);
-                        bool ok = false;
+                        bool ok = RawPrinterHelper.SendBytesToPrinter(actualPrinter, bytes);
 
-                        if (isThermal)
+                        if (!ok)
                         {
-                            // Send raw binary to thermal POS printer
-                            ok = RawPrinterHelper.SendBytesToPrinter(printerName, bytes);
-                            if (!ok)
-                            {
-                                // Retry fallback matching
-                                foreach (string installed in PrinterSettings.InstalledPrinters)
-                                {
-                                    if (IsThermalPrinter(installed))
-                                    {
-                                        ok = RawPrinterHelper.SendBytesToPrinter(installed, bytes);
-                                        if (ok) { printerName = installed; break; }
-                                    }
-                                }
-                            }
-                        }
-                        else
-                        {
-                            // Printer is an office/inkjet printer (like Brother/HP)
-                            // Render ticket text cleanly with native GDI+
-                            string ticketText = ExtractTextFromEscPos(bytes);
-                            ok = PrintTextWithGdi(printerName, ticketText, "Ticket Ferventa", true);
+                            string extracted = ExtractTextFromEscPos(bytes);
+                            ok = PrintTicketWithGdi(actualPrinter, extracted, logoBase64, "Ticket Ferventa", paperWidth);
                         }
 
                         if (ok)
                         {
-                            ShowNotification("Ticket Impreso", "Ticket enviado correctamente a: " + printerName);
-                            SendJsonResponse(response, 200, "{\"success\":true,\"printer\":\"" + printerName.Replace("\"", "\\\"") + "\"}");
+                            ShowNotification("Ticket Impreso", "Ticket enviado correctamente a: " + actualPrinter);
+                            SendJsonResponse(response, 200, "{\"success\":true,\"printer\":\"" + actualPrinter.Replace("\"", "\\\"") + "\"}");
                         }
                         else
                         {
-                            SendJsonResponse(response, 500, "{\"error\":\"No se pudo imprimir en la impresora " + printerName.Replace("\"", "\\\"") + "\"}");
+                            SendJsonResponse(response, 500, "{\"error\":\"No se pudo imprimir en la impresora " + actualPrinter.Replace("\"", "\\\"") + "\"}");
                         }
                         return;
                     }
 
-                    // B) DOCUMENT / HTML PRINTING (Cotizaciones / Citas / QR)
+                    // C) DOCUMENT / HTML PRINTING (Cotizaciones / Citas / QR)
                     if (!string.IsNullOrEmpty(htmlContent))
                     {
                         string plainText = HtmlToPlainText(htmlContent);
-                        bool ok = PrintTextWithGdi(printerName, plainText, "Documento Ferventa", false);
+                        bool ok = PrintTextWithGdi(actualPrinter, plainText, "Documento Ferventa", false);
 
                         if (ok)
                         {
-                            ShowNotification("Documento Impreso", "Documento enviado correctamente a: " + printerName);
-                            SendJsonResponse(response, 200, "{\"success\":true,\"printer\":\"" + printerName.Replace("\"", "\\\"") + "\"}");
+                            ShowNotification("Documento Impreso", "Documento enviado correctamente a: " + actualPrinter);
+                            SendJsonResponse(response, 200, "{\"success\":true,\"printer\":\"" + actualPrinter.Replace("\"", "\\\"") + "\"}");
                         }
                         else
                         {
-                            SendJsonResponse(response, 500, "{\"error\":\"Error al enviar documento a la impresora " + printerName.Replace("\"", "\\\"") + "\"}");
+                            SendJsonResponse(response, 500, "{\"error\":\"Error al enviar documento a la impresora " + actualPrinter.Replace("\"", "\\\"") + "\"}");
                         }
                         return;
                     }
 
-                    SendJsonResponse(response, 400, "{\"error\":\"Falta rawBase64 o html en la peticion\"}");
+                    SendJsonResponse(response, 400, "{\"error\":\"Falta ticketText, rawBase64 o html en la peticion\"}");
                     return;
                 }
 
@@ -515,6 +517,175 @@ namespace FerventaPrintAgent
             // Decode HTML entities
             text = text.Replace("&nbsp;", " ").Replace("&amp;", "&").Replace("&quot;", "\"").Replace("&lt;", "<").Replace("&gt;", ">");
             return text.Trim();
+        }
+
+        private static string ResolvePrinter(string printerName)
+        {
+            if (string.IsNullOrEmpty(printerName))
+            {
+                return GetDefaultPrinter();
+            }
+
+            foreach (string p in PrinterSettings.InstalledPrinters)
+            {
+                if (p.Equals(printerName, StringComparison.OrdinalIgnoreCase))
+                {
+                    return p;
+                }
+            }
+
+            // Fuzzy match
+            string lower = printerName.ToLowerInvariant().Trim();
+            foreach (string p in PrinterSettings.InstalledPrinters)
+            {
+                if (p.ToLowerInvariant().Contains(lower) || lower.Contains(p.ToLowerInvariant()))
+                {
+                    return p;
+                }
+            }
+
+            // Thermal match
+            if (lower.Contains("pos") || lower.Contains("58") || lower.Contains("80") || lower.Contains("thermal") || lower.Contains("suzwip"))
+            {
+                foreach (string p in PrinterSettings.InstalledPrinters)
+                {
+                    if (IsThermalPrinter(p)) return p;
+                }
+            }
+
+            return GetDefaultPrinter();
+        }
+
+        private static bool PrintTicketWithGdi(string printerName, string text, string logoBase64, string docTitle, string paperWidth)
+        {
+            try
+            {
+                PrintDocument pd = new PrintDocument();
+                pd.PrinterSettings.PrinterName = printerName;
+                pd.DocumentName = docTitle;
+                pd.PrintController = new StandardPrintController(); // Silent printing (no modal popup)
+
+                if (!pd.PrinterSettings.IsValid)
+                {
+                    pd.PrinterSettings.PrinterName = GetDefaultPrinter();
+                }
+
+                pd.DefaultPageSettings.Margins = new Margins(2, 2, 0, 2);
+
+                Bitmap logoBmp = null;
+                if (!string.IsNullOrEmpty(logoBase64))
+                {
+                    try
+                    {
+                        byte[] imgBytes = Convert.FromBase64String(logoBase64);
+                        using (MemoryStream ms = new MemoryStream(imgBytes))
+                        {
+                            logoBmp = new Bitmap(Image.FromStream(ms));
+                        }
+                    }
+                    catch { }
+                }
+
+                pd.PrintPage += (s, ev) =>
+                {
+                    float y = 4;
+                    float pageWidth = ev.PageBounds.Width;
+                    bool isOfficePrinter = pageWidth > 350;
+
+                    bool is80 = !string.IsNullOrEmpty(paperWidth) && paperWidth.Contains("80");
+                    float printableWidth = is80 ? 270f : 195f;
+
+                    float left = isOfficePrinter ? (pageWidth - printableWidth) / 2f : 2f;
+                    float right = left + printableWidth;
+
+                    ev.Graphics.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+                    ev.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.HighQuality;
+                    ev.Graphics.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.HighQuality;
+
+                    // 1. Draw Graphic Logo
+                    if (logoBmp != null)
+                    {
+                        float targetLogoW = Math.Min(printableWidth * 0.72f, 150f);
+                        float targetLogoH = targetLogoW * ((float)logoBmp.Height / (float)logoBmp.Width);
+                        float logoX = left + (printableWidth - targetLogoW) / 2f;
+
+                        ev.Graphics.DrawImage(logoBmp, logoX, y, targetLogoW, targetLogoH);
+                        y += targetLogoH + 6;
+                    }
+
+                    // 2. Draw Ticket Text
+                    using (Font titleFont = new Font("Courier New", 9.0f, FontStyle.Bold))
+                    using (Font bodyFont = new Font("Courier New", 7.8f, FontStyle.Regular))
+                    using (Font boldFont = new Font("Courier New", 7.8f, FontStyle.Bold))
+                    using (StringFormat centerFormat = new StringFormat { Alignment = StringAlignment.Center })
+                    using (StringFormat leftFormat = new StringFormat { Alignment = StringAlignment.Near })
+                    {
+                        string[] lines = text.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
+                        foreach (string rawLine in lines)
+                        {
+                            string line = rawLine.TrimEnd();
+
+                            if (string.IsNullOrEmpty(line))
+                            {
+                                y += 4;
+                                continue;
+                            }
+
+                            // Separator line
+                            if (line.StartsWith("===") || line.StartsWith("---") || line.StartsWith("═══") || line.StartsWith("───"))
+                            {
+                                ev.Graphics.DrawLine(Pens.Black, left, y + 4, right, y + 4);
+                                y += 8;
+                                continue;
+                            }
+
+                            // Store title or header
+                            if (line.Contains("MOTO SERVICIO NOVA FV") || line.Contains("SUCURSAL:") || line.Contains("RECEPCION DE VEHICULO") || line.Contains("COMPROBANTE DE CITA") || line.Contains("PEDIDO ESPECIAL"))
+                            {
+                                RectangleF rect = new RectangleF(left, y, printableWidth, 16);
+                                ev.Graphics.DrawString(line, titleFont, Brushes.Black, rect, centerFormat);
+                                y += titleFont.GetHeight(ev.Graphics) + 2;
+                                continue;
+                            }
+
+                            // Subtitle / Tagline / Address / Phone
+                            if (line.Contains("TALLER Y REFACCIONES PARA MOTOS") || line.Contains("Tel./WhatsApp:") || line.StartsWith("Calle 28") || line.Contains("Santa Barbara"))
+                            {
+                                RectangleF rect = new RectangleF(left, y, printableWidth, 14);
+                                ev.Graphics.DrawString(line, bodyFont, Brushes.Black, rect, centerFormat);
+                                y += bodyFont.GetHeight(ev.Graphics) + 1;
+                                continue;
+                            }
+
+                            // Footer or policy headings
+                            if (line.StartsWith("¡") || line.Contains("GRACIAS") || line.Contains("IMPORTANTE") || line.Contains("CONSERVE ESTE"))
+                            {
+                                RectangleF rect = new RectangleF(left, y, printableWidth, 14);
+                                ev.Graphics.DrawString(line, boldFont, Brushes.Black, rect, centerFormat);
+                                y += boldFont.GetHeight(ev.Graphics) + 2;
+                                continue;
+                            }
+
+                            // Bold lines (Total, Subtotal, Table headers)
+                            bool isBold = line.StartsWith("TOTAL:") || line.StartsWith("SUBTOTAL:") || line.StartsWith("CANT");
+                            Font currentFont = isBold ? boldFont : bodyFont;
+
+                            ev.Graphics.DrawString(line, currentFont, Brushes.Black, left, y);
+                            y += currentFont.GetHeight(ev.Graphics) + 1;
+                        }
+                    }
+
+                    ev.HasMorePages = false;
+                };
+
+                pd.Print();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error al imprimir ticket con GDI+: " + ex.Message);
+                return false;
+            }
         }
 
         private static bool PrintTextWithGdi(string printerName, string text, string docTitle, bool isTicket)

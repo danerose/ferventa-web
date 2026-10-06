@@ -11,10 +11,15 @@ export interface EscPosTicketOptions {
   isTest?: boolean;
 }
 
+export interface EscPosTicketBundle {
+  rawBytes: Uint8Array;
+  ticketText: string;
+}
+
 /**
- * Generates raw ESC/POS byte sequence for thermal sales ticket (calibrated for 58mm / 80mm).
+ * Generates raw ESC/POS byte sequence and plain text for thermal sales ticket.
  */
-export function generateSaleTicketEscPos(options: EscPosTicketOptions): Uint8Array {
+export function generateSaleTicketBundle(options: EscPosTicketOptions): EscPosTicketBundle {
   const { sale, settings, branchName, sellerName, isTest } = options;
   const encoder = new EscPosEncoder(settings.paperWidth || '58mm');
 
@@ -52,6 +57,7 @@ export function generateSaleTicketEscPos(options: EscPosTicketOptions): Uint8Arr
 
   // 1. Header (Centered)
   encoder.align('center');
+  encoder.printLogo(settings.paperWidth || '58mm');
   encoder.separator('=');
   encoder.bold(true).doubleHeight(true).line(settings.businessName || 'MOTO SERVICIO NOVA FV').doubleHeight(false).bold(false);
   if (settings.businessTagline) {
@@ -131,7 +137,18 @@ export function generateSaleTicketEscPos(options: EscPosTicketOptions): Uint8Arr
 
   // 8. Feed & Cut
   encoder.cut();
-  return encoder.encode();
+  return {
+    rawBytes: encoder.encode(),
+    ticketText: encoder.getText(),
+  };
+}
+
+export function generateSaleTicketEscPos(options: EscPosTicketOptions): Uint8Array {
+  return generateSaleTicketBundle(options).rawBytes;
+}
+
+export function generateSaleTicketText(options: EscPosTicketOptions): string {
+  return generateSaleTicketBundle(options).ticketText;
 }
 
 /**
@@ -154,6 +171,7 @@ export function generateReceptionTicketEscPos(
   const plateStr = order.vehicle?.licensePlate ? `[${order.vehicle.licensePlate}]` : '';
 
   encoder.align('center');
+  encoder.printLogo(settings.paperWidth || '58mm');
   encoder.separator('=');
   encoder.bold(true).line(settings.businessName || 'MOTO SERVICIO NOVA FV').bold(false);
   encoder.line('RECEPCION DE VEHICULO');
@@ -199,6 +217,7 @@ export function generateAppointmentTicketEscPos(
   const serviceName = appt.serviceRequested || 'Mantenimiento General';
 
   encoder.align('center');
+  encoder.printLogo(settings.paperWidth || '58mm');
   encoder.separator('=');
   encoder.bold(true).line(settings.businessName || 'MOTO SERVICIO NOVA FV').bold(false);
   encoder.line('COMPROBANTE DE CITA');
@@ -242,6 +261,7 @@ export function generateSpecialOrderTicketEscPos(
   const remaining = order.remainingBalance ?? Math.max(0, sellingPrice - advance);
 
   encoder.align('center');
+  encoder.printLogo(settings.paperWidth || '58mm');
   encoder.separator('=');
   encoder.bold(true).line(settings.businessName || 'MOTO SERVICIO NOVA FV').bold(false);
   encoder.line('PEDIDO ESPECIAL');

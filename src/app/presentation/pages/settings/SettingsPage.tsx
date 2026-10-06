@@ -28,6 +28,7 @@ import {
   localAgentPrinterService,
   printEngine,
 } from '@/core/services';
+import { NOVA_FV_LOGO_BW_DATA_URI } from '@/core/services/print/logoDataUri';
 import { branchUseCases } from '@/core/di/container';
 import { ThemeMode } from '@/core/enums/methods/ThemeMode';
 import type { Branch } from '@/app/domain';
@@ -346,6 +347,9 @@ export const SettingsPage: React.FC = () => {
         .footer { text-align: center; margin-top: 48px; font-size: 11px; color: #94a3b8; }
       </style></head><body>
         <div class="header">
+          <div style="display: flex; justify-content: center; margin-bottom: 12px;">
+            <img src="${NOVA_FV_LOGO_BW_DATA_URI}" alt="Moto Servicio Nova FV" style="height: 64px; width: auto; object-fit: contain;" />
+          </div>
           <div class="biz-title">${businessName || 'Moto Servicio Nova FV'}</div>
           <div class="doc-type">Cotización</div>
           <div class="meta-info">Fecha: ${new Date().toLocaleDateString('es-MX')} ${new Date().toLocaleTimeString('es-MX')}</div>

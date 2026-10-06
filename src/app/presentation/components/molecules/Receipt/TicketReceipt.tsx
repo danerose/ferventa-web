@@ -10,6 +10,7 @@ interface TicketReceiptProps {
 }
 
 import { parseTicketItems } from '@/core/services/print/templates/ticketItemUtils';
+import { NOVA_FV_LOGO_BW_DATA_URI } from '@/core/services/print/logoDataUri';
 
 const FONT_FAMILY = "'Courier New', Courier, monospace";
 const SEPARATOR_DOUBLE = '══════════════════════════';
@@ -85,9 +86,12 @@ export const TicketReceipt: React.FC<TicketReceiptProps> = ({
     >
       {/* ══ Store Header ══ */}
       <div style={{ textAlign: 'center', marginBottom: '4px' }}>
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '4px' }}>
+          <img src={NOVA_FV_LOGO_BW_DATA_URI} alt="Moto Servicio Nova FV" style={{ height: '48px', width: 'auto', objectFit: 'contain' }} />
+        </div>
         <div style={{ fontSize: '9px', letterSpacing: '0.3px' }}>{SEPARATOR_DOUBLE}</div>
         <h1 style={{
-          fontSize: '13px', fontWeight: '900', margin: '4px 0 1px 0',
+          fontSize: '13px', fontWeight: '900', margin: '3px 0 1px 0',
           textTransform: 'uppercase', letterSpacing: '0.5px',
         }}>
           {settings.businessName}

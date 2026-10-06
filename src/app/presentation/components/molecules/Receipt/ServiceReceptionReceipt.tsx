@@ -1,6 +1,7 @@
 import React from 'react';
 import type { AdminMaintenanceOrder } from '@/app/domain';
 import { formatDate, formatCurrency } from '@/core/utils';
+import { NOVA_FV_LOGO_BW_DATA_URI } from '@/core/services/print/logoDataUri';
 
 export interface ServiceReceptionReceiptProps {
   order: AdminMaintenanceOrder | null;
@@ -63,17 +64,20 @@ export const ServiceReceptionReceipt: React.FC<ServiceReceptionReceiptProps> = (
       }}
     >
       {/* ── Document Header ── */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '2px solid #000000', paddingBottom: '10px', marginBottom: '10px' }}>
-        <div>
-          <h1 style={{ fontSize: '18px', fontWeight: '800', margin: 0, color: '#111827', textTransform: 'uppercase' }}>
-            Moto Servicio Nova FV
-          </h1>
-          <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: '#4b5563', fontWeight: '600' }}>
-            Comprobante de Recepción e Ingreso al Taller
-          </p>
-          <p style={{ margin: '2px 0 0 0', fontSize: '11px', color: '#6b7280' }}>
-            Sucursal: <strong>{branchName}</strong>
-          </p>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #000000', paddingBottom: '10px', marginBottom: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+          <img src={NOVA_FV_LOGO_BW_DATA_URI} alt="Moto Servicio Nova FV" style={{ height: '58px', width: 'auto', objectFit: 'contain' }} />
+          <div>
+            <h1 style={{ fontSize: '18px', fontWeight: '900', margin: 0, color: '#111827', textTransform: 'uppercase', letterSpacing: '-0.5px' }}>
+              Moto Servicio Nova FV
+            </h1>
+            <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: '#4b5563', fontWeight: '700' }}>
+              Comprobante de Recepción e Ingreso al Taller
+            </p>
+            <p style={{ margin: '2px 0 0 0', fontSize: '11px', color: '#6b7280' }}>
+              Sucursal: <strong>{branchName}</strong>
+            </p>
+          </div>
         </div>
 
         <div style={{ textAlign: 'right' }}>

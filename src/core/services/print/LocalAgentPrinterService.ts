@@ -65,30 +65,41 @@ export class LocalAgentPrinterService {
   }
 
   /**
-   * Prints raw ESC/POS binary bytes silently to the specified Windows printer
+   * Prints ticket with optional graphic logo using Windows GDI+ / native driver or ESC/POS fallback
    */
-  public async printRawTicket(printerName: string, rawBytes: Uint8Array): Promise<boolean> {
+  public async printTicket(options: {
+    printerName: string;
+    ticketText?: string;
+    rawBytes?: Uint8Array;
+    logoBase64?: string;
+    paperWidth?: '58mm' | '80mm';
+  }): Promise<boolean> {
     try {
-      // Convert Uint8Array to Base64
-      let binary = '';
-      const len = rawBytes.byteLength;
-      for (let i = 0; i < len; i++) {
-        binary += String.fromCharCode(rawBytes[i]);
+      let rawBase64 = '';
+      if (options.rawBytes) {
+        let binary = '';
+        const len = options.rawBytes.byteLength;
+        for (let i = 0; i < len; i++) {
+          binary += String.fromCharCode(options.rawBytes[i]);
+        }
+        rawBase64 = btoa(binary);
       }
-      const rawBase64 = btoa(binary);
 
       const res = await fetch(`${AGENT_BASE_URL}/print`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          printerName,
+          printerName: options.printerName,
+          ticketText: options.ticketText,
+          logoBase64: options.logoBase64,
           rawBase64,
+          paperWidth: options.paperWidth || '58mm',
         }),
       });
 
       if (!res.ok) {
         const errorText = await res.text();
-        console.error('[LocalAgentPrinterService] Error en impresión raw:', errorText);
+        console.error('[LocalAgentPrinterService] Error en impresión de ticket:', errorText);
         return false;
       }
 
@@ -97,6 +108,13 @@ export class LocalAgentPrinterService {
       console.error('[LocalAgentPrinterService] Error de conexión al imprimir ticket:', err);
       return false;
     }
+  }
+
+  /**
+   * Prints raw ESC/POS binary bytes silently to the specified Windows printer
+   */
+  public async printRawTicket(printerName: string, rawBytes: Uint8Array): Promise<boolean> {
+    return this.printTicket({ printerName, rawBytes });
   }
 
   /**

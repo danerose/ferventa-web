@@ -1,6 +1,7 @@
 import type { AdminMaintenanceOrder } from '@/app/domain';
 import type { PrinterSettings } from '@/core/types';
 import { formatDate, formatCurrency } from '@/core/utils';
+import { NOVA_FV_LOGO_BW_DATA_URI } from '../logoDataUri';
 
 function getFuelText(fuelLevel?: number): string {
   if (fuelLevel === undefined || fuelLevel === null) return 'No especificado';
@@ -40,27 +41,30 @@ export function generateReceptionDocumentHtml(
   return `
     <div style="font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #000000; padding: 16px 20px; max-width: 780px; margin: 0 auto; font-size: 11px; line-height: 1.35;">
       <!-- ── Document Header ── -->
-      <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #000000; padding-bottom: 10px; marginBottom: 10px;">
-        <div>
-          <h1 style="font-size: 18px; font-weight: 800; margin: 0; color: #111827; text-transform: uppercase;">
-            Moto Servicio Nova FV
-          </h1>
-          <p style="margin: 2px 0 0 0; font-size: 12px; color: #4b5563; font-weight: 600;">
-            Comprobante de Recepción e Ingreso al Taller
-          </p>
-          <p style="margin: 2px 0 0 0; font-size: 11px; color: #6b7280;">
-            Sucursal: <strong>${branchName}</strong>
-          </p>
+      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #000000; padding-bottom: 12px; margin-bottom: 12px;">
+        <div style="display: flex; align-items: center; gap: 14px;">
+          <img src="${NOVA_FV_LOGO_BW_DATA_URI}" alt="Moto Servicio Nova FV" style="height: 60px; width: auto; object-fit: contain;" />
+          <div>
+            <h1 style="font-size: 18px; font-weight: 900; margin: 0; color: #111827; text-transform: uppercase; letter-spacing: -0.5px;">
+              Moto Servicio Nova FV
+            </h1>
+            <p style="margin: 2px 0 0 0; font-size: 12px; color: #4b5563; font-weight: 700;">
+              Comprobante de Recepción e Ingreso al Taller
+            </p>
+            <p style="margin: 2px 0 0 0; font-size: 11px; color: #6b7280;">
+              Sucursal: <strong>${branchName}</strong>
+            </p>
+          </div>
         </div>
 
         <div style="text-align: right;">
-          <div style="display: inline-block; background: #0284c7; color: #ffffff; padding: 3px 8px; border-radius: 4px; font-weight: 700; font-size: 11px; text-transform: uppercase;">
+          <div style="display: inline-block; background: #0284c7; color: #ffffff; padding: 4px 10px; border-radius: 4px; font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">
             Orden de Recepción
           </div>
-          <div style="margin-top: 3px; font-size: 14px; font-weight: 800; font-family: monospace; color: #000000;">
+          <div style="margin-top: 4px; font-size: 15px; font-weight: 900; font-family: monospace; color: #000000;">
             FOLIO #${folio}
           </div>
-          <div style="font-size: 10.5px; color: #6b7280; margin-top: 1px;">
+          <div style="font-size: 11px; color: #6b7280; margin-top: 1px;">
             Fecha: ${formatDate(intakeDate)}
           </div>
         </div>
