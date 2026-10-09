@@ -25,7 +25,7 @@ export class LocalAgentPrinterService {
   public async isAgentRunning(): Promise<boolean> {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 1200);
+      const timeoutId = setTimeout(() => controller.abort(), 2500);
 
       const res = await fetch(`${AGENT_BASE_URL}/status`, {
         method: 'GET',
@@ -37,7 +37,21 @@ export class LocalAgentPrinterService {
       const data: AgentStatusResponse = await res.json();
       return data && data.status === 'ok';
     } catch {
-      return false;
+      // Fallback a localhost si 127.0.0.1 es bloqueado por políticas locales
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 2000);
+        const res = await fetch('http://localhost:9123/status', {
+          method: 'GET',
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+        if (!res.ok) return false;
+        const data: AgentStatusResponse = await res.json();
+        return data && data.status === 'ok';
+      } catch {
+        return false;
+      }
     }
   }
 

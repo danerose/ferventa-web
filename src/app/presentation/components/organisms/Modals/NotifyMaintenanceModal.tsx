@@ -11,7 +11,7 @@ import {
   Icon,
 } from '@/app/presentation/components';
 import type { AdminMaintenanceOrder } from '@/app/domain';
-import { formatCurrency, formatWhatsAppUrl } from '@/core/utils';
+import { formatCurrency, formatWhatsAppUrl, openWhatsApp } from '@/core/utils';
 import { useActiveBranch } from '@/app/presentation/hooks';
 
 export interface NotifyMaintenanceModalProps {
@@ -57,8 +57,8 @@ export const NotifyMaintenanceModal: React.FC<NotifyMaintenanceModalProps> = ({
   const waUrl = formatWhatsAppUrl(order.customer.phone, message) || undefined;
 
   const handleSendWhatsAppAndRegister = async () => {
-    if (waUrl) {
-      window.open(waUrl, '_blank', 'noopener,noreferrer');
+    if (order.customer.phone) {
+      openWhatsApp(order.customer.phone, message);
     }
     await onConfirm(message, true);
     onClose();

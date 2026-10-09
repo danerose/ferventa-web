@@ -213,7 +213,27 @@ export function generateAppointmentTicketEscPos(
 
   const customerName = appt.customerName || 'Cliente';
   const customerPhone = appt.customerPhone;
-  const scheduledDate = appt.scheduledAt ? new Date(appt.scheduledAt).toLocaleString('es-MX') : 'Fecha pendiente';
+  let dateStr = 'Fecha pendiente';
+  let timeStr = '';
+  if (appt.scheduledAt) {
+    try {
+      const d = new Date(appt.scheduledAt);
+      dateStr = d.toLocaleDateString('es-MX', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        timeZone: 'UTC',
+      });
+      timeStr = d.toLocaleTimeString('es-MX', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true,
+        timeZone: 'UTC',
+      });
+    } catch {
+      dateStr = appt.scheduledAt;
+    }
+  }
   const serviceName = appt.serviceRequested || 'Mantenimiento General';
 
   encoder.align('center');
@@ -230,7 +250,7 @@ export function generateAppointmentTicketEscPos(
   if (customerPhone) {
     encoder.line(`TEL: ${customerPhone}`);
   }
-  encoder.line(`FECHA: ${scheduledDate}`);
+  encoder.rowTwoColumns(`FECHA: ${dateStr}`, timeStr ? `HORA: ${timeStr}` : '');
   encoder.line(`SERVICIO: ${serviceName}`);
   encoder.separator('-');
 

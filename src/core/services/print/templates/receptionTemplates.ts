@@ -237,6 +237,9 @@ export function generateReceptionTicketHtml(
   return `
     <div style="width: ${printableWidth}; max-width: ${printableWidth}; margin: 0 auto; padding: 4px 2px 6mm 2px; font-size: ${fontSize}; line-height: 1.25; color: #000000; font-family: 'Courier New', Courier, monospace;">
       <div style="text-align: center;">
+        <div style="margin-bottom: 5px; display: flex; justify-content: center;">
+          <img src="${NOVA_FV_LOGO_BW_DATA_URI}" alt="Moto Servicio Nova FV" style="height: 48px; width: auto; max-width: 100%; object-fit: contain;" />
+        </div>
         <div style="font-size: 8px; font-weight: bold; overflow: hidden; white-space: nowrap;">${sepDouble}</div>
         <div style="font-weight: 900; font-size: 1.2em; text-transform: uppercase;">${settings.businessName}</div>
         <div style="font-size: 0.85em; font-weight: bold;">${settings.businessTagline}</div>

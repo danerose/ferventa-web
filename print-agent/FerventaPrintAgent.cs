@@ -283,8 +283,23 @@ namespace FerventaPrintAgent
                 {
                     listener = new HttpListener();
                     listener.Prefixes.Add("http://127.0.0.1:" + PORT + "/");
-                    listener.Prefixes.Add("http://localhost:" + PORT + "/");
-                    listener.Start();
+                    try
+                    {
+                        listener.Prefixes.Add("http://localhost:" + PORT + "/");
+                        listener.Start();
+                    }
+                    catch
+                    {
+                        // Si localhost requiere permisos de Administrador en Windows, reintentar solo con 127.0.0.1
+                        try
+                        {
+                            listener.Close();
+                        }
+                        catch { }
+                        listener = new HttpListener();
+                        listener.Prefixes.Add("http://127.0.0.1:" + PORT + "/");
+                        listener.Start();
+                    }
 
                     while (isRunning && listener.IsListening)
                     {

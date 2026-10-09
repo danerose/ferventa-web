@@ -1265,6 +1265,9 @@ export const SettingsPage: React.FC = () => {
                     >
                       {/* Encabezado */}
                       <div style={{ textAlign: 'center', marginBottom: '6px', color: '#000000' }}>
+                        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '5px' }}>
+                          <img src={NOVA_FV_LOGO_BW_DATA_URI} alt="Moto Servicio Nova FV" style={{ height: '44px', width: 'auto', maxWidth: '100%', objectFit: 'contain' }} />
+                        </div>
                         <div style={{ fontSize: '8px', letterSpacing: '0.5px', color: '#000000' }}>
                           ══════════════════════════
                         </div>

@@ -11,12 +11,10 @@ import { generateAppointmentTicketHtml } from './templates/appointmentTemplates'
 import { generateSpecialOrderTicketHtml } from './templates/specialOrderTemplates';
 import {
   generateSaleTicketEscPos,
-  generateSaleTicketBundle,
   generateReceptionTicketEscPos,
   generateAppointmentTicketEscPos,
   generateSpecialOrderTicketEscPos,
 } from './escpos/ticketEscPosGenerators';
-import { NOVA_FV_LOGO_BASE64 } from './logoDataUri';
 import { webBluetoothPrinterService } from './WebBluetoothPrinterService';
 import { directUsbPrinterService } from './DirectUsbPrinterService';
 import { localAgentPrinterService } from './LocalAgentPrinterService';
@@ -45,14 +43,8 @@ export const thermalPrintService = {
     // 1. Intento por Agente Local Windows (Silencioso 100%, 0 ventanas)
     if (mode === 'local_agent') {
       try {
-        const bundle = generateSaleTicketBundle(options);
-        const printed = await localAgentPrinterService.printTicket({
-          printerName: targetPrinter,
-          ticketText: bundle.ticketText,
-          rawBytes: bundle.rawBytes,
-          logoBase64: NOVA_FV_LOGO_BASE64,
-          paperWidth: (options.settings.paperWidth as '58mm' | '80mm') || '58mm',
-        });
+        const rawBytes = generateSaleTicketEscPos(options);
+        const printed = await localAgentPrinterService.printRawTicket(targetPrinter, rawBytes);
         if (printed) {
           return true;
         }

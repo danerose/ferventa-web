@@ -29,7 +29,7 @@ import { STATUS_LABELS } from '@/core/constants';
 import { useAuthStore } from '@/app/presentation/stores';
 import { useAdminDashboardStore } from '@/app/presentation/stores';
 import { formatScheduledAt } from '@/core/utils/formatters/formatScheduledAt';
-import { formatTimeRangeTo12Hour } from '@/core/utils';
+import { formatTimeRangeTo12Hour, openWhatsApp } from '@/core/utils';
 import { MODULE_THEMES } from '@/core';
 import {
   appointmentUseCases,
@@ -603,15 +603,6 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onLogout
   };
 
   // Submit Operations
-  const openWhatsApp = (phone: string, text: string) => {
-    let cleanPhone = phone.replace(/\D/g, '');
-    if (cleanPhone.length === 10) {
-      cleanPhone = '52' + cleanPhone;
-    }
-    const encodedText = encodeURIComponent(text);
-    const url = `https://wa.me/${cleanPhone}?text=${encodedText}`;
-    window.open(url, '_blank');
-  };
 
   const handleApproveConfirm = async () => {
     if (!accessToken || !selectedAppt) return;
