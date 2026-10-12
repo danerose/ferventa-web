@@ -101,6 +101,9 @@ export interface MaintenanceOrder {
     id: string;
     scheduledAt: string;
     status: string;
+    notes?: string;
+    serviceRequested?: string;
+    receptionNotes?: string;
   } | null;
   customer: {
     id?: string;

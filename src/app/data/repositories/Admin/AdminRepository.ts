@@ -357,13 +357,25 @@ export class APIAdminRepository {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private mapRawMaintenance(item: any): AdminMaintenanceOrder {
     if (!item) return {} as AdminMaintenanceOrder;
+    const apptObj = typeof item.appointment === 'object' && item.appointment !== null ? item.appointment : null;
+    const serviceRequested =
+      item.serviceRequested ||
+      apptObj?.serviceRequested ||
+      (item.notes && !apptObj?.notes ? item.notes : undefined) ||
+      'Servicio de mantenimiento';
+
+    const rawNotes = item.notes?.trim();
+    const apptNotes = apptObj?.notes?.trim();
+    const notes = apptNotes || (rawNotes && rawNotes.toLowerCase() !== serviceRequested.toLowerCase() ? rawNotes : undefined);
+    const receptionNotes = item.receptionNotes || apptObj?.receptionNotes;
+
     return {
       id: item.id || item._id || '',
       status: item.status,
       laborCost: item.laborCost || 0,
-      notes: item.notes,
-      receptionNotes: item.receptionNotes,
-      serviceRequested: item.serviceRequested || item.notes || 'Servicio de mantenimiento',
+      notes,
+      receptionNotes,
+      serviceRequested,
       diagnosticNotes: Array.isArray(item.diagnosticNotes) ? item.diagnosticNotes : [],
       receptionDate: item.receptionDate || item.createdAt,
       startedAt: item.startedAt || item.startDate || (Array.isArray(item.statusHistory) ? item.statusHistory.find((h: any) => h.status === 'in_progress')?.changedAt : undefined),
@@ -375,6 +387,9 @@ export class APIAdminRepository {
         id: typeof item.appointment === 'string' ? item.appointment : item.appointment.id || item.appointment._id || '',
         scheduledAt: item.appointment.scheduledAt || '',
         status: item.appointment.status || '',
+        notes: typeof item.appointment === 'object' ? item.appointment.notes : undefined,
+        serviceRequested: typeof item.appointment === 'object' ? item.appointment.serviceRequested : undefined,
+        receptionNotes: typeof item.appointment === 'object' ? item.appointment.receptionNotes : undefined,
       } : null,
       customer: {
         id: item.customer?.id || item.customer?._id || '',

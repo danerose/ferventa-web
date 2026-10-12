@@ -229,7 +229,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onLogout
         if (maintId) {
           await maintenanceUseCases.updateMaintenanceOrder(maintId, {
             laborCost: checkInData.laborCost ?? 0,
-            notes: checkInData.notes || checkInData.serviceRequested,
+            notes: checkInData.notes || appt.notes || undefined,
             receptionNotes: checkInData.receptionNotes,
           }).catch(() => {});
         }

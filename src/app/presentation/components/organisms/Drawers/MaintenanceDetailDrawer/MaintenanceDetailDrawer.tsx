@@ -564,112 +564,126 @@ export const MaintenanceDetailDrawer: React.FC<MaintenanceDetailDrawerProps> = (
             </Grid>
 
             {/* Service & Labor Cost */}
-            <Box bg="base-200" rounded="DEFAULT" className="p-4 border border-base-300">
-              <Flex align="center" gap="xs" className="mb-2 text-warning">
-                <Icon name="Wrench" size="sm" />
-                <Text size="xs" weight="bold" className="uppercase tracking-wider text-base-content">
-                  Servicio Solicitado
-                </Text>
-              </Flex>
-              <Text size="sm" weight="medium" className="text-base-content">
-                {order.serviceRequested || 'Mantenimiento General'}
-              </Text>
-              
-              <Box className="mt-2 pt-2 border-t border-base-300/60">
-                <Flex justify="between" align="center" className="mb-1">
-                  <Text size="xs" variant="muted" weight="semibold">
-                    Mano de Obra
-                  </Text>
-                  {!isMechanic && !editingLaborCost && onUpdateLaborCost && (
-                    <TertiaryButton
-                      size="xs"
-                      className="h-6 min-h-6 px-1.5 text-primary gap-1"
-                      onClick={() => {
-                        setLaborCostValue(order.laborCost ?? order.laborPrice ?? 0);
-                        setEditingLaborCost(true);
-                      }}
-                    >
-                      <Icon name="Edit3" size="xs" />
-                      <span className="text-[10px]">Editar</span>
-                    </TertiaryButton>
-                  )}
-                </Flex>
+            {(() => {
+              const serviceRequested = order.serviceRequested || order.appointment?.serviceRequested || 'Mantenimiento General';
+              const clientNotes =
+                order.appointment?.notes?.trim() ||
+                (order.notes && order.notes.trim().toLowerCase() !== serviceRequested.trim().toLowerCase()
+                  ? order.notes.trim()
+                  : '');
+              const receptionNotes = order.receptionNotes?.trim() || order.appointment?.receptionNotes?.trim() || '';
 
-                {editingLaborCost ? (
-                  <Box className="space-y-2">
-                    <TextInput
-                      type="number"
-                      min="0"
-                      step="10"
-                      size="sm"
-                      value={laborCostValue}
-                      onChange={(e) => setLaborCostValue(e.target.value)}
-                      placeholder="0.00"
-                      autoFocus
-                    />
-                    <Flex justify="end" gap="xs">
-                      <TertiaryButton
-                        size="xs"
-                        className="h-6 min-h-6 px-2 text-[10px]"
-                        disabled={savingLaborCost}
-                        onClick={() => {
-                          setLaborCostValue(order.laborCost ?? order.laborPrice ?? 0);
-                          setEditingLaborCost(false);
-                        }}
-                      >
-                        Cancelar
-                      </TertiaryButton>
-                      <PrimaryButton
-                        size="xs"
-                        color="primary"
-                        className="h-6 min-h-6 px-2 text-[10px]"
-                        loading={savingLaborCost}
-                        onClick={handleSaveLaborCost}
-                      >
-                        Guardar
-                      </PrimaryButton>
+              return (
+                <>
+                  <Box bg="base-200" rounded="DEFAULT" className="p-4 border border-base-300">
+                    <Flex align="center" gap="xs" className="mb-2 text-warning">
+                      <Icon name="Wrench" size="sm" />
+                      <Text size="xs" weight="bold" className="uppercase tracking-wider text-base-content">
+                        Servicio Solicitado
+                      </Text>
                     </Flex>
+                    <Text size="sm" weight="medium" className="text-base-content">
+                      {serviceRequested}
+                    </Text>
+                    
+                    <Box className="mt-2 pt-2 border-t border-base-300/60">
+                      <Flex justify="between" align="center" className="mb-1">
+                        <Text size="xs" variant="muted" weight="semibold">
+                          Mano de Obra
+                        </Text>
+                        {!isMechanic && !editingLaborCost && onUpdateLaborCost && (
+                          <TertiaryButton
+                            size="xs"
+                            className="h-6 min-h-6 px-1.5 text-primary gap-1"
+                            onClick={() => {
+                              setLaborCostValue(order.laborCost ?? order.laborPrice ?? 0);
+                              setEditingLaborCost(true);
+                            }}
+                          >
+                            <Icon name="Edit3" size="xs" />
+                            <span className="text-[10px]">Editar</span>
+                          </TertiaryButton>
+                        )}
+                      </Flex>
+
+                      {editingLaborCost ? (
+                        <Box className="space-y-2">
+                          <TextInput
+                            type="number"
+                            min="0"
+                            step="10"
+                            size="sm"
+                            value={laborCostValue}
+                            onChange={(e) => setLaborCostValue(e.target.value)}
+                            placeholder="0.00"
+                            autoFocus
+                          />
+                          <Flex justify="end" gap="xs">
+                            <TertiaryButton
+                              size="xs"
+                              className="h-6 min-h-6 px-2 text-[10px]"
+                              disabled={savingLaborCost}
+                              onClick={() => {
+                                setLaborCostValue(order.laborCost ?? order.laborPrice ?? 0);
+                                setEditingLaborCost(false);
+                              }}
+                            >
+                              Cancelar
+                            </TertiaryButton>
+                            <PrimaryButton
+                              size="xs"
+                              color="primary"
+                              className="h-6 min-h-6 px-2 text-[10px]"
+                              loading={savingLaborCost}
+                              onClick={handleSaveLaborCost}
+                            >
+                              Guardar
+                            </PrimaryButton>
+                          </Flex>
+                        </Box>
+                      ) : (
+                        <Text size="xs" className="font-bold text-base-content">
+                          {order.laborCost || order.laborPrice ? formatCurrency(order.laborCost || order.laborPrice || 0) : 'Por cotizar'}
+                        </Text>
+                      )}
+                    </Box>
                   </Box>
-                ) : (
-                  <Text size="xs" className="font-bold text-base-content">
-                    {order.laborCost || order.laborPrice ? formatCurrency(order.laborCost || order.laborPrice || 0) : 'Por cotizar'}
-                  </Text>
-                )}
-              </Box>
-            </Box>
 
-            {/* SEPARATED NOTES SECTION */}
-            <Stack spacing="sm">
-              {/* Motivo de la Cita (notes) */}
-              {order.notes && (
-                <Box bg="base-200" rounded="DEFAULT" className="p-4 border border-base-300">
-                  <Flex align="center" gap="xs" className="mb-1.5 text-primary">
-                    <Icon name="FileText" size="sm" />
-                    <Text size="xs" weight="bold" className="uppercase tracking-wider text-base-content">
-                      Motivo / Notas de la Cita (Cliente)
-                    </Text>
-                  </Flex>
-                  <Text size="xs" className="italic text-base-content/90 leading-relaxed bg-base-100 p-2.5 rounded border border-base-300/50">
-                    "{order.notes}"
-                  </Text>
-                </Box>
-              )}
+                  {/* SEPARATED NOTES SECTION */}
+                  <Stack spacing="sm">
+                    {/* Motivo de la Cita (notes) */}
+                    {clientNotes && (
+                      <Box bg="base-200" rounded="DEFAULT" className="p-4 border border-base-300">
+                        <Flex align="center" gap="xs" className="mb-1.5 text-primary">
+                          <Icon name="FileText" size="sm" />
+                          <Text size="xs" weight="bold" className="uppercase tracking-wider text-base-content">
+                            Motivo / Notas de la Cita (Cliente)
+                          </Text>
+                        </Flex>
+                        <Text size="xs" className="italic text-base-content/90 leading-relaxed bg-base-100 p-2.5 rounded border border-base-300/50">
+                          "{clientNotes}"
+                        </Text>
+                      </Box>
+                    )}
 
-              {/* Notas de Recepción / Inventario Físico (receptionNotes) */}
-              {order.receptionNotes && (
-                <Box bg="base-200" rounded="DEFAULT" className="p-4 border border-base-300">
-                  <Flex align="center" gap="xs" className="mb-1.5 text-secondary">
-                    <Icon name="Key" size="sm" />
-                    <Text size="xs" weight="bold" className="uppercase tracking-wider text-base-content">
-                      Notas de Recepción / Inventario Físico
-                    </Text>
-                  </Flex>
-                  <Text size="xs" className="text-base-content/90 leading-relaxed bg-base-100 p-2.5 rounded border border-base-300/50">
-                    {order.receptionNotes}
-                  </Text>
-                </Box>
-              )}
-            </Stack>
+                    {/* Notas de Recepción / Inventario Físico (receptionNotes) */}
+                    {receptionNotes && (
+                      <Box bg="base-200" rounded="DEFAULT" className="p-4 border border-base-300">
+                        <Flex align="center" gap="xs" className="mb-1.5 text-secondary">
+                          <Icon name="Key" size="sm" />
+                          <Text size="xs" weight="bold" className="uppercase tracking-wider text-base-content">
+                            Notas de Recepción / Inventario Físico
+                          </Text>
+                        </Flex>
+                        <Text size="xs" className="text-base-content/90 leading-relaxed bg-base-100 p-2.5 rounded border border-base-300/50">
+                          {receptionNotes}
+                        </Text>
+                      </Box>
+                    )}
+                  </Stack>
+                </>
+              );
+            })()}
 
             {/* POS SALE TICKET SECTION */}
             <Box bg="base-100" rounded="DEFAULT" className="p-4 border border-base-300 shadow-xs space-y-3">

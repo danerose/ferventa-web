@@ -33,6 +33,9 @@ export interface RawMaintenanceOrderResponse {
     _id?: string;
     scheduledAt?: string;
     status?: string;
+    notes?: string;
+    serviceRequested?: string;
+    receptionNotes?: string;
   } | string | null;
   customer?: {
     id?: string;
@@ -115,6 +118,7 @@ export class MaintenanceOrderModel {
     const id = raw.id || raw._id || '';
 
     let appointmentObj: MaintenanceOrder['appointment'] = null;
+    const apptRaw = typeof raw.appointment === 'object' && raw.appointment !== null ? raw.appointment : null;
     if (raw.appointment) {
       if (typeof raw.appointment === 'string') {
         appointmentObj = { id: raw.appointment, scheduledAt: '', status: '' };
@@ -123,9 +127,24 @@ export class MaintenanceOrderModel {
           id: raw.appointment.id || raw.appointment._id || '',
           scheduledAt: raw.appointment.scheduledAt || '',
           status: raw.appointment.status || '',
+          notes: raw.appointment.notes,
+          serviceRequested: raw.appointment.serviceRequested,
+          receptionNotes: raw.appointment.receptionNotes,
         };
       }
     }
+
+    const serviceRequested =
+      raw.serviceRequested ||
+      apptRaw?.serviceRequested ||
+      (raw.notes && !apptRaw?.notes ? raw.notes : undefined) ||
+      'Servicio de mantenimiento';
+
+    const rawNotes = raw.notes?.trim();
+    const apptNotes = apptRaw?.notes?.trim();
+    // Prioritize appointment client notes if present; otherwise use raw.notes if it doesn't just duplicate serviceRequested
+    const notes = apptNotes || (rawNotes && rawNotes.toLowerCase() !== serviceRequested.toLowerCase() ? rawNotes : undefined);
+    const receptionNotes = raw.receptionNotes || apptRaw?.receptionNotes;
 
     const startedAt =
       raw.startedAt ||
@@ -153,9 +172,10 @@ export class MaintenanceOrderModel {
       status: (raw.status as MaintenanceOrderStatus) || 'not_started',
       laborCost: raw.laborCost || raw.laborPrice || 0,
       laborPrice: raw.laborPrice || raw.laborCost || 0,
-      notes: raw.notes,
-      receptionNotes: raw.receptionNotes,
-      serviceRequested: raw.serviceRequested || raw.notes || 'Servicio de mantenimiento',
+      notes,
+      receptionNotes,
+      serviceRequested,
+      appointment: appointmentObj,
       diagnosticNotes: raw.diagnosticNotes || [],
       receptionDate: raw.receptionDate || raw.createdAt,
       startedAt,
@@ -215,7 +235,6 @@ export class MaintenanceOrderModel {
         // Sort descending by date (most recent first)
         return list.sort((a, b) => new Date(b.sentAt).getTime() - new Date(a.sentAt).getTime());
       })(),
-      appointment: appointmentObj,
       customer: {
         id: raw.customer?.id || raw.customer?._id || '',
         _id: raw.customer?._id || raw.customer?.id || '',

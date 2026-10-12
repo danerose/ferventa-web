@@ -151,16 +151,22 @@ export class AppointmentRemoteDataSource {
   }
 
   async checkInAppointment(id: string, notes?: string): Promise<CheckInResult> {
-    const res = await this.network.patch<ApiResponse<{ appointment: RawAppointmentResponse; maintenanceOrderId?: string }>>(
+    const res = await this.network.patch<ApiResponse<{
+      appointment: RawAppointmentResponse;
+      maintenanceOrderId?: string;
+      maintenance?: { _id?: string; id?: string; status?: string };
+    }>>(
       API_ENDPOINTS.APPOINTMENTS.CHECK_IN(id),
       { receptionNotes: notes || '' }
     );
     if (!res?.data?.appointment) {
       throw new Error(res?.message || 'Error al realizar el check-in: respuesta incompleta del servidor');
     }
+    const maintId = res.data.maintenanceOrderId || res.data.maintenance?._id || res.data.maintenance?.id;
     return {
       appointment: AppointmentModel.fromJson(res.data.appointment).toEntity(),
-      maintenanceOrderId: res.data.maintenanceOrderId,
+      maintenanceOrderId: maintId,
+      maintenance: maintId ? { id: maintId, status: res.data.maintenance?.status } : undefined,
     };
   }
 
