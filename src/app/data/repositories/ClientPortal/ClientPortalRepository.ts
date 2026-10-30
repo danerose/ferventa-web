@@ -112,20 +112,55 @@ export class APIClientPortalRepository implements ClientPortalRepository {
     });
   }
 
-  async getPublicBranches(): Promise<PublicBranch[]> {
-    const res = await fetch(`${this.baseUrl}${API_ENDPOINTS.BRANCHES.PUBLIC}`);
-    const json = await res.json();
-    if (!res.ok || !json.success) {
-      throw new Error(json.message || 'Error al obtener sucursales');
-    }
-    const branches: PublicBranch[] = json.data || [];
-    if (branches.length > 0 && !this.branchLocalDataSource.getPublicBranchId()) {
-      const firstBranchId = branches[0].id || branches[0]._id;
-      if (firstBranchId) {
-        this.branchLocalDataSource.savePublicBranchId(firstBranchId);
+  async getPublicBranches(retry = 2): Promise<PublicBranch[]> {
+    try {
+      const res = await fetch(`${this.baseUrl}${API_ENDPOINTS.BRANCHES.PUBLIC}`);
+      const contentType = res.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
+        if (retry > 0) {
+          await new Promise((r) => setTimeout(r, 2000));
+          return this.getPublicBranches(retry - 1);
+        }
       }
+      const json = await res.json().catch(() => null);
+      if (!res.ok || !json?.success) {
+        if (retry > 0) {
+          await new Promise((r) => setTimeout(r, 2000));
+          return this.getPublicBranches(retry - 1);
+        }
+        throw new Error(json?.message || 'Error al obtener sucursales');
+      }
+      const branches: PublicBranch[] = json.data || [];
+      if (branches.length > 0 && !this.branchLocalDataSource.getPublicBranchId()) {
+        const firstBranchId = branches[0].id || branches[0]._id;
+        if (firstBranchId) {
+          this.branchLocalDataSource.savePublicBranchId(firstBranchId);
+        }
+      }
+      return branches;
+    } catch (err) {
+      if (retry > 0) {
+        await new Promise((r) => setTimeout(r, 2000));
+        return this.getPublicBranches(retry - 1);
+      }
+      throw err;
     }
-    return branches;
+  }
+
+
+  private async parseResponseSafe<T>(response: Response, defaultErrorMsg: string): Promise<T> {
+    const contentType = response.headers.get('content-type') || '';
+    let json: any = null;
+    if (contentType.includes('application/json')) {
+      json = await response.json().catch(() => null);
+    }
+    if (!response.ok || !json?.success) {
+      if ([502, 503, 504].includes(response.status)) {
+        throw new Error('El servidor se está iniciando en la nube. Por favor reintenta en unos instantes.');
+      }
+      throw new Error(json?.message || defaultErrorMsg);
+    }
+    return json.data as T;
   }
 
   async bookAppointment(appointment: BookAppointmentPayload): Promise<Appointment> {
@@ -135,8 +170,8 @@ export class APIClientPortalRepository implements ClientPortalRepository {
 
     const body: Record<string, unknown> = {
       customerName: appointment.customerName,
-      customerPhone: appointment.customerPhone,
-      customerEmail: appointment.customerEmail,
+      customerPhone: (appointment.customerPhone || '').replace(/\D/g, '') || appointment.customerPhone,
+      ...(appointment.customerEmail?.trim() ? { customerEmail: appointment.customerEmail.trim().toLowerCase() } : {}),
       serviceRequested: appointment.serviceRequested,
       scheduledAt: appointment.scheduledAt,
       status: 'pending',
@@ -168,12 +203,7 @@ export class APIClientPortalRepository implements ClientPortalRepository {
       appointment.branchId
     );
 
-    const json = await response.json();
-    if (!response.ok || !json.success) {
-      throw new Error(json.message || 'Error al agendar la cita');
-    }
-
-    return json.data;
+    return this.parseResponseSafe<Appointment>(response, 'Error al agendar la cita');
   }
 
   async getAppointmentStatus(query: string): Promise<Appointment[]> {

@@ -571,7 +571,7 @@ export const POSPage: React.FC = () => {
     setProcessing(true);
 
     if (paymentMethod === 'card') {
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // Process payment immediately without redundant frontend sleep
     }
 
     try {

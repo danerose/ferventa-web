@@ -702,7 +702,9 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
           }
           className={onCancel ? "flex-1 font-bold" : "w-full font-bold"}
         >
-          {!isPhoneComplete ? (
+          {branches.length === 0 && !formBranchId ? (
+            'Conectando con el taller...'
+          ) : !isPhoneComplete ? (
             'Ingresa Teléfono (10 dígitos)...'
           ) : isSearchingPhone ? (
             'Buscando Cliente...'

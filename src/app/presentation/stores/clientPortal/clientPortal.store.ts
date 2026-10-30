@@ -142,6 +142,23 @@ export const useClientPortalStore = create<ClientPortalState>((set, get) => ({
     }
 
     try {
+      const branchesList = get().branches;
+      let effectiveBranchId = formBranchId;
+      if (!effectiveBranchId && branchesList.length > 0) {
+        effectiveBranchId = branchesList[0].id || branchesList[0]._id || '';
+      }
+      if (!effectiveBranchId) {
+        try {
+          const loadedBranches = await clientPortalUseCases.getPublicBranches();
+          if (loadedBranches && loadedBranches.length > 0) {
+            effectiveBranchId = loadedBranches[0].id || loadedBranches[0]._id || '';
+            set({ branches: loadedBranches, formBranchId: effectiveBranchId, formBranchName: loadedBranches[0].name });
+          }
+        } catch {
+          // ignore
+        }
+      }
+
       const scheduledAtStr = `${formSelectedDate}T${formSelectedTime}:00Z`;
       const selectedDateObj = new Date(scheduledAtStr);
 
@@ -166,7 +183,7 @@ export const useClientPortalStore = create<ClientPortalState>((set, get) => ({
         scheduledAt: selectedDateObj.toISOString(),
         notes: formNotes.trim(),
         branchName: formBranchName,
-        branchId: formBranchId || undefined,
+        branchId: effectiveBranchId || formBranchId || undefined,
       });
 
       set({ bookingLoading: false, bookingSuccess: true, bookingError: null });

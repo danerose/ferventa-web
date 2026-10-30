@@ -42,6 +42,7 @@ export class APISalesRepository {
       customerId?: string;
       isCancelled?: boolean;
       saleType?: string;
+      limit?: number;
     } = {}
   ): Promise<Sale[]> {
     const params = new URLSearchParams();
@@ -50,6 +51,7 @@ export class APISalesRepository {
     if (filter.customerId) params.set('customerId', filter.customerId);
     if (filter.isCancelled !== undefined) params.set('isCancelled', String(filter.isCancelled));
     if (filter.saleType) params.set('saleType', filter.saleType);
+    if (filter.limit) params.set('limit', String(filter.limit));
     // Always send timezone offset so the backend can align day boundaries to local time
     params.set('utcOffsetMinutes', String(new Date().getTimezoneOffset()));
 

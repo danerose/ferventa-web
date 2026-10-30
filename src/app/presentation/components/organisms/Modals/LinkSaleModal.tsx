@@ -53,7 +53,7 @@ export const LinkSaleModal: React.FC<LinkSaleModalProps> = ({
       setSelectedSale(null);
       setLoadingSales(true);
       salesRepository
-        .getSales(accessToken, { isCancelled: false })
+        .getSales(accessToken, { isCancelled: false, limit: 15 })
         .then((sales) => {
           setRecentSales(sales.slice(0, 15));
         })

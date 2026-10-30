@@ -52,23 +52,51 @@ export class NetworkService {
     return url.toString();
   }
 
-  async request<T>(path: string, options: RequestOptions = {}): Promise<T> {
-    const { params, headers: customHeaders, ...restOptions } = options;
+  async request<T>(path: string, options: RequestOptions = {}, retryCount = 0): Promise<T> {
+    const { params, headers: customHeaders, signal: externalSignal, ...restOptions } = options;
     const url = this.buildUrl(path, params);
     const headers = this.buildHeaders(customHeaders);
+    const method = (restOptions.method || 'GET').toUpperCase();
 
-    const response = await fetch(url, {
-      ...restOptions,
-      headers,
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 60000);
+    if (externalSignal) {
+      externalSignal.addEventListener('abort', () => controller.abort());
+    }
+
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        ...restOptions,
+        headers,
+        signal: controller.signal,
+      });
+    } catch (err: any) {
+      clearTimeout(timeoutId);
+      if (method === 'GET' && retryCount < 1) {
+        await new Promise((r) => setTimeout(r, 2500));
+        return this.request<T>(path, options, retryCount + 1);
+      }
+      if (err.name === 'AbortError') {
+        throw new Error('La solicitud tardó más de 60 segundos en responder. El servidor podría estar iniciando.');
+      }
+      throw new Error('No se pudo conectar con el servidor. Verifica tu conexión o espera un momento a que el servidor despierte.');
+    } finally {
+      clearTimeout(timeoutId);
+    }
 
     if (!response.ok) {
+      if (method === 'GET' && [502, 503, 504].includes(response.status) && retryCount < 2) {
+        await new Promise((r) => setTimeout(r, 2500));
+        return this.request<T>(path, options, retryCount + 1);
+      }
+
       const errorText = await response.text().catch(() => '');
       let message = '';
       try {
         const errorJson = JSON.parse(errorText);
         if (errorJson.message) {
-          message = errorJson.message;
+          message = Array.isArray(errorJson.message) ? errorJson.message.join(', ') : errorJson.message;
         } else if (errorJson.error) {
           message = errorJson.error;
         }
@@ -77,7 +105,11 @@ export class NetworkService {
       }
 
       if (!message) {
-        message = errorText || `Error HTTP ${response.status}: ${response.statusText}`;
+        if ([502, 503, 504].includes(response.status)) {
+          message = 'El servidor se encuentra iniciando en la nube. Por favor reintenta en unos instantes.';
+        } else {
+          message = errorText || `Error HTTP ${response.status}: ${response.statusText}`;
+        }
       }
 
       if (response.status === 401) {

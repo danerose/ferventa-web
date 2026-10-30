@@ -1,4 +1,4 @@
-import React, { useEffect, Suspense, lazy } from 'react';
+import React, { useEffect, useState, Suspense, lazy } from 'react';
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { useAuthStore, useThemeStore } from '@/app/presentation/stores';
 import { APP_ROUTES } from '@/core/constants';
@@ -55,6 +55,7 @@ export function App() {
   const isAuth = useAuthStore((s) => !!s.accessToken);
   const clearAuth = useAuthStore((s) => s.clearAuth);
   const initializeTheme = useThemeStore((s) => s.initializeTheme);
+  const [isServerWakingUp, setIsServerWakingUp] = useState(false);
 
   // Inicializar tema y keep-alive ping para evitar que el servidor Render duerma
   useEffect(() => {
@@ -68,10 +69,26 @@ export function App() {
     window.addEventListener('ferventa:auth-expired', onAuthExpired);
 
     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+    let wakingTimeout: ReturnType<typeof setTimeout> | null = setTimeout(() => {
+      setIsServerWakingUp(true);
+    }, 2000);
+
     const keepAlivePing = () => {
       fetch(`${apiUrl}/health`, { method: 'GET', mode: 'cors' })
-        .catch(() => fetch(apiUrl, { method: 'GET', mode: 'no-cors' }))
-        .catch(() => {});
+        .then((res) => {
+          if (res.ok) {
+            if (wakingTimeout) clearTimeout(wakingTimeout);
+            setIsServerWakingUp(false);
+          }
+        })
+        .catch(() => {
+          fetch(apiUrl, { method: 'GET', mode: 'no-cors' })
+            .then(() => {
+              if (wakingTimeout) clearTimeout(wakingTimeout);
+              setIsServerWakingUp(false);
+            })
+            .catch(() => {});
+        });
     };
 
     keepAlivePing();
@@ -246,6 +263,12 @@ export function App() {
         <Route path="/admin/orders" element={<Navigate to={APP_ROUTES.ADMIN.PEDIDOS} replace />} />
         <Route path="*" element={<Navigate to={APP_ROUTES.PORTAL} replace />} />
       </Routes>
+      {isServerWakingUp && (
+        <div className="fixed bottom-4 right-4 z-50 flex items-center gap-2.5 bg-base-100 text-base-content border border-primary/30 px-4 py-2.5 rounded-full shadow-xl text-xs font-medium animate-in fade-in duration-300">
+          <span className="loading loading-spinner loading-xs text-primary"></span>
+          <span>Iniciando servidor en la nube... esto puede tomar ~45s en el primer acceso.</span>
+        </div>
+      )}
     </Suspense>
   );
 }
